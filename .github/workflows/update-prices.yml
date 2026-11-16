@@ -1,0 +1,51 @@
+name: Cardmarket Preise täglich aktualisieren & GitHub Pages deployen
+
+on:
+  schedule:
+    # Läuft jeden Tag automatisch um 06:00 Uhr morgens
+    - cron: '0 5 * * *'
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - master
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  update-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: Node.js einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Aktuelle Cardmarket-Preise herunterladen & Portfolio aktualisieren
+        run: node update_static_data.js --force
+
+      - name: Aktualisierte Preisdaten im Repository speichern
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/portfolio.json public/data/portfolio.json public/data/catalog_compact.json public/images/
+          git diff --staged --quiet || git commit -m "Automatischer Cardmarket Preis-Sync"
+          git push
+
+      - name: GitHub Pages konfigurieren
+        uses: actions/configure-pages@v5
+
+      - name: Statische App (public/) für GitHub Pages packen
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './public'
+
+      - name: Auf GitHub Pages veröffentlichen
+        id: deployment
+        uses: actions/deploy-pages@v4
