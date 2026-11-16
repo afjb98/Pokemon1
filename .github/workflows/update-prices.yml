@@ -15,6 +15,10 @@ permissions:
   pages: write
   id-token: write
 
+concurrency:
+  group: "pages-deploy"
+  cancel-in-progress: true
+
 jobs:
   update-and-deploy:
     runs-on: ubuntu-latest
@@ -27,16 +31,15 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Aktuelle Cardmarket-Preise herunterladen & Portfolio aktualisieren
-        run: node update_static_data.js --force
-
-      - name: Aktualisierte Preisdaten im Repository speichern
+      - name: Aktuelle Cardmarket-Preise herunterladen (bei Zeitplan / manuellem Start)
+        if: github.event_name != 'push'
         run: |
+          node update_static_data.js --force
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git pull --rebase origin main || true
           git add data/portfolio.json public/data/portfolio.json public/data/catalog_compact.json public/images/
-          git diff --staged --quiet || git commit -m "Automatischer Cardmarket Preis-Sync"
-          git push
+          git diff --staged --quiet || (git commit -m "Automatischer Cardmarket Preis-Sync" && git push)
 
       - name: GitHub Pages konfigurieren
         uses: actions/configure-pages@v5
