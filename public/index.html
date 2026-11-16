@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <link rel="stylesheet" href="./style.css?v=10" />
+  <link rel="stylesheet" href="./style.css?v=11" />
 </head>
 <body>
   <div class="app-shell">
@@ -398,6 +398,7 @@
           <div class="search-hint">Lade Freunde aus der Cloud...</div>
         </div>
         <div class="modal-footer" style="margin-top: 16px;">
+          <button type="button" id="btnAdminLogout" class="btn btn-secondary">Abmelden</button>
           <button type="button" id="btnCopyFriendInviteFromModal" class="btn btn-secondary" style="margin-right: auto;">
             Freunde-Link kopieren
           </button>
@@ -407,9 +408,37 @@
     </div>
   </div>
 
+  <!-- Modal: Secure Supabase Admin Login -->
+  <div id="adminLoginModal" class="modal-backdrop hidden">
+    <div class="modal modal-sm">
+      <div class="modal-header">
+        <div>
+          <h2>Admin-Login</h2>
+          <p class="modal-sub">Nur mit deinem Dummy-Account lassen sich Freunde-Sammlungen lesen</p>
+        </div>
+        <button id="btnCloseAdminLogin" class="btn-icon">✕</button>
+      </div>
+      <form id="adminLoginForm" class="modal-body">
+        <div class="form-group">
+          <label for="adminEmailInput">Admin E-Mail *</label>
+          <input type="email" id="adminEmailInput" required placeholder="z.B. chef@pokevault.de" autocomplete="username" />
+        </div>
+        <div class="form-group" style="margin-top: 12px;">
+          <label for="adminPasswordInput">Passwort *</label>
+          <input type="password" id="adminPasswordInput" required placeholder="Passwort" autocomplete="current-password" />
+        </div>
+        <div id="adminLoginError" class="hidden" style="color: var(--red); font-size: 0.78rem; margin-top: 10px;"></div>
+        <div class="modal-footer" style="margin-top: 18px;">
+          <button type="button" id="btnCancelAdminLogin" class="btn btn-secondary">Abbrechen</button>
+          <button type="submit" id="btnSubmitAdminLogin" class="btn btn-primary">Anmelden</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Toast Notification -->
   <div id="toastBanner" class="toast-banner hidden"></div>
 
-  <script src="./app.js?v=10"></script>
+  <script src="./app.js?v=11"></script>
 </body>
 </html>

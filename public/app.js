@@ -18,10 +18,13 @@ const PERSONAL_ID_KEY = 'pokevault_personal_profile_id';
 const PROFILE_MODE_KEY = 'pokevault_profile_mode';
 const PROFILE_NAME_KEY = 'pokevault_profile_name';
 const ADMIN_FLAG_KEY = 'pokevault_is_admin';
+const ADMIN_SESSION_KEY = 'pokevault_admin_session_v1';
 const IMG_FALLBACK_CACHE_KEY = 'pokevault_img_cache_v1';
 
-// Supabase Cloud Config (for Friends' Portfolios -> visible only to Admin/Owner)
-const SUPABASE_REST_URL = 'https://gpvttfbvbwgseztpsibb.supabase.co/rest/v1';
+// Supabase Cloud Config (for Friends' Portfolios -> protected via Supabase Auth + RLS)
+const SUPABASE_BASE_URL = 'https://gpvttfbvbwgseztpsibb.supabase.co';
+const SUPABASE_REST_URL = `${SUPABASE_BASE_URL}/rest/v1`;
+const SUPABASE_AUTH_URL = `${SUPABASE_BASE_URL}/auth/v1`;
 const SUPABASE_KEY = 'sb_publishable_GOIbDeTsXqcvz2tWiTv7nA_3fehgJf5';
 
 let profileMode = 'owner'; // 'owner' | 'personal'
@@ -93,24 +96,108 @@ async function syncPersonalPortfolioToSupabase() {
       }
       return copy;
     });
-    await fetch(`${SUPABASE_REST_URL}/portfolios`, {
+    await fetch(`${SUPABASE_REST_URL}/rpc/save_friend_portfolio`, {
       method: 'POST',
       headers: {
         'apikey': SUPABASE_KEY,
         'Authorization': `Bearer ${SUPABASE_KEY}`,
-        'Content-Type': 'application/json',
-        'Prefer': 'resolution=merge-duplicates'
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        id: pid,
-        owner_name: profileName,
-        items: cleanItems,
-        updated_at: new Date().toISOString()
+        p_id: pid,
+        p_name: profileName,
+        p_items: cleanItems
       })
     });
   } catch (e) {
     console.warn('Cloud sync hint:', e);
   }
+}
+
+// Supabase Admin Authentication Helpers
+function getAdminSession() {
+  try {
+    const raw = localStorage.getItem(ADMIN_SESSION_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function saveAdminSession(session) {
+  try {
+    localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(session));
+  } catch (e) {}
+}
+
+function clearAdminSession() {
+  try {
+    localStorage.removeItem(ADMIN_SESSION_KEY);
+  } catch (e) {}
+}
+
+async function getValidAdminAccessToken() {
+  const sess = getAdminSession();
+  if (!sess || !sess.access_token) return null;
+
+  // Still valid for at least 60 seconds
+  if (sess.expires_at && Date.now() < sess.expires_at - 60000) {
+    return sess.access_token;
+  }
+
+  if (!sess.refresh_token) {
+    clearAdminSession();
+    return null;
+  }
+
+  try {
+    const res = await fetch(`${SUPABASE_AUTH_URL}/token?grant_type=refresh_token`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ refresh_token: sess.refresh_token })
+    });
+    if (!res.ok) {
+      clearAdminSession();
+      return null;
+    }
+    const data = await res.json();
+    const updated = {
+      access_token: data.access_token,
+      refresh_token: data.refresh_token || sess.refresh_token,
+      expires_at: Date.now() + (Number(data.expires_in) || 3600) * 1000,
+      email: data.user?.email || sess.email
+    };
+    saveAdminSession(updated);
+    return updated.access_token;
+  } catch (e) {
+    return null;
+  }
+}
+
+async function adminSignIn(email, password) {
+  const res = await fetch(`${SUPABASE_AUTH_URL}/token?grant_type=password`, {
+    method: 'POST',
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ email, password })
+  });
+  const data = await res.json();
+  if (!res.ok || !data.access_token) {
+    throw new Error(data.error_description || data.msg || 'E-Mail oder Passwort falsch.');
+  }
+  const session = {
+    access_token: data.access_token,
+    refresh_token: data.refresh_token,
+    expires_at: Date.now() + (Number(data.expires_in) || 3600) * 1000,
+    email: data.user?.email || email
+  };
+  saveAdminSession(session);
+  return session;
 }
 
 function initProfileState() {
@@ -1415,8 +1502,33 @@ function closeProfileModal() {
   document.getElementById('profileModal').classList.add('hidden');
 }
 
+function openAdminLoginModal() {
+  const modal = document.getElementById('adminLoginModal');
+  const errEl = document.getElementById('adminLoginError');
+  const emailEl = document.getElementById('adminEmailInput');
+  const pwEl = document.getElementById('adminPasswordInput');
+  errEl.classList.add('hidden');
+  errEl.textContent = '';
+  const sess = getAdminSession();
+  if (sess?.email) emailEl.value = sess.email;
+  pwEl.value = '';
+  modal.classList.remove('hidden');
+  setTimeout(() => (emailEl.value ? pwEl.focus() : emailEl.focus()), 60);
+}
+
+function closeAdminLoginModal() {
+  document.getElementById('adminLoginModal').classList.add('hidden');
+}
+
 async function openFriendsModal() {
   if (!isAdminMode) return;
+
+  const token = await getValidAdminAccessToken();
+  if (!token) {
+    openAdminLoginModal();
+    return;
+  }
+
   const modal = document.getElementById('friendsModal');
   const container = document.getElementById('friendsListContainer');
   modal.classList.remove('hidden');
@@ -1426,9 +1538,15 @@ async function openFriendsModal() {
     const res = await fetch(`${SUPABASE_REST_URL}/portfolios?select=id,owner_name,items,updated_at&order=updated_at.desc`, {
       headers: {
         'apikey': SUPABASE_KEY,
-        'Authorization': `Bearer ${SUPABASE_KEY}`
+        'Authorization': `Bearer ${token}`
       }
     });
+    if (res.status === 401 || res.status === 403) {
+      clearAdminSession();
+      closeFriendsModal();
+      openAdminLoginModal();
+      return;
+    }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const friends = await res.json();
 
@@ -1495,6 +1613,12 @@ async function openFriendsModal() {
 
 async function deleteFriendFromCloud(friendId, friendName) {
   if (!isAdminMode) return;
+  const token = await getValidAdminAccessToken();
+  if (!token) {
+    closeFriendsModal();
+    openAdminLoginModal();
+    return;
+  }
   if (!confirm(`Möchtest du das Konto „${friendName}“ wirklich komplett löschen?`)) return;
 
   try {
@@ -1502,14 +1626,20 @@ async function deleteFriendFromCloud(friendId, friendName) {
       method: 'DELETE',
       headers: {
         'apikey': SUPABASE_KEY,
-        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Authorization': `Bearer ${token}`,
         'Prefer': 'return=representation'
       }
     });
+    if (res.status === 401 || res.status === 403) {
+      clearAdminSession();
+      closeFriendsModal();
+      openAdminLoginModal();
+      return;
+    }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const deleted = await res.json();
     if (!Array.isArray(deleted) || deleted.length === 0) {
-      alert('In Supabase fehlt noch die Lösch-Berechtigung (SQL-Befehl). Siehe meine Antwort im Chat – dauert 5 Sekunden!');
+      alert('Löschen wurde von Supabase blockiert. Prüfe, ob die Admin-Delete-Regel gesetzt ist.');
       return;
     }
     if (viewingFriend && viewingFriend.id === friendId) {
@@ -1581,13 +1711,47 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btnCloseSnapshotModal').addEventListener('click', closeSnapshotModal);
   document.getElementById('btnCancelSnapshot').addEventListener('click', closeSnapshotModal);
 
-  // Friends Admin Viewer listeners
+  // Friends Admin Viewer & Secure Login listeners
   document.getElementById('btnOpenFriendsModal').addEventListener('click', openFriendsModal);
   document.getElementById('btnCloseFriendsModal').addEventListener('click', closeFriendsModal);
   document.getElementById('btnCloseFriendsBtn').addEventListener('click', closeFriendsModal);
   document.getElementById('btnCopyFriendInviteFromModal').addEventListener('click', shareFriendLink);
   document.getElementById('btnExitFriendView').addEventListener('click', exitFriendView);
   document.getElementById('btnSwitchAnotherFriend').addEventListener('click', openFriendsModal);
+
+  document.getElementById('btnCloseAdminLogin').addEventListener('click', closeAdminLoginModal);
+  document.getElementById('btnCancelAdminLogin').addEventListener('click', closeAdminLoginModal);
+  document.getElementById('btnAdminLogout').addEventListener('click', () => {
+    clearAdminSession();
+    closeFriendsModal();
+    if (viewingFriend) exitFriendView();
+    showToast('Admin abgemeldet.');
+  });
+
+  document.getElementById('adminLoginForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const email = document.getElementById('adminEmailInput').value.trim();
+    const pw = document.getElementById('adminPasswordInput').value;
+    const errEl = document.getElementById('adminLoginError');
+    const submitBtn = document.getElementById('btnSubmitAdminLogin');
+
+    errEl.classList.add('hidden');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Prüfe...';
+
+    try {
+      await adminSignIn(email, pw);
+      closeAdminLoginModal();
+      showToast('Erfolgreich angemeldet.');
+      openFriendsModal();
+    } catch (err) {
+      errEl.textContent = err.message || 'Anmeldung fehlgeschlagen.';
+      errEl.classList.remove('hidden');
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Anmelden';
+    }
+  });
 
   // Friends / Profile Modal listeners
   document.getElementById('btnShareFriendLink').addEventListener('click', shareFriendLink);
