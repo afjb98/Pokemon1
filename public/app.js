@@ -14,12 +14,21 @@ let isStaticMode = false;
 let staticCatalogItems = null; // loaded lazily from ./data/catalog_compact.json when in static mode
 const LOCAL_STORAGE_KEY = 'pokevault_portfolio_v1';
 const PERSONAL_PORTFOLIO_KEY = 'pokevault_personal_portfolio_v1';
+const PERSONAL_ID_KEY = 'pokevault_personal_profile_id';
 const PROFILE_MODE_KEY = 'pokevault_profile_mode';
 const PROFILE_NAME_KEY = 'pokevault_profile_name';
+const ADMIN_FLAG_KEY = 'pokevault_is_admin';
 const IMG_FALLBACK_CACHE_KEY = 'pokevault_img_cache_v1';
+
+// Supabase Cloud Config (for Friends' Portfolios -> visible only to Admin/Owner)
+const SUPABASE_REST_URL = 'https://gpvttfbvbwgseztpsibb.supabase.co/rest/v1';
+const SUPABASE_KEY = 'sb_publishable_GOIbDeTsXqcvz2tWiTv7nA_3fehgJf5';
 
 let profileMode = 'owner'; // 'owner' | 'personal'
 let profileName = '';
+let personalProfileId = '';
+let isAdminMode = false;
+let viewingFriend = null; // null or { id, owner_name, updated_at, items }
 
 // In-memory + localStorage caches for TCGdex fallback images on mobile
 let tcgdexImgCache = {};
@@ -33,7 +42,6 @@ function saveImgFallbackCache() {
   try {
     const keys = Object.keys(tcgdexImgCache);
     if (keys.length > 500) {
-      // Keep cache bounded
       for (const k of keys.slice(0, 100)) delete tcgdexImgCache[k];
     }
     localStorage.setItem(IMG_FALLBACK_CACHE_KEY, JSON.stringify(tcgdexImgCache));
@@ -56,10 +64,69 @@ function getFriendShareUrl() {
   return `${window.location.origin}${window.location.pathname}?friend=1`;
 }
 
+function getOrCreatePersonalId() {
+  let pid = localStorage.getItem(PERSONAL_ID_KEY);
+  if (!pid) {
+    pid = 'f_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+    localStorage.setItem(PERSONAL_ID_KEY, pid);
+  }
+  return pid;
+}
+
+let supabaseSyncTimer = null;
+function scheduleSupabaseSync() {
+  if (profileMode !== 'personal' || !profileName || viewingFriend) return;
+  clearTimeout(supabaseSyncTimer);
+  supabaseSyncTimer = setTimeout(syncPersonalPortfolioToSupabase, 600);
+}
+
+async function syncPersonalPortfolioToSupabase() {
+  if (profileMode !== 'personal' || !profileName || viewingFriend) return;
+  try {
+    const pid = personalProfileId || getOrCreatePersonalId();
+    // Strip any huge transient fields before uploading
+    const cleanItems = portfolioItems.map(it => {
+      const copy = { ...it };
+      if (copy.marketPrices && copy.marketPrices.raw) {
+        copy.marketPrices = { ...copy.marketPrices };
+        delete copy.marketPrices.raw;
+      }
+      return copy;
+    });
+    await fetch(`${SUPABASE_REST_URL}/portfolios`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates'
+      },
+      body: JSON.stringify({
+        id: pid,
+        owner_name: profileName,
+        items: cleanItems,
+        updated_at: new Date().toISOString()
+      })
+    });
+  } catch (e) {
+    console.warn('Cloud sync hint:', e);
+  }
+}
+
 function initProfileState() {
   const params = new URLSearchParams(window.location.search);
   const storedMode = localStorage.getItem(PROFILE_MODE_KEY);
   const storedName = localStorage.getItem(PROFILE_NAME_KEY) || '';
+  personalProfileId = getOrCreatePersonalId();
+
+  // Admin unlock: automatic on PC (localhost) OR via ?admin=1 on your iPhone
+  const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  if (params.get('admin') === '1') {
+    localStorage.setItem(ADMIN_FLAG_KEY, '1');
+    isAdminMode = true;
+  } else {
+    isAdminMode = isLocalHost || localStorage.getItem(ADMIN_FLAG_KEY) === '1';
+  }
 
   if (params.get('friend') === '1' || params.get('new') === '1') {
     profileMode = 'personal';
@@ -76,7 +143,6 @@ function initProfileState() {
 
   updateProfileHeader();
 
-  // If opened via ?friend=1 without a saved name yet, prompt immediately for their name
   if (profileMode === 'personal' && !profileName) {
     setTimeout(() => openProfileModal(true), 120);
   }
@@ -88,13 +154,49 @@ function updateProfileHeader() {
   const badgeEl = document.getElementById('profileBadgeBtn');
   const switchBtn = document.getElementById('btnOpenProfileModal');
   const subtitleEl = document.getElementById('appBrandSubtitle');
+  const friendsBtn = document.getElementById('btnOpenFriendsModal');
+  const shareBtn = document.getElementById('btnShareFriendLink');
+  const addBtn = document.getElementById('btnOpenAddModal');
+  const viewBanner = document.getElementById('viewingFriendBanner');
+
+  // Show "Freunde" button ONLY for you (PC or unlocked iPhone ?admin=1)
+  if (friendsBtn) {
+    if (isAdminMode) friendsBtn.classList.remove('hidden');
+    else friendsBtn.classList.add('hidden');
+  }
+
+  // Hide "Freunde-Link" & "Geteilte Sammlung" from friends when they are in personal mode (unless you are Admin)
+  if (shareBtn) {
+    if (!isAdminMode && profileMode === 'personal') shareBtn.classList.add('hidden');
+    else shareBtn.classList.remove('hidden');
+  }
+
+  if (viewingFriend) {
+    const fName = viewingFriend.owner_name || 'Freund';
+    titleEl.textContent = `Portfolio von ${fName}`;
+    document.title = `Portfolio von ${fName} – Ansicht`;
+    markEl.textContent = fName.slice(0, 2).toUpperCase();
+    badgeEl.textContent = 'Freunde-Ansicht';
+    subtitleEl.textContent = 'Live-Stand aus der Cloud (nur Leseansicht)';
+    if (addBtn) addBtn.classList.add('hidden');
+    if (viewBanner) {
+      viewBanner.classList.remove('hidden');
+      document.getElementById('viewingFriendLabel').textContent = `Du siehst gerade: Portfolio von ${fName}`;
+      const upd = viewingFriend.updated_at ? new Date(viewingFriend.updated_at).toLocaleString('de-DE') : '';
+      document.getElementById('viewingFriendSub').textContent = upd ? `Zuletzt aktualisiert: ${upd} • Schreibgeschützt` : 'Schreibgeschützte Live-Ansicht';
+    }
+    return;
+  }
+
+  if (viewBanner) viewBanner.classList.add('hidden');
+  if (addBtn) addBtn.classList.remove('hidden');
 
   if (profileMode === 'personal' && profileName) {
     titleEl.textContent = `Portfolio von ${profileName}`;
     document.title = `Portfolio von ${profileName} – Cardmarket DE`;
     markEl.textContent = profileName.slice(0, 2).toUpperCase();
     badgeEl.textContent = `Profil: ${profileName} ✎`;
-    switchBtn.textContent = 'Profil wechseln';
+    switchBtn.textContent = 'Name ändern';
     subtitleEl.textContent = 'Persönliche Sammlung mit täglichen deutschen Cardmarket-Preisen';
   } else {
     titleEl.textContent = 'Pokémon Portfolio';
@@ -173,12 +275,16 @@ function getActiveStorageKey() {
 }
 
 function saveLocalPortfolio() {
+  if (viewingFriend) return; // Never overwrite local storage when inspecting a friend
   try {
     localStorage.setItem(
       getActiveStorageKey(),
       JSON.stringify({ items: portfolioItems, ownerName: profileName, savedAt: new Date().toISOString() })
     );
   } catch (e) {}
+  if (profileMode === 'personal' && profileName) {
+    scheduleSupabaseSync();
+  }
 }
 
 function cleanEnglishCardNameForApi(rawName) {
@@ -352,9 +458,9 @@ async function ensureStaticCatalogLoaded() {
   return staticCatalogLoadingPromise;
 }
 
-// Refresh prices for a friend's personal portfolio using daily-updated catalog_compact.json
-async function refreshPersonalItemsFromCatalog() {
-  if (portfolioItems.length === 0) return;
+// Enrich any list of items with latest daily Cardmarket prices from catalog_compact.json
+async function enrichItemsWithCatalog(items) {
+  if (!Array.isArray(items) || items.length === 0) return false;
   try {
     const list = await ensureStaticCatalogLoaded();
     const byId = new Map();
@@ -363,7 +469,7 @@ async function refreshPersonalItemsFromCatalog() {
     }
     const today = new Date().toISOString().slice(0, 10);
     let updated = false;
-    for (const item of portfolioItems) {
+    for (const item of items) {
       if (!item.idProduct) continue;
       const row = byId.get(Number(item.idProduct));
       if (!row) continue;
@@ -392,15 +498,31 @@ async function refreshPersonalItemsFromCatalog() {
       }
       updated = true;
     }
-    if (updated) {
-      saveLocalPortfolio();
-      renderAll();
-    }
-  } catch (e) {}
+    return updated;
+  } catch (e) {
+    return false;
+  }
 }
 
-// Load Portfolio (supports both Owner Mode and Personal/Friends Mode)
+async function refreshPersonalItemsFromCatalog() {
+  if (portfolioItems.length === 0) return;
+  const updated = await enrichItemsWithCatalog(portfolioItems);
+  if (updated) {
+    saveLocalPortfolio();
+    renderAll();
+  }
+}
+
+// Load Portfolio (supports Owner Mode, Personal/Friends Mode, and Read-Only Viewing Friend Mode)
 async function fetchPortfolio() {
+  if (viewingFriend) {
+    portfolioItems = Array.isArray(viewingFriend.items) ? viewingFriend.items : [];
+    renderAll();
+    const updated = await enrichItemsWithCatalog(portfolioItems);
+    if (updated) renderAll();
+    return;
+  }
+
   if (profileMode === 'personal') {
     let personalData = null;
     try {
@@ -409,7 +531,6 @@ async function fetchPortfolio() {
     } catch (e) {}
     portfolioItems = Array.isArray(personalData?.items) ? personalData.items : [];
     renderAll();
-    // Silently sync latest daily Cardmarket prices for the friend's cards
     refreshPersonalItemsFromCatalog();
     return;
   }
@@ -528,6 +649,11 @@ function renderTable() {
     emptyState.classList.remove('hidden');
     tableWrap.classList.add('hidden');
     if (setGalleryWrap) setGalleryWrap.classList.add('hidden');
+    const emptyBtn = document.getElementById('btnEmptyAdd');
+    if (emptyBtn) {
+      if (viewingFriend) emptyBtn.classList.add('hidden');
+      else emptyBtn.classList.remove('hidden');
+    }
     return;
   }
   emptyState.classList.add('hidden');
@@ -667,10 +793,10 @@ function renderTable() {
       </td>
       <td>
         <div class="row-actions" onclick="event.stopPropagation();">
-          <button class="action-btn" title="DE-Preis direkt anpassen" onclick="openSnapshotModal('${item.id}')">DE €</button>
+          ${viewingFriend ? '' : `<button class="action-btn" title="DE-Preis direkt anpassen" onclick="openSnapshotModal('${item.id}')">DE €</button>`}
           ${cmUrl ? `<a class="action-btn" href="${escapeHtml(cmUrl)}" target="_blank" rel="noopener" title="Auf Cardmarket (Deutsch) öffnen">CM ↗</a>` : ''}
-          <button class="action-btn" title="Bearbeiten" onclick="openEditModal('${item.id}')">Bearbeiten</button>
-          <button class="action-btn delete" title="Aus Portfolio löschen" onclick="deleteItem('${item.id}')">Löschen</button>
+          ${viewingFriend ? '' : `<button class="action-btn" title="Bearbeiten" onclick="openEditModal('${item.id}')">Bearbeiten</button>`}
+          ${viewingFriend ? '' : `<button class="action-btn delete" title="Aus Portfolio löschen" onclick="deleteItem('${item.id}')">Löschen</button>`}
         </div>
       </td>
     `;
@@ -793,11 +919,11 @@ function renderSetGallery(items, container) {
             <span class="gallery-buy-txt">EK: ${fmtEuro(uBuy)}</span>
             <span class="gallery-profit-txt ${profClass}">${fmtSignedEuro(prof)}</span>
           </div>
-          <div class="gallery-card-actions" onclick="event.stopPropagation();">
+          ${viewingFriend ? '' : `<div class="gallery-card-actions" onclick="event.stopPropagation();">
             <button class="action-btn" onclick="openSnapshotModal('${item.id}')">DE €</button>
             <button class="action-btn" onclick="openEditModal('${item.id}')">Edit</button>
             <button class="action-btn delete" onclick="deleteItem('${item.id}')">✕</button>
-          </div>
+          </div>`}
         </div>
       `;
 
@@ -1271,15 +1397,16 @@ function openProfileModal(isFirstFriendPrompt = false) {
 
   if (isFirstFriendPrompt || profileMode !== 'personal') {
     titleEl.textContent = 'Eigenes Portfolio starten';
-    subEl.textContent = 'Gib deinen Namen ein – deine Karten werden nur auf deinem Gerät gespeichert';
+    subEl.textContent = 'Gib deinen Namen ein – deine Karten und Preise werden sicher gespeichert';
     saveBtn.textContent = 'Mein Portfolio starten';
   } else {
-    titleEl.textContent = 'Profil bearbeiten';
-    subEl.textContent = 'Namen anpassen oder zur geteilten Sammlung wechseln';
+    titleEl.textContent = 'Name ändern';
+    subEl.textContent = 'Passe deinen Anzeigenamen für deine Sammlung an';
     saveBtn.textContent = 'Namen speichern';
   }
 
-  if (profileMode === 'personal') {
+  // Only show "Geteilte Sammlung" switch back to owner if user is Admin
+  if (profileMode === 'personal' && isAdminMode) {
     switchOwnerBtn.classList.remove('hidden');
   } else {
     switchOwnerBtn.classList.add('hidden');
@@ -1293,6 +1420,95 @@ function closeProfileModal() {
   document.getElementById('profileModal').classList.add('hidden');
 }
 
+async function openFriendsModal() {
+  if (!isAdminMode) return;
+  const modal = document.getElementById('friendsModal');
+  const container = document.getElementById('friendsListContainer');
+  modal.classList.remove('hidden');
+  container.innerHTML = `<div class="search-hint">Lade Freunde-Sammlungen aus der Cloud...</div>`;
+
+  try {
+    const res = await fetch(`${SUPABASE_REST_URL}/portfolios?select=id,owner_name,items,updated_at&order=updated_at.desc`, {
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`
+      }
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const friends = await res.json();
+
+    if (!Array.isArray(friends) || friends.length === 0) {
+      container.innerHTML = `<div class="search-hint">Noch keine Freunde eingetragen. Schick deinen Freunden den Freunde-Link, dann erscheinen sie hier automatisch!</div>`;
+      return;
+    }
+
+    // Enrich all friends' items with today's Cardmarket catalog prices
+    for (const f of friends) {
+      if (Array.isArray(f.items) && f.items.length > 0) {
+        await enrichItemsWithCatalog(f.items);
+      }
+    }
+
+    container.innerHTML = '';
+    for (const f of friends) {
+      const fItems = Array.isArray(f.items) ? f.items : [];
+      let totalVal = 0;
+      let totalBuy = 0;
+      let totalQty = 0;
+      for (const it of fItems) {
+        const qty = Number(it.quantity) || 1;
+        totalVal += getUnitDePrice(it) * qty;
+        totalBuy += (Number(it.buyPrice) || 0) * qty;
+        totalQty += qty;
+      }
+      const profit = totalVal - totalBuy;
+      const profColor = profit >= 0 ? 'var(--green)' : 'var(--red)';
+      const upd = f.updated_at ? new Date(f.updated_at).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
+
+      const row = document.createElement('div');
+      row.className = 'friend-row';
+      row.innerHTML = `
+        <div class="friend-row-left">
+          <div class="friend-avatar">${escapeHtml((f.owner_name || 'F').slice(0, 2).toUpperCase())}</div>
+          <div>
+            <div class="friend-name">${escapeHtml(f.owner_name || 'Unbekannt')}</div>
+            <div class="friend-meta">${fItems.length} Positionen (${totalQty} Stück)${upd ? ` • Stand: ${upd}` : ''}</div>
+          </div>
+        </div>
+        <div class="friend-row-right">
+          <div class="friend-val">${fmtEuro(totalVal)}</div>
+          <div class="friend-profit" style="color:${profColor};">${fmtSignedEuro(profit)}</div>
+        </div>
+      `;
+      row.addEventListener('click', () => {
+        closeFriendsModal();
+        enterFriendView(f);
+      });
+      container.appendChild(row);
+    }
+  } catch (err) {
+    container.innerHTML = `<div class="search-hint">Fehler beim Laden: ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function closeFriendsModal() {
+  document.getElementById('friendsModal').classList.add('hidden');
+}
+
+function enterFriendView(friendRecord) {
+  viewingFriend = friendRecord;
+  selectedChartItemId = null;
+  updateProfileHeader();
+  fetchPortfolio();
+}
+
+function exitFriendView() {
+  viewingFriend = null;
+  selectedChartItemId = null;
+  updateProfileHeader();
+  fetchPortfolio();
+}
+
 async function shareFriendLink() {
   const url = getFriendShareUrl();
   try {
@@ -1304,9 +1520,7 @@ async function shareFriendLink() {
       });
       return;
     }
-  } catch (e) {
-    // Fallback to clipboard if user cancelled share sheet or unsupported
-  }
+  } catch (e) {}
   try {
     await navigator.clipboard.writeText(url);
     showToast('Freunde-Link kopiert! Einfach per WhatsApp / Nachricht teilen.');
@@ -1336,10 +1550,20 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btnCloseSnapshotModal').addEventListener('click', closeSnapshotModal);
   document.getElementById('btnCancelSnapshot').addEventListener('click', closeSnapshotModal);
 
+  // Friends Admin Viewer listeners
+  document.getElementById('btnOpenFriendsModal').addEventListener('click', openFriendsModal);
+  document.getElementById('btnCloseFriendsModal').addEventListener('click', closeFriendsModal);
+  document.getElementById('btnCloseFriendsBtn').addEventListener('click', closeFriendsModal);
+  document.getElementById('btnCopyFriendInviteFromModal').addEventListener('click', shareFriendLink);
+  document.getElementById('btnExitFriendView').addEventListener('click', exitFriendView);
+  document.getElementById('btnSwitchAnotherFriend').addEventListener('click', openFriendsModal);
+
   // Friends / Profile Modal listeners
   document.getElementById('btnShareFriendLink').addEventListener('click', shareFriendLink);
   document.getElementById('btnOpenProfileModal').addEventListener('click', () => openProfileModal(false));
-  document.getElementById('profileBadgeBtn').addEventListener('click', () => openProfileModal(false));
+  document.getElementById('profileBadgeBtn').addEventListener('click', () => {
+    if (!viewingFriend) openProfileModal(false);
+  });
   document.getElementById('btnCloseProfileModal').addEventListener('click', closeProfileModal);
   document.getElementById('btnCancelProfile').addEventListener('click', closeProfileModal);
 
@@ -1353,7 +1577,7 @@ document.addEventListener('DOMContentLoaded', () => {
     showToast('Geteilte Hauptsammlung geladen.');
   });
 
-  document.getElementById('profileForm').addEventListener('submit', e => {
+  document.getElementById('profileForm').addEventListener('submit', async e => {
     e.preventDefault();
     const enteredName = document.getElementById('profileNameInput').value.trim();
     if (!enteredName) return;
@@ -1367,7 +1591,9 @@ document.addEventListener('DOMContentLoaded', () => {
     selectedChartItemId = null;
     closeProfileModal();
     updateProfileHeader();
-    fetchPortfolio();
+    await fetchPortfolio();
+    // Immediately register/update profile in Supabase cloud
+    await syncPersonalPortfolioToSupabase();
     showToast(wasOwner ? `Willkommen, ${profileName}! Dein Portfolio ist bereit.` : `Profilname auf „${profileName}“ aktualisiert.`);
   });
 

@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <link rel="stylesheet" href="./style.css?v=7" />
+  <link rel="stylesheet" href="./style.css?v=8" />
 </head>
 <body>
   <div class="app-shell">
@@ -37,6 +37,9 @@
           <span class="dot"></span>
           <span id="catalogStatusText">Katalog wird geladen...</span>
         </div>
+        <button id="btnOpenFriendsModal" class="btn btn-secondary hidden" title="Sammlungen deiner Freunde live ansehen">
+          Freunde
+        </button>
         <button id="btnShareFriendLink" class="btn btn-secondary" title="Link für Freunde kopieren, damit sie ihr eigenes Portfolio starten können">
           Freunde-Link
         </button>
@@ -58,6 +61,18 @@
         </button>
       </div>
     </header>
+
+    <!-- Banner when inspecting a friend's collection (Read-Only) -->
+    <div id="viewingFriendBanner" class="viewing-friend-banner hidden">
+      <div>
+        <strong id="viewingFriendLabel">Ansicht: Portfolio von ...</strong>
+        <span class="viewing-friend-sub" id="viewingFriendSub">Schreibgeschützte Live-Ansicht aus der Cloud</span>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button type="button" id="btnSwitchAnotherFriend" class="btn btn-sm btn-secondary">Anderer Freund</button>
+        <button type="button" id="btnExitFriendView" class="btn btn-sm btn-primary">← Zurück zu meinem Portfolio</button>
+      </div>
+    </div>
 
     <!-- Summary Strip -->
     <section class="kpi-grid">
@@ -350,7 +365,7 @@
         <div class="form-group">
           <label for="profileNameInput">Dein Name *</label>
           <input type="text" id="profileNameInput" maxlength="32" required placeholder="z.B. Max, Lisa, Kevin..." />
-          <small class="field-help">Deine Karten, Einkaufspreise und Charts werden lokal auf deinem Gerät gespeichert. Die Cardmarket-Preise aktualisieren sich automatisch.</small>
+          <small class="field-help">Deine Karten und Einkaufspreise werden sicher gespeichert und täglich mit den Cardmarket-Preisen abgeglichen.</small>
         </div>
 
         <div class="profile-info-box" id="profileInfoBox">
@@ -368,9 +383,33 @@
     </div>
   </div>
 
+  <!-- Modal: Live Friends Portfolios List (Admin / Owner only) -->
+  <div id="friendsModal" class="modal-backdrop hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <div>
+          <h2>Freunde-Sammlungen (Live)</h2>
+          <p class="modal-sub">Wähle einen Freund aus, um seine aktuellen Karten, Boxen und Werte anzusehen</p>
+        </div>
+        <button id="btnCloseFriendsModal" class="btn-icon">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="friendsListContainer" class="friends-list">
+          <div class="search-hint">Lade Freunde aus der Cloud...</div>
+        </div>
+        <div class="modal-footer" style="margin-top: 16px;">
+          <button type="button" id="btnCopyFriendInviteFromModal" class="btn btn-secondary" style="margin-right: auto;">
+            Freunde-Link kopieren
+          </button>
+          <button type="button" id="btnCloseFriendsBtn" class="btn btn-primary">Schließen</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Notification -->
   <div id="toastBanner" class="toast-banner hidden"></div>
 
-  <script src="./app.js?v=7"></script>
+  <script src="./app.js?v=8"></script>
 </body>
 </html>
