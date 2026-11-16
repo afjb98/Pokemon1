@@ -1,6 +1,70 @@
 {
   "items": [
     {
+      "id": "item_1794859163638_kyxe8",
+      "idProduct": 918957,
+      "name": "Tectass – Mega Golisopod ex [Finishing Blow | Quatro-Hold]",
+      "displayNameDe": "Tectass – Mega Golisopod ex [Finishing Blow | Quatro-Hold]",
+      "type": "single",
+      "categoryName": "Pokémon Single",
+      "expansionName": "Delta Reign",
+      "expansionCode": "DLR",
+      "isHolo": false,
+      "condition": "NM",
+      "language": "DE",
+      "quantity": 1,
+      "buyPrice": 5,
+      "buyDate": "2026-11-16",
+      "customLowPrice": null,
+      "imageUrl": "/api/cm-image/918957",
+      "cardmarketUrl": "https://www.cardmarket.com/de/Pokemon/Products/Search?searchString=Mega%20Golisopod%20ex%20%5BFinishing%20Blow%20%7C%20Quatro-Hold%5D&language=3",
+      "notes": "",
+      "marketPrices": {
+        "low": 0.7,
+        "trend": 2.2,
+        "dePrice": 2.2,
+        "avg1": 2.61,
+        "avg7": 2.84,
+        "avg30": 2.97,
+        "avg": 4.99,
+        "updatedAt": "2026-11-16T02:48:57+0100"
+      },
+      "priceHistory": [
+        {
+          "date": "2026-10-17",
+          "low": 2.97,
+          "trend": 2.2,
+          "label": "30T Ø"
+        },
+        {
+          "date": "2026-11-02",
+          "low": 2.91,
+          "trend": 2.2,
+          "label": "14T Ø"
+        },
+        {
+          "date": "2026-11-09",
+          "low": 2.84,
+          "trend": 2.2,
+          "label": "7T Ø"
+        },
+        {
+          "date": "2026-11-15",
+          "low": 2.61,
+          "trend": 2.2,
+          "label": "Gestern"
+        },
+        {
+          "date": "2026-11-16",
+          "low": 2.2,
+          "trend": 2.2,
+          "label": "Heute"
+        }
+      ],
+      "createdAt": "2026-11-16T19:59:23.638Z",
+      "staticImageUrl": "images/918957.jpg"
+    },
+    {
       "id": "item_1794859144887_juojl",
       "idProduct": 918954,
       "name": "Azurill [Hopping Charge]",
