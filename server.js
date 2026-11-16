@@ -483,7 +483,7 @@ function searchCatalog(query, typeFilter = 'all', limit = 60) {
 
     if (rawLower === q || deLower === q) score += 120;
     else if (rawLower.startsWith(q) || deLower.startsWith(q)) score += 60;
-    if (p.hasDirectImage) score += 35;
+    if (p.hasDirectImage) score += 80; // Strongly prefer western/German sets that have S3 images over Chinese/Indonesian variants
     if (pg && (pg.low != null || pg.trend != null)) score += 25;
 
     results.push({

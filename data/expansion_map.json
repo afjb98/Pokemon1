@@ -389,6 +389,21 @@
     "en": "Wizards Black Star Promos",
     "de": "Wizards Black Star Promos"
   },
+  "1608": {
+    "code": "ADV",
+    "en": "ADV",
+    "de": "ADV"
+  },
+  "1610": {
+    "code": "HGSS",
+    "en": "HGSS",
+    "de": "HGSS"
+  },
+  "1611": {
+    "code": "BW",
+    "en": "BW",
+    "de": "BW"
+  },
   "1612": {
     "code": "XYP",
     "tcgdexId": "xyp",
@@ -448,6 +463,26 @@
     "tcgdexId": "pop9",
     "en": "POP Series 9",
     "de": "POP Serie 9"
+  },
+  "1625": {
+    "code": "XY",
+    "en": "XY",
+    "de": "XY"
+  },
+  "1629": {
+    "code": "CL",
+    "en": "HS Trainer Kit",
+    "de": "HS Trainer Kit"
+  },
+  "1631": {
+    "code": "XY",
+    "en": "XY Trainer Kit",
+    "de": "XY Trainer Kit"
+  },
+  "1632": {
+    "code": "XY",
+    "en": "XY Trainer Kit: Bisharp and Wigglytuff",
+    "de": "XY Trainer Kit: Bisharp and Wigglytuff"
   },
   "1633": {
     "code": "SI",
@@ -514,6 +549,11 @@
     "tcgdexId": "xy10",
     "en": "Fates Collide",
     "de": "Schicksalsschmiede"
+  },
+  "1707": {
+    "code": "ROS",
+    "en": "XY Trainer Kit: Pikachu Libre & Suicune",
+    "de": "XY Trainer Kit: Pikachu Libre & Suicune"
   },
   "1716": {
     "code": "STS",
@@ -659,17 +699,52 @@
     "en": "Darkness Ablaze",
     "de": "Flammende Finsternis"
   },
+  "3219": {
+    "code": "DAA",
+    "en": "Explosive Flame Walker",
+    "de": "Explosive Flame Walker"
+  },
+  "3274": {
+    "code": "DAA",
+    "en": "Infinity Zone Limited",
+    "de": "Infinity Zone Limited"
+  },
+  "3294": {
+    "code": "SSH",
+    "en": "Shield",
+    "de": "Shield"
+  },
+  "3354": {
+    "code": "DRM",
+    "en": "McDonald's Collection 2019 FR",
+    "de": "McDonald's Collection 2019 FR"
+  },
+  "3389": {
+    "code": "CPA",
+    "en": "V Starter Decks: Eevee V Starter Deck",
+    "de": "V Starter Decks: Eevee V Starter Deck"
+  },
   "3419": {
     "code": "CPA",
     "tcgdexId": "swsh3.5",
     "en": "Champion's Path",
     "de": "Weg des Champs"
   },
+  "3479": {
+    "code": "VIV",
+    "en": "Shocking Volt Tackle Limited",
+    "de": "Shocking Volt Tackle Limited"
+  },
   "3484": {
     "code": "VIV",
     "tcgdexId": "swsh4",
     "en": "Vivid Voltage",
     "de": "Farbenschock"
+  },
+  "3590": {
+    "code": "SHF",
+    "en": "VMAX Starter Deck: Blastoise VMAX",
+    "de": "VMAX Starter Deck: Blastoise VMAX"
   },
   "3630": {
     "code": "SHF",
@@ -683,11 +758,206 @@
     "en": "Battle Styles",
     "de": "Kampfstile"
   },
+  "3697": {
+    "code": "BST",
+    "en": "Rapid Strike Master",
+    "de": "Rapid Strike Master"
+  },
+  "3856": {
+    "code": "CES",
+    "en": "GX Ultra Shiny",
+    "de": "GX Ultra Shiny"
+  },
+  "3881": {
+    "code": "CES",
+    "en": "Sky-Splitting Charisma",
+    "de": "Sky-Splitting Charisma"
+  },
+  "3886": {
+    "code": "CES",
+    "en": "Champion Road",
+    "de": "Champion Road"
+  },
+  "3891": {
+    "code": "DRM",
+    "en": "Dragon Storm",
+    "de": "Dragon Storm"
+  },
+  "3911": {
+    "code": "UPR",
+    "en": "Ultra Sun",
+    "de": "Ultra Sun"
+  },
+  "3931": {
+    "code": "SLG",
+    "en": "Shining Legends JP",
+    "de": "Shining Legends JP"
+  },
+  "3989": {
+    "code": "EVO",
+    "en": "Expansion Pack 20th Anniversary",
+    "de": "Expansion Pack 20th Anniversary"
+  },
+  "4029": {
+    "code": "ROS",
+    "en": "Emerald Break",
+    "de": "Emerald Break"
+  },
+  "4059": {
+    "code": "XY",
+    "en": "Collection Y",
+    "de": "Collection Y"
+  },
+  "4064": {
+    "code": "XY",
+    "en": "Collection X",
+    "de": "Collection X"
+  },
+  "4154": {
+    "code": "XY",
+    "en": "XY Beginning Set",
+    "de": "XY Beginning Set"
+  },
+  "4159": {
+    "code": "ROS",
+    "en": "20th Anniversary Team Rocket Special Case",
+    "de": "20th Anniversary Team Rocket Special Case"
+  },
+  "4170": {
+    "code": "UNP",
+    "en": "UNP",
+    "de": "UNP"
+  },
   "4174": {
     "code": "CRE",
     "tcgdexId": "swsh6",
     "en": "Chilling Reign",
     "de": "Schaurige Herrschaft"
+  },
+  "4180": {
+    "code": "BW",
+    "en": "EX Battle Boost",
+    "de": "EX Battle Boost"
+  },
+  "4182": {
+    "code": "BW",
+    "en": "Megalo Cannon",
+    "de": "Megalo Cannon"
+  },
+  "4184": {
+    "code": "BW",
+    "en": "Shiny Collection",
+    "de": "Shiny Collection"
+  },
+  "4186": {
+    "code": "PLF",
+    "en": "Spiral Force",
+    "de": "Spiral Force"
+  },
+  "4187": {
+    "code": "WAK",
+    "en": "Everyone's Exciting Battle Box",
+    "de": "Everyone's Exciting Battle Box"
+  },
+  "4189": {
+    "code": "BKW",
+    "en": "White Kyurem EX Battle Strength Deck",
+    "de": "White Kyurem EX Battle Strength Deck"
+  },
+  "4194": {
+    "code": "BCR",
+    "en": "Cold Flare",
+    "de": "Cold Flare"
+  },
+  "4195": {
+    "code": "BCR",
+    "en": "Freeze Bolt",
+    "de": "Freeze Bolt"
+  },
+  "4196": {
+    "code": "BCR",
+    "en": "National Pokédex Beginning Set",
+    "de": "National Pokédex Beginning Set"
+  },
+  "4198": {
+    "code": "DRX",
+    "en": "Garchomp Half Deck",
+    "de": "Garchomp Half Deck"
+  },
+  "4203": {
+    "code": "DRV",
+    "en": "Dragon Selection",
+    "de": "Dragon Selection"
+  },
+  "4204": {
+    "code": "BW",
+    "en": "Dark Rush",
+    "de": "Dark Rush"
+  },
+  "4209": {
+    "code": "NXD",
+    "en": "Psycho Drive",
+    "de": "Psycho Drive"
+  },
+  "4213": {
+    "code": "BW",
+    "en": "White Collection",
+    "de": "White Collection"
+  },
+  "4218": {
+    "code": "BW",
+    "en": "BW",
+    "de": "BW"
+  },
+  "4243": {
+    "code": "FST",
+    "en": "Sword & Shield Family Pokémon Card Game",
+    "de": "Sword & Shield Family Pokémon Card Game"
+  },
+  "4246": {
+    "code": "HIF",
+    "en": "Sun & Moon Family Pokémon Card Game",
+    "de": "Sun & Moon Family Pokémon Card Game"
+  },
+  "4250": {
+    "code": "SLG",
+    "en": "Flareon GX Starter Set Fire",
+    "de": "Flareon GX Starter Set Fire"
+  },
+  "4263": {
+    "code": "UD",
+    "en": "Tyranitar Constructed Standard Deck",
+    "de": "Tyranitar Constructed Standard Deck"
+  },
+  "4265": {
+    "code": "UD",
+    "en": "Reviving Legends",
+    "de": "Reviving Legends"
+  },
+  "4266": {
+    "code": "UL",
+    "en": "UL",
+    "de": "UL"
+  },
+  "4272": {
+    "code": "HS",
+    "en": "SoulSilver Collection",
+    "de": "SoulSilver Collection"
+  },
+  "4273": {
+    "code": "HS",
+    "en": "HeartGold Collection",
+    "de": "HeartGold Collection"
+  },
+  "4274": {
+    "code": "HGSS",
+    "en": "HGSS",
+    "de": "HGSS"
+  },
+  "4314": {
+    "code": "PK",
+    "en": "PK",
+    "de": "PK"
   },
   "4328": {
     "code": "EVS",
@@ -695,11 +965,31 @@
     "en": "Evolving Skies",
     "de": "Drachenwandel"
   },
+  "4341": {
+    "code": "PCG",
+    "en": "PCG",
+    "de": "PCG"
+  },
+  "4342": {
+    "code": "PCG",
+    "en": "PCG",
+    "de": "PCG"
+  },
   "4347": {
     "code": "CEL",
     "tcgdexId": "cel25",
     "en": "Celebrations",
     "de": "Celebrations"
+  },
+  "4350": {
+    "code": "ADV",
+    "en": "ADV",
+    "de": "ADV"
+  },
+  "4360": {
+    "code": "FST",
+    "en": "Fusion Arts",
+    "de": "Fusion Arts"
   },
   "4382": {
     "code": "FST",
@@ -707,11 +997,26 @@
     "en": "Fusion Strike",
     "de": "Fusionsangriff"
   },
+  "4388": {
+    "code": "BRS",
+    "en": "Start Deck 100 Deck",
+    "de": "Start Deck 100 Deck"
+  },
+  "4390": {
+    "code": "BST",
+    "en": "VMAX Climax",
+    "de": "VMAX Climax"
+  },
   "4434": {
     "code": "BRS",
     "tcgdexId": "swsh9",
     "en": "Brilliant Stars",
     "de": "Strahlende Sterne"
+  },
+  "4440": {
+    "code": "BRS",
+    "en": "Special Card Set Grass Leafeon VSTAR",
+    "de": "Special Card Set Grass Leafeon VSTAR"
   },
   "4505": {
     "code": "EX5.5",
@@ -719,11 +1024,36 @@
     "en": "Poké Card Creator Pack",
     "de": null
   },
+  "4507": {
+    "code": "NDI",
+    "en": "Neo Premium File 2",
+    "de": "Neo Premium File 2"
+  },
+  "4509": {
+    "code": "NDE",
+    "en": "Darkness, and to Light...",
+    "de": "Darkness, and to Light..."
+  },
+  "4517": {
+    "code": "SLD",
+    "en": "Sword & Shield Starter Set Darkrai VSTAR",
+    "de": "Sword & Shield Starter Set Darkrai VSTAR"
+  },
   "4786": {
     "code": "PGO",
     "tcgdexId": "swsh10.5",
     "en": "Pokémon GO",
     "de": "Pokémon GO"
+  },
+  "4973": {
+    "code": "ASR",
+    "en": "Time Gazer",
+    "de": "Time Gazer"
+  },
+  "4974": {
+    "code": "ASR",
+    "en": "Space Juggler",
+    "de": "Space Juggler"
   },
   "4979": {
     "code": "ASR",
@@ -742,6 +1072,11 @@
     "en": "Lost Origin",
     "de": "Verlorener Ursprung"
   },
+  "5094": {
+    "code": "SIT",
+    "en": "Lost Abyss",
+    "de": "Lost Abyss"
+  },
   "5142": {
     "code": "SIT",
     "tcgdexId": "swsh12",
@@ -753,6 +1088,11 @@
     "tcgdexId": "swsh12.5",
     "en": "Crown Zenith",
     "de": "Zenit der Könige"
+  },
+  "5218": {
+    "code": "SV",
+    "en": "ex Starter Set Sprigatito & Lucario ex",
+    "de": "ex Starter Set Sprigatito & Lucario ex"
   },
   "5223": {
     "code": "SVI",
@@ -790,6 +1130,21 @@
     "en": "Paradox Rift",
     "de": "Paradoxrift"
   },
+  "5526": {
+    "code": "MFB",
+    "en": "My First Battle: Bulbasaur & Pikachu",
+    "de": "My First Battle: Bulbasaur & Pikachu"
+  },
+  "5529": {
+    "code": "CL",
+    "en": "Pokémon Card Game Classic: Blastoise & Suicune ex Deck",
+    "de": "Pokémon Card Game Classic: Blastoise & Suicune ex Deck"
+  },
+  "5532": {
+    "code": "CL",
+    "en": "Pokémon Trading Card Game Classic: Blastoise & Suicune ex Deck",
+    "de": "Pokémon Trading Card Game Classic: Blastoise & Suicune ex Deck"
+  },
   "5546": {
     "code": "PAF",
     "tcgdexId": "sv04.5",
@@ -808,6 +1163,41 @@
     "en": "Twilight Masquerade",
     "de": "Maskerade im Zwielicht"
   },
+  "5700": {
+    "code": "CG",
+    "en": "Miracle Crystal",
+    "de": "Miracle Crystal"
+  },
+  "5709": {
+    "code": "DS",
+    "en": "Holon Research Tower",
+    "de": "Holon Research Tower"
+  },
+  "5710": {
+    "code": "LM",
+    "en": "Mirage Forest",
+    "de": "Mirage Forest"
+  },
+  "5711": {
+    "code": "UF",
+    "en": "Golden Sky, Silvery Ocean",
+    "de": "Golden Sky, Silvery Ocean"
+  },
+  "5713": {
+    "code": "DX",
+    "en": "Clash of the Blue Sky",
+    "de": "Clash of the Blue Sky"
+  },
+  "5714": {
+    "code": "FL",
+    "en": "Flight of Legends",
+    "de": "Flight of Legends"
+  },
+  "5718": {
+    "code": "HP",
+    "en": "Master Kit",
+    "de": "Master Kit"
+  },
   "5760": {
     "code": "SFA",
     "tcgdexId": "sv06.5",
@@ -819,6 +1209,31 @@
     "tcgdexId": "sv07",
     "en": "Stellar Crown",
     "de": "Stellarkrone"
+  },
+  "5834": {
+    "code": "SV",
+    "en": "SV",
+    "de": "SV"
+  },
+  "5869": {
+    "code": "DR",
+    "en": "Magma VS Aqua: Two Ambitions",
+    "de": "Magma VS Aqua: Two Ambitions"
+  },
+  "5871": {
+    "code": "DR",
+    "en": "Flygon Constructed Starter Deck",
+    "de": "Flygon Constructed Starter Deck"
+  },
+  "5872": {
+    "code": "DR",
+    "en": "Rulers of the Heavens",
+    "de": "Rulers of the Heavens"
+  },
+  "5873": {
+    "code": "SS",
+    "en": "Miracle of the Desert",
+    "de": "Miracle of the Desert"
   },
   "5879": {
     "code": "SSP",
@@ -843,6 +1258,21 @@
     "en": "Destined Rivals",
     "de": "Ewige Rivalen"
   },
+  "6127": {
+    "code": "SV",
+    "en": "SV",
+    "de": "SV"
+  },
+  "6130": {
+    "code": "SV",
+    "en": "Black Bolt / White Flare JP Card File Set",
+    "de": "Black Bolt / White Flare JP Card File Set"
+  },
+  "6131": {
+    "code": "SV",
+    "en": "White Flare JP",
+    "de": "White Flare JP"
+  },
   "6134": {
     "code": "BLK",
     "tcgdexId": "sv10.5b",
@@ -855,11 +1285,51 @@
     "en": "White Flare",
     "de": "Weiße Flammen"
   },
+  "6197": {
+    "code": "SV",
+    "en": "SV",
+    "de": "SV"
+  },
+  "6198": {
+    "code": "SV",
+    "en": "SV",
+    "de": "SV"
+  },
+  "6199": {
+    "code": "FST",
+    "en": "Battle Academy 2022",
+    "de": "Battle Academy 2022"
+  },
+  "6200": {
+    "code": "HIF",
+    "en": "Battle Academy",
+    "de": "Battle Academy"
+  },
+  "6205": {
+    "code": "FST",
+    "en": "CS4bC: Nine Colors Gathering - Origin",
+    "de": "CS4bC: Nine Colors Gathering - Origin"
+  },
   "6209": {
     "code": "MEG",
     "tcgdexId": "me01",
     "en": "Mega Evolution",
     "de": "Mega-Entwicklung"
+  },
+  "6222": {
+    "code": "SV",
+    "en": "SV",
+    "de": "SV"
+  },
+  "6223": {
+    "code": "SV",
+    "en": "SV",
+    "de": "SV"
+  },
+  "6230": {
+    "code": "MEP",
+    "en": "Pokémon Card Gym Promo MEGA Vol. 1",
+    "de": "Pokémon Card Gym Promo MEGA Vol. 1"
   },
   "6232": {
     "code": "MEP",
@@ -867,11 +1337,131 @@
     "en": "MEP Black Star Promos",
     "de": "MEP Black Star Promos"
   },
+  "6249": {
+    "code": "SIT",
+    "en": "CS6aC: Azure Shadow - Roar",
+    "de": "CS6aC: Azure Shadow - Roar"
+  },
+  "6250": {
+    "code": "SIT",
+    "en": "CS6bC: Azure Shadow - Pursuit",
+    "de": "CS6bC: Azure Shadow - Pursuit"
+  },
+  "6257": {
+    "code": "ASR",
+    "en": "CS5aC: Brave Stars - Charm",
+    "de": "CS5aC: Brave Stars - Charm"
+  },
+  "6258": {
+    "code": "BRS",
+    "en": "CS5bC: Brave Stars - Brave",
+    "de": "CS5bC: Brave Stars - Brave"
+  },
+  "6267": {
+    "code": "BST",
+    "en": "CS3bC: Primordial Arts - Torrent",
+    "de": "CS3bC: Primordial Arts - Torrent"
+  },
+  "6272": {
+    "code": "LOR",
+    "en": "CS4.1C: Radiant Energy Vol.1",
+    "de": "CS4.1C: Radiant Energy Vol.1"
+  },
+  "6274": {
+    "code": "SHF",
+    "en": "CS6.1C: Radiant Energy Vol. 3",
+    "de": "CS6.1C: Radiant Energy Vol. 3"
+  },
+  "6276": {
+    "code": "VIV",
+    "en": "CS2.5C: Brilliant Counterattack",
+    "de": "CS2.5C: Brilliant Counterattack"
+  },
+  "6279": {
+    "code": "DAA",
+    "en": "CS2aC: Vivid Portrayals - Obsidian",
+    "de": "CS2aC: Vivid Portrayals - Obsidian"
+  },
+  "6287": {
+    "code": "SV",
+    "en": "Black & White Indonesian Collector Set",
+    "de": "Black & White Indonesian Collector Set"
+  },
+  "6291": {
+    "code": "PFL",
+    "en": "Inferno X",
+    "de": "Inferno X"
+  },
+  "6297": {
+    "code": "SSH",
+    "en": "CS1aC: Dynamax Clash - Thunder",
+    "de": "CS1aC: Dynamax Clash - Thunder"
+  },
+  "6298": {
+    "code": "CPA",
+    "en": "CS1bC: Dynamax Clash - Flame",
+    "de": "CS1bC: Dynamax Clash - Flame"
+  },
   "6299": {
     "code": "PFL",
     "tcgdexId": "me02",
     "en": "Phantasmal Flames",
     "de": "Fatale Flammen"
+  },
+  "6310": {
+    "code": "SHF",
+    "en": "CSVE2C: Battle Party Shining Dream Set 1",
+    "de": "CSVE2C: Battle Party Shining Dream Set 1"
+  },
+  "6311": {
+    "code": "BST",
+    "en": "CSVE1C: Battle Party Dream Together Set 1",
+    "de": "CSVE1C: Battle Party Dream Together Set 1"
+  },
+  "6329": {
+    "code": "ASR",
+    "en": "ASR",
+    "de": "ASR"
+  },
+  "6335": {
+    "code": "SV",
+    "en": "CSVH1C: Simplified Chinese Happy Card Set",
+    "de": "CSVH1C: Simplified Chinese Happy Card Set"
+  },
+  "6341": {
+    "code": "CES",
+    "en": "CSM1aC: Storming Emergence - Radiant",
+    "de": "CSM1aC: Storming Emergence - Radiant"
+  },
+  "6380": {
+    "code": "SV",
+    "en": "MEGA Dream ex",
+    "de": "MEGA Dream ex"
+  },
+  "6381": {
+    "code": "SV",
+    "en": "MEGA Start Deck 100 Battle Collection",
+    "de": "MEGA Start Deck 100 Battle Collection"
+  },
+  "6382": {
+    "code": "SV",
+    "en": "MEGA Start Deck 100 Battle Collection Corociao Version",
+    "de": "MEGA Start Deck 100 Battle Collection Corociao Version"
+  },
+  "6391": {
+    "code": "MEP",
+    "en": "MEP",
+    "de": "MEP"
+  },
+  "6392": {
+    "code": "MEP",
+    "en": "MEP",
+    "de": "MEP"
+  },
+  "6393": {
+    "code": "MEP",
+    "en": "MEP",
+    "de": "MEP"
   },
   "6395": {
     "code": "ASC",
@@ -879,11 +1469,36 @@
     "en": "Ascended Heroes",
     "de": "Erhabene Helden"
   },
+  "6397": {
+    "code": "BRS",
+    "en": "CS5DC: Brave Stars V Starter Deck",
+    "de": "CS5DC: Brave Stars V Starter Deck"
+  },
+  "6409": {
+    "code": "SV",
+    "en": "SV",
+    "de": "SV"
+  },
+  "6425": {
+    "code": "SV",
+    "en": "Play! Pokémon Prize Pack Series Eight",
+    "de": "Play! Pokémon Prize Pack Series Eight"
+  },
   "6443": {
     "code": "POR",
     "tcgdexId": "me03",
     "en": "Perfect Order",
     "de": "Optimale Ordnung"
+  },
+  "6494": {
+    "code": "CRI",
+    "en": "Ninja Spinner",
+    "de": "Ninja Spinner"
+  },
+  "6514": {
+    "code": "MEP",
+    "en": "30th Anniversary Celebration Simplified Chinese: Original Partner Card Set Vol.1",
+    "de": "30th Anniversary Celebration Simplified Chinese: Original Partner Card Set Vol.1"
   },
   "6517": {
     "code": "CRI",
@@ -891,11 +1506,26 @@
     "en": "Chaos Rising",
     "de": "Wachsendes Chaos"
   },
+  "6518": {
+    "code": "CRI",
+    "en": "CRI",
+    "de": "CRI"
+  },
+  "6549": {
+    "code": "HIF",
+    "en": "Simplified Chinese Battle Party Set",
+    "de": "Simplified Chinese Battle Party Set"
+  },
   "6569": {
     "code": "PBL",
     "tcgdexId": "me05",
     "en": "Pitch Black",
     "de": "Dunkelnacht"
+  },
+  "6581": {
+    "code": "SLG",
+    "en": "CSM1DC: Storming Emergence GX Starter Deck",
+    "de": "CSM1DC: Storming Emergence GX Starter Deck"
   },
   "6601": {
     "code": "30C",
@@ -903,11 +1533,31 @@
     "en": "30th Classic Collection",
     "de": null
   },
+  "6673": {
+    "code": "BST",
+    "en": "BST",
+    "de": "BST"
+  },
   "6704": {
     "code": "DLR",
     "tcgdexId": "me06",
     "en": "Delta Reign",
     "de": null
+  },
+  "6928": {
+    "code": "SV",
+    "en": "CSV10.5C: Black Bolt S-Ch Jumbo",
+    "de": "CSV10.5C: Black Bolt S-Ch Jumbo"
+  },
+  "6929": {
+    "code": "SV",
+    "en": "CSV10.6C: White Flare S-Ch",
+    "de": "CSV10.6C: White Flare S-Ch"
+  },
+  "6963": {
+    "code": "SV",
+    "en": "Mega Gengar ex, Mega Dragonite ex & Mega Feraligatr ex Special Deck Set",
+    "de": "Mega Gengar ex, Mega Dragonite ex & Mega Feraligatr ex Special Deck Set"
   },
   "275771": {
     "code": "TK1A",

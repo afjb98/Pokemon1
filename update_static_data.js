@@ -280,7 +280,8 @@ async function run() {
     };
     productMap.set(id, item);
 
-    if (prices.dePrice != null || prices.low != null || prices.trend != null) {
+    const hasValue = (prices.dePrice != null && prices.dePrice >= 1.0) || (prices.trend != null && prices.trend >= 1.0);
+    if (hasValue || (expCode && (prices.dePrice != null || prices.low != null))) {
       compactCatalog.push([
         id,
         p.name || '',
@@ -297,6 +298,14 @@ async function run() {
       ]);
     }
   }
+
+  // Sort compactCatalog so items with official western set codes (expCode) and higher prices come FIRST in mobile search!
+  compactCatalog.sort((a, b) => {
+    const hasCodeA = a[6] ? 1 : 0;
+    const hasCodeB = b[6] ? 1 : 0;
+    if (hasCodeA !== hasCodeB) return hasCodeB - hasCodeA;
+    return (b[7] || 0) - (a[7] || 0);
+  });
 
   const today = new Date().toISOString().slice(0, 10);
   if (fs.existsSync(PORTFOLIO_FILE)) {
