@@ -1,6 +1,70 @@
 {
   "items": [
     {
+      "id": "item_1794859067288_zly35",
+      "idProduct": 918940,
+      "name": "Maskeregen (Masquerain) [Frightening Pattern | Bug Out]",
+      "displayNameDe": "Maskeregen (Masquerain) [Frightening Pattern | Bug Out]",
+      "type": "single",
+      "categoryName": "Pokémon Single",
+      "expansionName": "Delta Reign",
+      "expansionCode": "DLR",
+      "isHolo": false,
+      "condition": "NM",
+      "language": "DE",
+      "quantity": 4,
+      "buyPrice": 5,
+      "buyDate": "2026-11-16",
+      "customLowPrice": null,
+      "imageUrl": "/api/cm-image/918940",
+      "cardmarketUrl": "https://www.cardmarket.com/de/Pokemon/Products/Search?searchString=Masquerain%20%5BFrightening%20Pattern%20%7C%20Bug%20Out%5D&language=3",
+      "notes": "",
+      "marketPrices": {
+        "low": 1.29,
+        "trend": 1.27,
+        "dePrice": 1.29,
+        "avg1": 1.88,
+        "avg7": 2.22,
+        "avg30": 2.37,
+        "avg": 4.99,
+        "updatedAt": "2026-11-16T02:48:57+0100"
+      },
+      "priceHistory": [
+        {
+          "date": "2026-10-17",
+          "low": 2.37,
+          "trend": 1.27,
+          "label": "30T Ø"
+        },
+        {
+          "date": "2026-11-02",
+          "low": 2.29,
+          "trend": 1.27,
+          "label": "14T Ø"
+        },
+        {
+          "date": "2026-11-09",
+          "low": 2.22,
+          "trend": 1.27,
+          "label": "7T Ø"
+        },
+        {
+          "date": "2026-11-15",
+          "low": 1.88,
+          "trend": 1.27,
+          "label": "Gestern"
+        },
+        {
+          "date": "2026-11-16",
+          "low": 1.29,
+          "trend": 1.27,
+          "label": "Heute"
+        }
+      ],
+      "createdAt": "2026-11-16T19:57:47.288Z",
+      "staticImageUrl": "images/918940.jpg"
+    },
+    {
       "id": "item_1794859044441_1s8dk",
       "idProduct": 918868,
       "name": "Golgantes – Mega Golurk ex [Mobility Restriction | Goliath Punch]",
