@@ -1,6 +1,70 @@
 {
   "items": [
     {
+      "id": "item_1794859112419_j0dnd",
+      "idProduct": 918948,
+      "name": "Cupidos (Enamorus) [Incarnate Union | Rising Heart]",
+      "displayNameDe": "Cupidos (Enamorus) [Incarnate Union | Rising Heart]",
+      "type": "single",
+      "categoryName": "Pokémon Single",
+      "expansionName": "Delta Reign",
+      "expansionCode": "DLR",
+      "isHolo": false,
+      "condition": "NM",
+      "language": "DE",
+      "quantity": 1,
+      "buyPrice": 5,
+      "buyDate": "2026-11-16",
+      "customLowPrice": null,
+      "imageUrl": "/api/cm-image/918948",
+      "cardmarketUrl": "https://www.cardmarket.com/de/Pokemon/Products/Search?searchString=Enamorus%20%5BIncarnate%20Union%20%7C%20Rising%20Heart%5D&language=3",
+      "notes": "",
+      "marketPrices": {
+        "low": 1.9,
+        "trend": 2.3,
+        "dePrice": 1.9,
+        "avg1": 2.74,
+        "avg7": 3.13,
+        "avg30": 3.42,
+        "avg": 6.99,
+        "updatedAt": "2026-11-16T02:48:57+0100"
+      },
+      "priceHistory": [
+        {
+          "date": "2026-10-17",
+          "low": 3.42,
+          "trend": 2.3,
+          "label": "30T Ø"
+        },
+        {
+          "date": "2026-11-02",
+          "low": 3.27,
+          "trend": 2.3,
+          "label": "14T Ø"
+        },
+        {
+          "date": "2026-11-09",
+          "low": 3.13,
+          "trend": 2.3,
+          "label": "7T Ø"
+        },
+        {
+          "date": "2026-11-15",
+          "low": 2.74,
+          "trend": 2.3,
+          "label": "Gestern"
+        },
+        {
+          "date": "2026-11-16",
+          "low": 1.9,
+          "trend": 2.3,
+          "label": "Heute"
+        }
+      ],
+      "createdAt": "2026-11-16T19:58:32.419Z",
+      "staticImageUrl": "images/918948.jpg"
+    },
+    {
       "id": "item_1794859093848_r7mc1",
       "idProduct": 918947,
       "name": "Britzigel (Pincurchin) [Energy Crush]",
