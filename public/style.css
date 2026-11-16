@@ -234,6 +234,9 @@ body {
 }
 
 .friend-row-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   text-align: right;
   font-family: 'JetBrains Mono', monospace;
   flex-shrink: 0;

@@ -1437,25 +1437,15 @@ async function openFriendsModal() {
       return;
     }
 
-    // Filter out empty 0-item duplicate rows if another row with same name has items
-    const nonEmptyNames = new Set(
-      friends.filter(f => Array.isArray(f.items) && f.items.length > 0).map(f => (f.owner_name || '').toLowerCase())
-    );
-    const filteredFriends = friends.filter(f => {
-      const hasItems = Array.isArray(f.items) && f.items.length > 0;
-      if (hasItems) return true;
-      return !nonEmptyNames.has((f.owner_name || '').toLowerCase());
-    });
-
     // Enrich all friends' items with today's Cardmarket catalog prices
-    for (const f of filteredFriends) {
+    for (const f of friends) {
       if (Array.isArray(f.items) && f.items.length > 0) {
         await enrichItemsWithCatalog(f.items);
       }
     }
 
     container.innerHTML = '';
-    for (const f of filteredFriends) {
+    for (const f of friends) {
       const fItems = Array.isArray(f.items) ? f.items : [];
       let totalVal = 0;
       let totalBuy = 0;
@@ -1481,10 +1471,17 @@ async function openFriendsModal() {
           </div>
         </div>
         <div class="friend-row-right">
-          <div class="friend-val">${fmtEuro(totalVal)}</div>
-          <div class="friend-profit" style="color:${profColor};">${fmtSignedEuro(profit)}</div>
+          <div>
+            <div class="friend-val">${fmtEuro(totalVal)}</div>
+            <div class="friend-profit" style="color:${profColor};">${fmtSignedEuro(profit)}</div>
+          </div>
+          <button type="button" class="action-btn delete" title="Diesen Freund / Testkonto löschen">Löschen</button>
         </div>
       `;
+      row.querySelector('.action-btn.delete').addEventListener('click', e => {
+        e.stopPropagation();
+        deleteFriendFromCloud(f.id, f.owner_name || 'Unbekannt');
+      });
       row.addEventListener('click', () => {
         closeFriendsModal();
         enterFriendView(f);
@@ -1493,6 +1490,35 @@ async function openFriendsModal() {
     }
   } catch (err) {
     container.innerHTML = `<div class="search-hint">Fehler beim Laden: ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+async function deleteFriendFromCloud(friendId, friendName) {
+  if (!isAdminMode) return;
+  if (!confirm(`Möchtest du das Konto „${friendName}“ wirklich komplett löschen?`)) return;
+
+  try {
+    const res = await fetch(`${SUPABASE_REST_URL}/portfolios?id=eq.${encodeURIComponent(friendId)}`, {
+      method: 'DELETE',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Prefer': 'return=representation'
+      }
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const deleted = await res.json();
+    if (!Array.isArray(deleted) || deleted.length === 0) {
+      alert('In Supabase fehlt noch die Lösch-Berechtigung (SQL-Befehl). Siehe meine Antwort im Chat – dauert 5 Sekunden!');
+      return;
+    }
+    if (viewingFriend && viewingFriend.id === friendId) {
+      exitFriendView();
+    }
+    showToast(`„${friendName}“ gelöscht.`);
+    openFriendsModal();
+  } catch (err) {
+    alert('Fehler beim Löschen: ' + err.message);
   }
 }
 
