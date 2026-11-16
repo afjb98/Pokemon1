@@ -1,6 +1,134 @@
 {
   "items": [
     {
+      "id": "item_1794859093848_r7mc1",
+      "idProduct": 918947,
+      "name": "Britzigel (Pincurchin) [Energy Crush]",
+      "displayNameDe": "Britzigel (Pincurchin) [Energy Crush]",
+      "type": "single",
+      "categoryName": "Pokémon Single",
+      "expansionName": "Delta Reign",
+      "expansionCode": "DLR",
+      "isHolo": false,
+      "condition": "NM",
+      "language": "DE",
+      "quantity": 1,
+      "buyPrice": 5,
+      "buyDate": "2026-11-16",
+      "customLowPrice": null,
+      "imageUrl": "/api/cm-image/918947",
+      "cardmarketUrl": "https://www.cardmarket.com/de/Pokemon/Products/Search?searchString=Pincurchin%20%5BEnergy%20Crush%5D&language=3",
+      "notes": "",
+      "marketPrices": {
+        "low": 1.2,
+        "trend": 1.76,
+        "dePrice": 1.76,
+        "avg1": 2.21,
+        "avg7": 2.44,
+        "avg30": 2.61,
+        "avg": 3.65,
+        "updatedAt": "2026-11-16T02:48:57+0100"
+      },
+      "priceHistory": [
+        {
+          "date": "2026-10-17",
+          "low": 2.61,
+          "trend": 1.76,
+          "label": "30T Ø"
+        },
+        {
+          "date": "2026-11-02",
+          "low": 2.52,
+          "trend": 1.76,
+          "label": "14T Ø"
+        },
+        {
+          "date": "2026-11-09",
+          "low": 2.44,
+          "trend": 1.76,
+          "label": "7T Ø"
+        },
+        {
+          "date": "2026-11-15",
+          "low": 2.21,
+          "trend": 1.76,
+          "label": "Gestern"
+        },
+        {
+          "date": "2026-11-16",
+          "low": 1.76,
+          "trend": 1.76,
+          "label": "Heute"
+        }
+      ],
+      "createdAt": "2026-11-16T19:58:13.848Z",
+      "staticImageUrl": "images/918947.jpg"
+    },
+    {
+      "id": "item_1794859081279_qzrqx",
+      "idProduct": 918944,
+      "name": "Magbrant (Magmortar) [Buddy Boost | Heat Crash]",
+      "displayNameDe": "Magbrant (Magmortar) [Buddy Boost | Heat Crash]",
+      "type": "single",
+      "categoryName": "Pokémon Single",
+      "expansionName": "Delta Reign",
+      "expansionCode": "DLR",
+      "isHolo": false,
+      "condition": "NM",
+      "language": "DE",
+      "quantity": 1,
+      "buyPrice": 5,
+      "buyDate": "2026-11-16",
+      "customLowPrice": null,
+      "imageUrl": "/api/cm-image/918944",
+      "cardmarketUrl": "https://www.cardmarket.com/de/Pokemon/Products/Search?searchString=Magmortar%20%5BBuddy%20Boost%20%7C%20Heat%20Crash%5D&language=3",
+      "notes": "",
+      "marketPrices": {
+        "low": 1.9,
+        "trend": 2.63,
+        "dePrice": 2.63,
+        "avg1": 3.04,
+        "avg7": 3.71,
+        "avg30": 3.95,
+        "avg": 8,
+        "updatedAt": "2026-11-16T02:48:57+0100"
+      },
+      "priceHistory": [
+        {
+          "date": "2026-10-17",
+          "low": 3.95,
+          "trend": 2.63,
+          "label": "30T Ø"
+        },
+        {
+          "date": "2026-11-02",
+          "low": 3.83,
+          "trend": 2.63,
+          "label": "14T Ø"
+        },
+        {
+          "date": "2026-11-09",
+          "low": 3.71,
+          "trend": 2.63,
+          "label": "7T Ø"
+        },
+        {
+          "date": "2026-11-15",
+          "low": 3.04,
+          "trend": 2.63,
+          "label": "Gestern"
+        },
+        {
+          "date": "2026-11-16",
+          "low": 2.63,
+          "trend": 2.63,
+          "label": "Heute"
+        }
+      ],
+      "createdAt": "2026-11-16T19:58:01.279Z",
+      "staticImageUrl": "images/918944.jpg"
+    },
+    {
       "id": "item_1794859067288_zly35",
       "idProduct": 918940,
       "name": "Maskeregen (Masquerain) [Frightening Pattern | Bug Out]",
