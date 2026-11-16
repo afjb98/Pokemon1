@@ -1,0 +1,9 @@
+{
+  "name": "pokemon-cardmarket-tracker",
+  "version": "1.0.0",
+  "description": "Pokémon Card & Sealed Portfolio Tracker mit offiziellen Cardmarket-Preisdaten",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

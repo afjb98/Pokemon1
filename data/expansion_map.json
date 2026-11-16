@@ -1,0 +1,918 @@
+{
+  "1521": {
+    "code": "PHF",
+    "tcgdexId": "xy4",
+    "en": "Phantom Forces",
+    "de": "Phantomkräfte"
+  },
+  "1523": {
+    "code": "BS",
+    "tcgdexId": "base1",
+    "en": "Base Set",
+    "de": "Grundset"
+  },
+  "1525": {
+    "code": "JU",
+    "tcgdexId": "base2",
+    "en": "Jungle",
+    "de": "Dschungel"
+  },
+  "1526": {
+    "code": "FO",
+    "tcgdexId": "base3",
+    "en": "Fossil",
+    "de": "Fossil"
+  },
+  "1527": {
+    "code": "B2",
+    "tcgdexId": "base4",
+    "en": "Base Set 2",
+    "de": null
+  },
+  "1528": {
+    "code": "RO",
+    "tcgdexId": "base5",
+    "en": "Team Rocket",
+    "de": "Team Rocket"
+  },
+  "1529": {
+    "code": "G1",
+    "tcgdexId": "gym1",
+    "en": "Gym Heroes",
+    "de": null
+  },
+  "1530": {
+    "code": "G2",
+    "tcgdexId": "gym2",
+    "en": "Gym Challenge",
+    "de": null
+  },
+  "1531": {
+    "code": "N1",
+    "tcgdexId": "neo1",
+    "en": "Neo Genesis",
+    "de": "Neo Genesis"
+  },
+  "1532": {
+    "code": "N2",
+    "tcgdexId": "neo2",
+    "en": "Neo Discovery",
+    "de": "Neo Entdeckung"
+  },
+  "1533": {
+    "code": "N3",
+    "tcgdexId": "neo3",
+    "en": "Neo Revelation",
+    "de": "Neo Revelation"
+  },
+  "1534": {
+    "code": "N4",
+    "tcgdexId": "neo4",
+    "en": "Neo Destiny",
+    "de": "Neo Destiny"
+  },
+  "1535": {
+    "code": "LC",
+    "tcgdexId": "lc",
+    "en": "Legendary Collection",
+    "de": null
+  },
+  "1536": {
+    "code": "EX",
+    "tcgdexId": "ecard1",
+    "en": "Expedition Base Set",
+    "de": "Expedition"
+  },
+  "1537": {
+    "code": "AQ",
+    "tcgdexId": "ecard2",
+    "en": "Aquapolis",
+    "de": "Aquapolis"
+  },
+  "1538": {
+    "code": "SK",
+    "tcgdexId": "ecard3",
+    "en": "Skyridge",
+    "de": "Skyridge"
+  },
+  "1539": {
+    "code": "RS",
+    "tcgdexId": "ex1",
+    "en": "Ruby & Sapphire",
+    "de": "EX Rubin & Saphir"
+  },
+  "1540": {
+    "code": "SS",
+    "tcgdexId": "ex2",
+    "en": "Sandstorm",
+    "de": "EX Sandsturm"
+  },
+  "1541": {
+    "code": "DR",
+    "tcgdexId": "ex3",
+    "en": "Dragon",
+    "de": "EX Drache"
+  },
+  "1542": {
+    "code": "MA",
+    "tcgdexId": "ex4",
+    "en": "Team Magma vs Team Aqua",
+    "de": "EX Team Magma vs Team Aqua"
+  },
+  "1543": {
+    "code": "HL",
+    "tcgdexId": "ex5",
+    "en": "Hidden Legends",
+    "de": null
+  },
+  "1544": {
+    "code": "RG",
+    "tcgdexId": "ex6",
+    "en": "FireRed & LeafGreen",
+    "de": "EX Feuerrot & Blattgrün"
+  },
+  "1545": {
+    "code": "TR",
+    "tcgdexId": "ex7",
+    "en": "Team Rocket Returns",
+    "de": null
+  },
+  "1546": {
+    "code": "DX",
+    "tcgdexId": "ex8",
+    "en": "Deoxys",
+    "de": "EX Deoxys"
+  },
+  "1547": {
+    "code": "EM",
+    "tcgdexId": "ex9",
+    "en": "Emerald",
+    "de": "EX Smaragd"
+  },
+  "1548": {
+    "code": "UF",
+    "tcgdexId": "ex10",
+    "en": "Unseen Forces",
+    "de": "EX Verborgene Mächte"
+  },
+  "1549": {
+    "code": "DS",
+    "tcgdexId": "ex11",
+    "en": "Delta Species",
+    "de": "EX Delta Species"
+  },
+  "1550": {
+    "code": "LM",
+    "tcgdexId": "ex12",
+    "en": "Legend Maker",
+    "de": "EX Legend Maker"
+  },
+  "1551": {
+    "code": "HP",
+    "tcgdexId": "ex13",
+    "en": "Holon Phantoms",
+    "de": "EX Holon Phantoms"
+  },
+  "1552": {
+    "code": "CG",
+    "tcgdexId": "ex14",
+    "en": "Crystal Guardians",
+    "de": "EX Crystal Guardians"
+  },
+  "1553": {
+    "code": "DF",
+    "tcgdexId": "ex15",
+    "en": "Dragon Frontiers",
+    "de": "EX Dragon Frontiers"
+  },
+  "1554": {
+    "code": "PK",
+    "tcgdexId": "ex16",
+    "en": "Power Keepers",
+    "de": "EX Power Keepers"
+  },
+  "1555": {
+    "code": "DP",
+    "tcgdexId": "dp1",
+    "en": "Diamond & Pearl",
+    "de": "Diamant & Perl"
+  },
+  "1556": {
+    "code": "MT",
+    "tcgdexId": "dp2",
+    "en": "Mysterious Treasures",
+    "de": "Geheimnisvolle Schätze"
+  },
+  "1557": {
+    "code": "SW",
+    "tcgdexId": "dp3",
+    "en": "Secret Wonders",
+    "de": "Rätselhafte Wunder"
+  },
+  "1558": {
+    "code": "GE",
+    "tcgdexId": "dp4",
+    "en": "Great Encounters",
+    "de": "Epische Begegnungen"
+  },
+  "1559": {
+    "code": "MD",
+    "tcgdexId": "dp5",
+    "en": "Majestic Dawn",
+    "de": "Majestätischer Morgen"
+  },
+  "1560": {
+    "code": "LA",
+    "tcgdexId": "dp6",
+    "en": "Legends Awakened",
+    "de": "Erwachte Legenden"
+  },
+  "1561": {
+    "code": "SF",
+    "tcgdexId": "dp7",
+    "en": "Stormfront",
+    "de": "Sturmtief"
+  },
+  "1562": {
+    "code": "PL",
+    "tcgdexId": "pl1",
+    "en": "Platinum",
+    "de": "Platin"
+  },
+  "1563": {
+    "code": "RR",
+    "tcgdexId": "pl2",
+    "en": "Rising Rivals",
+    "de": "Aufstieg der Rivalen"
+  },
+  "1564": {
+    "code": "SV",
+    "tcgdexId": "pl3",
+    "en": "Supreme Victors",
+    "de": "Ultimative Sieger"
+  },
+  "1565": {
+    "code": "AR",
+    "tcgdexId": "pl4",
+    "en": "Arceus",
+    "de": "Arceus"
+  },
+  "1566": {
+    "code": "HS",
+    "tcgdexId": "hgss1",
+    "en": "HeartGold SoulSilver",
+    "de": "HeartGold SoulSilver"
+  },
+  "1567": {
+    "code": "UL",
+    "tcgdexId": "hgss2",
+    "en": "Unleashed",
+    "de": "Entfesselt"
+  },
+  "1568": {
+    "code": "UND",
+    "tcgdexId": "hgss3",
+    "en": "Undaunted",
+    "de": "Unerschrocken"
+  },
+  "1569": {
+    "code": "TRI",
+    "tcgdexId": "hgss4",
+    "en": "Triumphant",
+    "de": "Triumph"
+  },
+  "1570": {
+    "code": "COL",
+    "tcgdexId": "col1",
+    "en": "Call of Legends",
+    "de": "Ruf der Legenden"
+  },
+  "1571": {
+    "code": "BLW",
+    "tcgdexId": "bw1",
+    "en": "Black & White",
+    "de": "Schwarz & Weiß"
+  },
+  "1572": {
+    "code": "EP",
+    "tcgdexId": "bw2",
+    "en": "Emerging Powers",
+    "de": "Aufstreben der Mächtigen"
+  },
+  "1573": {
+    "code": "NVI",
+    "tcgdexId": "bw3",
+    "en": "Noble Victories",
+    "de": "Königliche Siege"
+  },
+  "1574": {
+    "code": "NXD",
+    "tcgdexId": "bw4",
+    "en": "Next Destinies",
+    "de": "Kommende Schicksale"
+  },
+  "1575": {
+    "code": "DEX",
+    "tcgdexId": "bw5",
+    "en": "Dark Explorers",
+    "de": "Erforscher der Finsternis"
+  },
+  "1576": {
+    "code": "DRX",
+    "tcgdexId": "bw6",
+    "en": "Dragons Exalted",
+    "de": "Hoheit der Drachen"
+  },
+  "1577": {
+    "code": "BCR",
+    "tcgdexId": "bw7",
+    "en": "Boundaries Crossed",
+    "de": "Überschrittene Schwellen"
+  },
+  "1578": {
+    "code": "PLS",
+    "tcgdexId": "bw8",
+    "en": "Plasma Storm",
+    "de": "Plasma-Sturm"
+  },
+  "1579": {
+    "code": "PLF",
+    "tcgdexId": "bw9",
+    "en": "Plasma Freeze",
+    "de": "Plasma-Frost"
+  },
+  "1580": {
+    "code": "PLB",
+    "tcgdexId": "bw10",
+    "en": "Plasma Blast",
+    "de": "Plasma-Blaster"
+  },
+  "1581": {
+    "code": "LTR",
+    "tcgdexId": "bw11",
+    "en": "Legendary Treasures",
+    "de": "Legendäre Schätze"
+  },
+  "1582": {
+    "code": "XY",
+    "tcgdexId": "xy1",
+    "en": "XY",
+    "de": "XY"
+  },
+  "1583": {
+    "code": "FLF",
+    "tcgdexId": "xy2",
+    "en": "Flashfire",
+    "de": "Flammenmeer"
+  },
+  "1584": {
+    "code": "FFI",
+    "tcgdexId": "xy3",
+    "en": "Furious Fists",
+    "de": "Fliegende Fäuste"
+  },
+  "1585": {
+    "code": "PRC",
+    "tcgdexId": "xy5",
+    "en": "Primal Clash",
+    "de": "Protoshock"
+  },
+  "1605": {
+    "code": "BOG",
+    "tcgdexId": "bog",
+    "en": "Best of game",
+    "de": null
+  },
+  "1607": {
+    "code": "BASEP",
+    "tcgdexId": "basep",
+    "en": "Wizards Black Star Promos",
+    "de": "Wizards Black Star Promos"
+  },
+  "1612": {
+    "code": "XYP",
+    "tcgdexId": "xyp",
+    "en": "XY Black Star Promos",
+    "de": "XY Promokarten"
+  },
+  "1613": {
+    "code": "P1",
+    "tcgdexId": "pop1",
+    "en": "POP Series 1",
+    "de": "POP Serie 1"
+  },
+  "1614": {
+    "code": "P2",
+    "tcgdexId": "pop2",
+    "en": "POP Series 2",
+    "de": "POP Serie 2"
+  },
+  "1615": {
+    "code": "P3",
+    "tcgdexId": "pop3",
+    "en": "POP Series 3",
+    "de": "POP Serie 3"
+  },
+  "1616": {
+    "code": "P4",
+    "tcgdexId": "pop4",
+    "en": "POP Series 4",
+    "de": "POP Serie 4"
+  },
+  "1617": {
+    "code": "P5",
+    "tcgdexId": "pop5",
+    "en": "POP Series 5",
+    "de": "POP Serie 5"
+  },
+  "1618": {
+    "code": "P6",
+    "tcgdexId": "pop6",
+    "en": "POP Series 6",
+    "de": "POP Series 6"
+  },
+  "1619": {
+    "code": "P7",
+    "tcgdexId": "pop7",
+    "en": "POP Series 7",
+    "de": "POP Serie 7"
+  },
+  "1620": {
+    "code": "P8",
+    "tcgdexId": "pop8",
+    "en": "POP Series 8",
+    "de": "POP Series 8"
+  },
+  "1621": {
+    "code": "P9",
+    "tcgdexId": "pop9",
+    "en": "POP Series 9",
+    "de": "POP Serie 9"
+  },
+  "1633": {
+    "code": "SI",
+    "tcgdexId": "si1",
+    "en": "Southern Islands",
+    "de": null
+  },
+  "1634": {
+    "code": "RM",
+    "tcgdexId": "ru1",
+    "en": "Pokémon Rumble",
+    "de": null
+  },
+  "1636": {
+    "code": "DRV",
+    "tcgdexId": "dv1",
+    "en": "Dragon Vault",
+    "de": "Drachengruft"
+  },
+  "1637": {
+    "code": "KSS",
+    "tcgdexId": "xy0",
+    "en": "Kalos Starter Set",
+    "de": "Willkommen in Kalos"
+  },
+  "1648": {
+    "code": "DCR",
+    "tcgdexId": "dc1",
+    "en": "Double Crisis",
+    "de": "Doppeltes Dilemma"
+  },
+  "1649": {
+    "code": "ROS",
+    "tcgdexId": "xy6",
+    "en": "Roaring Skies",
+    "de": "Drachenleuchten"
+  },
+  "1660": {
+    "code": "AOR",
+    "tcgdexId": "xy7",
+    "en": "Ancient Origins",
+    "de": "Ewiger Anfang"
+  },
+  "1678": {
+    "code": "BKT",
+    "tcgdexId": "xy8",
+    "en": "BREAKthrough",
+    "de": "TURBOstart"
+  },
+  "1687": {
+    "code": "BKP",
+    "tcgdexId": "xy9",
+    "en": "BREAKpoint",
+    "de": "TURBOfieber"
+  },
+  "1693": {
+    "code": "GEN",
+    "tcgdexId": "g1",
+    "en": "Generations",
+    "de": "Generationen"
+  },
+  "1706": {
+    "code": "FCO",
+    "tcgdexId": "xy10",
+    "en": "Fates Collide",
+    "de": "Schicksalsschmiede"
+  },
+  "1716": {
+    "code": "STS",
+    "tcgdexId": "xy11",
+    "en": "Steam Siege",
+    "de": "Dampfkessel"
+  },
+  "1742": {
+    "code": "EVO",
+    "tcgdexId": "xy12",
+    "en": "Evolutions",
+    "de": "Evolution"
+  },
+  "1745": {
+    "code": "SUM",
+    "tcgdexId": "sm1",
+    "en": "Sun & Moon",
+    "de": "Sonne & Mond"
+  },
+  "1757": {
+    "code": "SMP",
+    "tcgdexId": "smp",
+    "en": "SM Black Star Promos",
+    "de": "SM Promokarten"
+  },
+  "1800": {
+    "code": "GRI",
+    "tcgdexId": "sm2",
+    "en": "Guardians Rising",
+    "de": "Stunde der Wächter"
+  },
+  "1824": {
+    "code": "BUS",
+    "tcgdexId": "sm3",
+    "en": "Burning Shadows",
+    "de": "Nacht in Flammen"
+  },
+  "1842": {
+    "code": "SLG",
+    "tcgdexId": "sm3.5",
+    "en": "Shining Legends",
+    "de": "Schimmernde Legenden"
+  },
+  "1843": {
+    "code": "CIN",
+    "tcgdexId": "sm4",
+    "en": "Crimson Invasion",
+    "de": "Aufziehen der Sturmröte"
+  },
+  "2065": {
+    "code": "UPR",
+    "tcgdexId": "sm5",
+    "en": "Ultra Prism",
+    "de": "Ultra-Prisma"
+  },
+  "2075": {
+    "code": "FLI",
+    "tcgdexId": "sm6",
+    "en": "Forbidden Light",
+    "de": "Grauen Der Lichtfinsternis"
+  },
+  "2320": {
+    "code": "CES",
+    "tcgdexId": "sm7",
+    "en": "Celestial Storm",
+    "de": "Sturm Am Firmament"
+  },
+  "2351": {
+    "code": "DRM",
+    "tcgdexId": "sm7.5",
+    "en": "Dragon Majesty",
+    "de": "Majestät Der Drachen"
+  },
+  "2361": {
+    "code": "2018SM-FR",
+    "tcgdexId": "2018sm-fr",
+    "en": null,
+    "de": null
+  },
+  "2370": {
+    "code": "LOT",
+    "tcgdexId": "sm8",
+    "en": "Lost Thunder",
+    "de": "Echo des Donners"
+  },
+  "2407": {
+    "code": "TEU",
+    "tcgdexId": "sm9",
+    "en": "Team Up",
+    "de": "Teams Sind Trumpf"
+  },
+  "2437": {
+    "code": "UNB",
+    "tcgdexId": "sm10",
+    "en": "Unbroken Bonds",
+    "de": "Kräfte im Einklang"
+  },
+  "2438": {
+    "code": "DET",
+    "tcgdexId": "det1",
+    "en": "Detective Pikachu",
+    "de": "Meisterdetektiv Pikachu"
+  },
+  "2487": {
+    "code": "UNM",
+    "tcgdexId": "sm11",
+    "en": "Unified Minds",
+    "de": "Bund der Gleichgesinnten"
+  },
+  "2514": {
+    "code": "HIF",
+    "tcgdexId": "sm115",
+    "en": "Hidden Fates",
+    "de": "Verborgenes Schicksal"
+  },
+  "2644": {
+    "code": "CEC",
+    "tcgdexId": "sm12",
+    "en": "Cosmic Eclipse",
+    "de": "Welten im Wandel"
+  },
+  "2916": {
+    "code": "SWSHP",
+    "tcgdexId": "swshp",
+    "en": "SWSH Black Star Promos",
+    "de": "SCSC Promokarten"
+  },
+  "2921": {
+    "code": "SSH",
+    "tcgdexId": "swsh1",
+    "en": "Sword & Shield",
+    "de": "Schwert & Schild"
+  },
+  "3143": {
+    "code": "RCL",
+    "tcgdexId": "swsh2",
+    "en": "Rebel Clash",
+    "de": "Clash der Rebellen"
+  },
+  "3199": {
+    "code": "DAA",
+    "tcgdexId": "swsh3",
+    "en": "Darkness Ablaze",
+    "de": "Flammende Finsternis"
+  },
+  "3419": {
+    "code": "CPA",
+    "tcgdexId": "swsh3.5",
+    "en": "Champion's Path",
+    "de": "Weg des Champs"
+  },
+  "3484": {
+    "code": "VIV",
+    "tcgdexId": "swsh4",
+    "en": "Vivid Voltage",
+    "de": "Farbenschock"
+  },
+  "3630": {
+    "code": "SHF",
+    "tcgdexId": "swsh4.5",
+    "en": "Shining Fates",
+    "de": "Glänzendes Schicksal"
+  },
+  "3675": {
+    "code": "BST",
+    "tcgdexId": "swsh5",
+    "en": "Battle Styles",
+    "de": "Kampfstile"
+  },
+  "4174": {
+    "code": "CRE",
+    "tcgdexId": "swsh6",
+    "en": "Chilling Reign",
+    "de": "Schaurige Herrschaft"
+  },
+  "4328": {
+    "code": "EVS",
+    "tcgdexId": "swsh7",
+    "en": "Evolving Skies",
+    "de": "Drachenwandel"
+  },
+  "4347": {
+    "code": "CEL",
+    "tcgdexId": "cel25",
+    "en": "Celebrations",
+    "de": "Celebrations"
+  },
+  "4382": {
+    "code": "FST",
+    "tcgdexId": "swsh8",
+    "en": "Fusion Strike",
+    "de": "Fusionsangriff"
+  },
+  "4434": {
+    "code": "BRS",
+    "tcgdexId": "swsh9",
+    "en": "Brilliant Stars",
+    "de": "Strahlende Sterne"
+  },
+  "4505": {
+    "code": "EX5.5",
+    "tcgdexId": "ex5.5",
+    "en": "Poké Card Creator Pack",
+    "de": null
+  },
+  "4786": {
+    "code": "PGO",
+    "tcgdexId": "swsh10.5",
+    "en": "Pokémon GO",
+    "de": "Pokémon GO"
+  },
+  "4979": {
+    "code": "ASR",
+    "tcgdexId": "swsh10",
+    "en": "Astral Radiance",
+    "de": "Astralglanz"
+  },
+  "5051": {
+    "code": "PGO",
+    "en": "Pokémon GO",
+    "de": "Pokémon GO"
+  },
+  "5093": {
+    "code": "LOR",
+    "tcgdexId": "swsh11",
+    "en": "Lost Origin",
+    "de": "Verlorener Ursprung"
+  },
+  "5142": {
+    "code": "SIT",
+    "tcgdexId": "swsh12",
+    "en": "Silver Tempest",
+    "de": "Silberne Sturmwinde"
+  },
+  "5201": {
+    "code": "CRZ",
+    "tcgdexId": "swsh12.5",
+    "en": "Crown Zenith",
+    "de": "Zenit der Könige"
+  },
+  "5223": {
+    "code": "SVI",
+    "tcgdexId": "sv01",
+    "en": "Scarlet & Violet",
+    "de": "Karmesin & Purpur"
+  },
+  "5241": {
+    "code": "SVP",
+    "tcgdexId": "svp",
+    "en": "SVP Black Star Promos",
+    "de": "SVP Black Star Promos"
+  },
+  "5318": {
+    "code": "PAL",
+    "tcgdexId": "sv02",
+    "en": "Paldea Evolved",
+    "de": "Entwicklungen in Paldea"
+  },
+  "5385": {
+    "code": "OBF",
+    "tcgdexId": "sv03",
+    "en": "Obsidian Flames",
+    "de": "Obsidian Flammen"
+  },
+  "5402": {
+    "code": "MEW",
+    "tcgdexId": "sv03.5",
+    "en": "151",
+    "de": "151"
+  },
+  "5444": {
+    "code": "PAR",
+    "tcgdexId": "sv04",
+    "en": "Paradox Rift",
+    "de": "Paradoxrift"
+  },
+  "5546": {
+    "code": "PAF",
+    "tcgdexId": "sv04.5",
+    "en": "Paldean Fates",
+    "de": "Paldeas Schicksale"
+  },
+  "5589": {
+    "code": "TEF",
+    "tcgdexId": "sv05",
+    "en": "Temporal Forces",
+    "de": "Gewalten der Zeit"
+  },
+  "5691": {
+    "code": "TWM",
+    "tcgdexId": "sv06",
+    "en": "Twilight Masquerade",
+    "de": "Maskerade im Zwielicht"
+  },
+  "5760": {
+    "code": "SFA",
+    "tcgdexId": "sv06.5",
+    "en": "Shrouded Fable",
+    "de": "Nebel der Sagen"
+  },
+  "5802": {
+    "code": "SCR",
+    "tcgdexId": "sv07",
+    "en": "Stellar Crown",
+    "de": "Stellarkrone"
+  },
+  "5879": {
+    "code": "SSP",
+    "tcgdexId": "sv08",
+    "en": "Surging Sparks",
+    "de": "Stürmische Funken"
+  },
+  "5944": {
+    "code": "PRE",
+    "tcgdexId": "sv08.5",
+    "en": "Prismatic Evolutions",
+    "de": "Prismatische Entwicklungen"
+  },
+  "6006": {
+    "code": "JTG",
+    "tcgdexId": "sv09",
+    "en": "Journey Together",
+    "de": "Reisegefährten"
+  },
+  "6096": {
+    "code": "DRI",
+    "en": "Destined Rivals",
+    "de": "Ewige Rivalen"
+  },
+  "6134": {
+    "code": "BLK",
+    "tcgdexId": "sv10.5b",
+    "en": "Black Bolt",
+    "de": "Schwarze Blitze"
+  },
+  "6135": {
+    "code": "WHT",
+    "tcgdexId": "sv10.5w",
+    "en": "White Flare",
+    "de": "Weiße Flammen"
+  },
+  "6209": {
+    "code": "MEG",
+    "tcgdexId": "me01",
+    "en": "Mega Evolution",
+    "de": "Mega-Entwicklung"
+  },
+  "6232": {
+    "code": "MEP",
+    "tcgdexId": "mep",
+    "en": "MEP Black Star Promos",
+    "de": "MEP Black Star Promos"
+  },
+  "6299": {
+    "code": "PFL",
+    "tcgdexId": "me02",
+    "en": "Phantasmal Flames",
+    "de": "Fatale Flammen"
+  },
+  "6395": {
+    "code": "ASC",
+    "tcgdexId": "me02.5",
+    "en": "Ascended Heroes",
+    "de": "Erhabene Helden"
+  },
+  "6443": {
+    "code": "POR",
+    "tcgdexId": "me03",
+    "en": "Perfect Order",
+    "de": "Optimale Ordnung"
+  },
+  "6517": {
+    "code": "CRI",
+    "tcgdexId": "me04",
+    "en": "Chaos Rising",
+    "de": "Wachsendes Chaos"
+  },
+  "6569": {
+    "code": "PBL",
+    "tcgdexId": "me05",
+    "en": "Pitch Black",
+    "de": "Dunkelnacht"
+  },
+  "6601": {
+    "code": "30C",
+    "tcgdexId": "30th-c",
+    "en": "30th Classic Collection",
+    "de": null
+  },
+  "6704": {
+    "code": "DLR",
+    "tcgdexId": "me06",
+    "en": "Delta Reign",
+    "de": null
+  },
+  "275771": {
+    "code": "TK1A",
+    "tcgdexId": "tk-ex-latia",
+    "en": "EX trainer Kit (Latias)",
+    "de": "EX trainer Kit (Latias)"
+  }
+}

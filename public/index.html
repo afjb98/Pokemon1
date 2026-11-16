@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Sammlung & Portfolio – Cardmarket DE</title>
+
+  <!-- iPhone / iOS Web-App (PWA) Meta Tags -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="PokéPortfolio" />
+  <meta name="theme-color" content="#09090b" />
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="icon" type="image/svg+xml" href="./icon.svg" />
+  <link rel="apple-touch-icon" href="./icon.svg" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Top Header -->
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">CM</div>
+        <div>
+          <h1>Pokémon Portfolio <span class="badge-cm">DE Marktpreise</span></h1>
+          <p class="subtitle">Bestand, Einkaufspreise & Wertentwicklung auf Basis deutscher Cardmarket-Preise</p>
+        </div>
+      </div>
+
+      <div class="topbar-actions">
+        <div id="catalogStatusBadge" class="status-pill loading">
+          <span class="dot"></span>
+          <span id="catalogStatusText">Katalog wird geladen...</span>
+        </div>
+        <button id="btnExportBackup" class="btn btn-secondary" title="Sammlung als Datei sichern (z.B. für iCloud / Google Drive)">
+          Backup ↓
+        </button>
+        <label class="btn btn-secondary" style="cursor:pointer;" title="Gespeicherte Portfolio-Datei laden">
+          Laden ↑
+          <input type="file" id="inputImportBackup" accept=".json" style="display:none;" />
+        </label>
+        <button id="btnRefreshCatalog" class="btn btn-secondary" title="Cardmarket-Daten neu abrufen">
+          Preise aktualisieren
+        </button>
+        <button id="btnOpenAddModal" class="btn btn-primary">
+          + Produkt hinzufügen
+        </button>
+      </div>
+    </header>
+
+    <!-- Summary Strip -->
+    <section class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">Portfoliowert (DE Richtpreis)</div>
+        <div class="kpi-value" id="kpiTotalValue">0,00 €</div>
+        <div class="kpi-sub" id="kpiTrendValue">EU-Tiefstpreis (inkl. IT/ES): 0,00 €</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-label">Einkaufswert (Investiert)</div>
+        <div class="kpi-value" id="kpiTotalInvested">0,00 €</div>
+        <div class="kpi-sub" id="kpiItemCount">0 Positionen</div>
+      </div>
+
+      <div class="kpi-card" id="kpiProfitCard">
+        <div class="kpi-label">Gesamt-Ergebnis (Im Plus)</div>
+        <div class="kpi-value" id="kpiTotalProfit">+0,00 €</div>
+        <div class="kpi-sub" id="kpiTotalProfitPct">0,00 % Rendite</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-label">Bestandsaufteilung</div>
+        <div class="kpi-value kpi-split" id="kpiSplitValue">0 / 0</div>
+        <div class="kpi-sub" id="kpiSplitSub">Karten: 0,00 € • Sealed: 0,00 €</div>
+      </div>
+    </section>
+
+    <!-- Price Chart -->
+    <section class="chart-section">
+      <div class="card chart-card">
+        <div class="card-header">
+          <div>
+            <h2 id="chartTitle">Wertentwicklung vs. Einkaufspreis</h2>
+            <p class="card-subtitle" id="chartSubtitle">Klicke unten in der Liste auf eine Position, um den Einzelverlauf anzuzeigen</p>
+          </div>
+          <div class="chart-controls">
+            <button id="btnResetChartFilter" class="btn btn-sm btn-secondary hidden">
+              Gesamtes Portfolio zeigen
+            </button>
+            <div class="legend-pills">
+              <span class="legend-item"><i class="dot-line blue"></i> Aktueller DE-Wert</span>
+              <span class="legend-item"><i class="dot-line muted"></i> Einkaufspreis</span>
+            </div>
+          </div>
+        </div>
+        <div class="chart-container">
+          <canvas id="priceChart"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- Portfolio Table -->
+    <section class="collection-section card">
+      <div class="collection-toolbar">
+        <div class="tabs">
+          <button class="tab active" data-filter="all">Alle (<span id="countAll">0</span>)</button>
+          <button class="tab" data-filter="single">Einzelkarten (<span id="countSingles">0</span>)</button>
+          <button class="tab" data-filter="sealed">Sealed / Boxen (<span id="countSealed">0</span>)</button>
+        </div>
+
+        <div class="toolbar-right">
+          <div class="search-input-wrap">
+            <input type="text" id="portfolioSearch" placeholder="Sammlung durchsuchen (z.B. Glurak, TTB)..." />
+          </div>
+
+          <select id="portfolioSort" class="select-control">
+            <option value="profitDesc">Sortierung: Gewinn (€)</option>
+            <option value="profitPctDesc">Sortierung: Gewinn (%)</option>
+            <option value="valueDesc">Sortierung: Gesamtwert</option>
+            <option value="buyDesc">Sortierung: Einkaufspreis</option>
+            <option value="newest">Sortierung: Zuletzt hinzugefügt</option>
+            <option value="nameAsc">Sortierung: Name (A–Z)</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="emptyState" class="empty-state hidden">
+        <h3>Noch keine Einträge vorhanden</h3>
+        <p>Füge deine ersten Einzelkarten oder Sealed-Produkte hinzu.</p>
+        <button id="btnEmptyAdd" class="btn btn-primary">+ Produkt hinzufügen</button>
+      </div>
+
+      <div class="table-responsive" id="portfolioTableWrap">
+        <table class="portfolio-table">
+          <thead>
+            <tr>
+              <th>Produkt</th>
+              <th>Kategorie / Zustand</th>
+              <th class="num">Menge</th>
+              <th class="num">Einkauf</th>
+              <th class="num">DE Marktpreis (Stück)</th>
+              <th class="num">CM Info (EU-Low / 30T)</th>
+              <th class="num">Gesamtwert</th>
+              <th class="num">Ergebnis (Plus/Minus)</th>
+              <th class="actions-col">Aktionen</th>
+            </tr>
+          </thead>
+          <tbody id="portfolioTbody"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <!-- Full-Screen / Wide Two-Column Modal for Searching & Adding -->
+  <div id="addModal" class="modal-backdrop hidden">
+    <div class="modal modal-wide">
+      <div class="modal-header">
+        <div>
+          <h2 id="modalTitle">Produkt suchen & hinzufügen</h2>
+          <p class="modal-sub">Suche auf Deutsch (z.B. „Glurak“, „Quajutsu“, „151 TTB“, „Ewige Rivalen“) oder Englisch</p>
+        </div>
+        <button id="btnCloseModal" class="btn-icon">✕</button>
+      </div>
+
+      <div class="modal-split-body">
+        <!-- Left Column: Large Product Browser with Grid & Big Images -->
+        <div class="catalog-browser-pane" id="catalogSearchSection">
+          <div class="browser-controls">
+            <div class="search-type-pills">
+              <button type="button" class="pill active" data-stype="all">Alle Produkte</button>
+              <button type="button" class="pill" data-stype="single">Einzelkarten</button>
+              <button type="button" class="pill" data-stype="sealed">Sealed (TTBs, Displays, Boxen)</button>
+            </div>
+
+            <div class="catalog-search-input-wrap">
+              <input
+                type="text"
+                id="catalogSearchInput"
+                placeholder="Suchbegriff eingeben... z.B. 'Glurak', 'Quajutsu', 'Rayquaza', 'TTB', 'Booster Bundle'"
+                autocomplete="off"
+              />
+            </div>
+          </div>
+
+          <div id="catalogSearchResults" class="catalog-results-grid">
+            <div class="search-hint">Gib oben mindestens 2 Buchstaben ein (deutsche oder englische Namen möglich).</div>
+          </div>
+        </div>
+
+        <!-- Right Column: Purchase Details Form -->
+        <div class="catalog-form-pane">
+          <form id="portfolioForm" class="item-form">
+            <input type="hidden" id="formEditId" value="" />
+            <input type="hidden" id="formIdProduct" value="" />
+
+            <div class="selected-product-banner" id="selectedProductBanner">
+              <div class="selected-banner-left">
+                <div class="selected-banner-thumb" id="selectedBannerThumb">CM</div>
+                <div>
+                  <span class="selected-badge" id="selectedCategoryBadge">Auswahl</span>
+                  <div class="selected-title" id="selectedProductName">Links ein Produkt anklicken</div>
+                  <div class="selected-cm-prices" id="selectedCmPrices"></div>
+                </div>
+              </div>
+              <a id="selectedDirectCmLink" href="#" target="_blank" rel="noopener" class="btn btn-sm btn-secondary hidden">
+                Auf Cardmarket (DE) prüfen ↗
+              </a>
+            </div>
+
+            <div class="form-grid">
+              <div class="form-group span-2">
+                <label for="formName">Bezeichnung *</label>
+                <input type="text" id="formName" required placeholder="Produktname" />
+              </div>
+
+              <div class="form-group">
+                <label for="formBuyPrice">Mein Einkaufspreis / Stück (€) *</label>
+                <input type="number" id="formBuyPrice" step="0.01" min="0" required placeholder="0.00" />
+              </div>
+
+              <div class="form-group">
+                <label for="formQuantity">Menge *</label>
+                <input type="number" id="formQuantity" step="1" min="1" value="1" required />
+              </div>
+
+              <div class="form-group">
+                <label for="formCustomLowPrice">Exakter DE-Ab-Preis (€, optional)</label>
+                <input type="number" id="formCustomLowPrice" step="0.01" min="0" placeholder="Automatisch (DE-Richtwert)" />
+                <small class="field-help">Standardmäßig nutzen wir den bereinigten DE-Richtwert (ohne billige IT/ES-Boxen). Hier kannst du bei Bedarf deinen exakten DE-Preis eintragen.</small>
+              </div>
+
+              <div class="form-group">
+                <label for="formIsHolo">Variante</label>
+                <select id="formIsHolo">
+                  <option value="false">Standard / Normal</option>
+                  <option value="true">Reverse Holo / Holo-Spezial</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="formCondition">Zustand</label>
+                <select id="formCondition">
+                  <option value="M">Mint / OVP (Sealed)</option>
+                  <option value="NM" selected>Near Mint (NM)</option>
+                  <option value="EX">Excellent (EX)</option>
+                  <option value="GD">Good (GD)</option>
+                  <option value="LP">Light Played (LP)</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="formLanguage">Sprache</label>
+                <select id="formLanguage">
+                  <option value="DE" selected>Deutsch (DE)</option>
+                  <option value="EN">Englisch (EN)</option>
+                  <option value="JP">Japanisch (JP)</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="formType">Produktart</label>
+                <select id="formType">
+                  <option value="single">Einzelkarte</option>
+                  <option value="sealed">Sealed Produkt</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="formBuyDate">Kaufdatum</label>
+                <input type="date" id="formBuyDate" />
+              </div>
+
+              <input type="hidden" id="formImageUrl" />
+              <input type="hidden" id="formCardmarketUrl" />
+            </div>
+
+            <div class="modal-footer">
+              <button type="button" id="btnDeleteInModal" class="btn btn-danger hidden" style="margin-right: auto;">Eintrag löschen</button>
+              <button type="button" id="btnCancelModal" class="btn btn-secondary">Abbrechen</button>
+              <button type="submit" id="btnSaveItem" class="btn btn-primary">Speichern</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Quick Price Update -->
+  <div id="snapshotModal" class="modal-backdrop hidden">
+    <div class="modal modal-sm">
+      <div class="modal-header">
+        <div>
+          <h2>Deutschen Cardmarket-Preis anpassen</h2>
+          <p class="modal-sub" id="snapshotItemName"></p>
+        </div>
+        <button id="btnCloseSnapshotModal" class="btn-icon">✕</button>
+      </div>
+      <form id="snapshotForm" class="modal-body">
+        <input type="hidden" id="snapshotItemId" />
+        <div class="form-group">
+          <label for="snapshotPrice">Aktueller günstigster DE-Preis (€) *</label>
+          <input type="number" id="snapshotPrice" step="0.01" min="0" required />
+          <small class="field-help">Wird als aktueller Wert übernommen und im Preis-Chart gespeichert.</small>
+        </div>
+        <div class="form-group" style="margin-top: 12px;">
+          <label for="snapshotDate">Datum</label>
+          <input type="date" id="snapshotDate" required />
+        </div>
+        <div class="modal-footer" style="margin-top: 18px;">
+          <button type="button" id="btnCancelSnapshot" class="btn btn-secondary">Abbrechen</button>
+          <button type="submit" class="btn btn-primary">Speichern</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>

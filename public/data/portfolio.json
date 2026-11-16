@@ -1,0 +1,1239 @@
+{
+  "items": [
+    {
+      "id": "item_1794854047460_dd8u4",
+      "idProduct": 895887,
+      "name": "Morpeko ex [Wheely Draw | Hangry Blaster]",
+      "displayNameDe": "Morpeko ex [Wheely Draw | Hangry Blaster]",
+      "type": "single",
+      "categoryName": "Pokémon Single",
+      "expansionName": "Dunkelnacht",
+      "isHolo": false,
+      "condition": "NM",
+      "language": "DE",
+      "quantity": 2,
+      "buyPrice": 5,
+      "buyDate": "2026-11-16",
+      "customLowPrice": null,
+      "imageUrl": "/api/cm-image/895887",
+      "cardmarketUrl": "https://www.cardmarket.com/de/Pokemon/Products/Search?searchString=Morpeko%20ex%20%5BWheely%20Draw%20%7C%20Hangry%20Blaster%5D&language=3",
+      "notes": "",
+      "marketPrices": {
+        "low": 1.2,
+        "trend": 3.2,
+        "dePrice": 2.71,
+        "avg1": 2.71,
+        "avg7": 3.31,
+        "avg30": 3.31,
+        "avg": 3.45,
+        "updatedAt": "2026-11-16T02:48:57+0100"
+      },
+      "priceHistory": [
+        {
+          "date": "2026-10-17",
+          "low": 3.31,
+          "trend": 3.2,
+          "label": "30T Ø"
+        },
+        {
+          "date": "2026-11-02",
+          "low": 3.31,
+          "trend": 3.2,
+          "label": "14T Ø"
+        },
+        {
+          "date": "2026-11-09",
+          "low": 3.31,
+          "trend": 3.2,
+          "label": "7T Ø"
+        },
+        {
+          "date": "2026-11-15",
+          "low": 2.71,
+          "trend": 3.2,
+          "label": "Gestern"
+        },
+        {
+          "date": "2026-11-16",
+          "low": 2.71,
+          "trend": 3.2,
+          "label": "Heute"
+        }
+      ],
+      "createdAt": "2026-11-16T18:34:07.460Z",
+      "expansionCode": "PBL",
+      "idCategory": 51,
+      "staticImageUrl": "images/895887.jpg"
+    },
+    {
+      "id": "item_1794854032492_wya2j",
+      "idProduct": 907759,
+      "name": "Jirachi ex [Wish Granter | Swift]",
+      "displayNameDe": "Jirachi ex [Wish Granter | Swift]",
+      "type": "single",
+      "categoryName": "Pokémon Single",
+      "expansionName": "30th Classic Collection",
+      "isHolo": false,
+      "condition": "NM",
+      "language": "DE",
+      "quantity": 1,
+      "buyPrice": 5,
+      "buyDate": "2026-11-16",
+      "customLowPrice": null,
+      "imageUrl": "/api/cm-image/907759",
+      "cardmarketUrl": "https://www.cardmarket.com/de/Pokemon/Products/Search?searchString=Jirachi%20ex%20%5BWish%20Granter%20%7C%20Swift%5D&language=3",
+      "notes": "",
+      "marketPrices": {
+        "low": 24,
+        "trend": 30.18,
+        "dePrice": 24,
+        "avg1": 32.08,
+        "avg7": 29.56,
+        "avg30": 31.79,
+        "avg": 40.33,
+        "updatedAt": "2026-11-16T02:48:57+0100"
+      },
+      "priceHistory": [
+        {
+          "date": "2026-10-17",
+          "low": 31.79,
+          "trend": 30.18,
+          "label": "30T Ø"
+        },
+        {
+          "date": "2026-11-02",
+          "low": 30.67,
+          "trend": 30.18,
+          "label": "14T Ø"
+        },
+        {
+          "date": "2026-11-09",
+          "low": 29.56,
+          "trend": 30.18,
+          "label": "7T Ø"
+        },
+        {
+          "date": "2026-11-15",
+          "low": 32.08,
+          "trend": 30.18,
+          "label": "Gestern"
+        },
+        {
+          "date": "2026-11-16",
+          "low": 24,
+          "trend": 30.18,
+          "label": "Heute"
+        }
+      ],
+      "createdAt": "2026-11-16T18:33:52.492Z",
+      "expansionCode": "30C",
+      "idCategory": 51,
+      "staticImageUrl": "images/907759.jpg"
+    },
+    {
+      "id": "item_1794853998180_xfee9",
+      "idProduct": 918970,
+      "name": "Zinnia's Trust",
+      "displayNameDe": "Zinnia's Trust",
+      "type": "single",
+      "categoryName": "Pokémon Single",
+      "expansionName": "Delta Reign",
+      "isHolo": false,
+      "condition": "NM",
+      "language": "DE",
+      "quantity": 1,
+      "buyPrice": 5,
+      "buyDate": "2026-11-16",
+      "customLowPrice": null,
+      "imageUrl": "/api/cm-image/918970",
+      "cardmarketUrl": "https://www.cardmarket.com/de/Pokemon/Products/Search?searchString=Zinnia's%20Trust&language=3",
+      "notes": "",
+      "marketPrices": {
+        "low": 1,
+        "trend": 2.6,
+        "dePrice": 2.6,
+        "avg1": 3.82,
+        "avg7": 3.96,
+        "avg30": 4.17,
+        "avg": 9.98,
+        "updatedAt": "2026-11-16T02:48:57+0100"
+      },
+      "priceHistory": [
+        {
+          "date": "2026-10-17",
+          "low": 4.17,
+          "trend": 2.6,
+          "label": "30T Ø"
+        },
+        {
+          "date": "2026-11-02",
+          "low": 4.06,
+          "trend": 2.6,
+          "label": "14T Ø"
+        },
+        {
+          "date": "2026-11-09",
+          "low": 3.96,
+          "trend": 2.6,
+          "label": "7T Ø"
+        },
+        {
+          "date": "2026-11-15",
+          "low": 3.82,
+          "trend": 2.6,
+          "label": "Gestern"
+        },
+        {
+          "date": "2026-11-16",
+          "low": 2.6,
+          "trend": 2.6,
+          "label": "Heute"
+        }
+      ],
+      "createdAt": "2026-11-16T18:33:18.180Z",
+      "expansionCode": "DLR",
+      "idCategory": 51,
+      "staticImageUrl": "images/918970.jpg"
+    },
+    {
+      "id": "item_1794853951140_ks0qs",
+      "idProduct": 918979,
+      "name": "Tectass – Mega Golisopod ex [Finishing Blow | Quatro-Hold]",
+      "displayNameDe": "Tectass – Mega Golisopod ex [Finishing Blow | Quatro-Hold]",
+      "type": "single",
+      "categoryName": "Pokémon Single",
+      "expansionName": "Delta Reign",
+      "isHolo": false,
+      "condition": "NM",
+      "language": "DE",
+      "quantity": 1,
+      "buyPrice": 5,
+      "buyDate": "2026-11-16",
+      "customLowPrice": null,
+      "imageUrl": "/api/cm-image/918979",
+      "cardmarketUrl": "https://www.cardmarket.com/de/Pokemon/Products/Search?searchString=Mega%20Golisopod%20ex%20%5BFinishing%20Blow%20%7C%20Quatro-Hold%5D&language=3",
+      "notes": "",
+      "marketPrices": {
+        "low": 15,
+        "trend": 18.71,
+        "dePrice": 15,
+        "avg1": 17,
+        "avg7": 19.21,
+        "avg30": 19.42,
+        "avg": 21,
+        "updatedAt": "2026-11-16T02:48:57+0100"
+      },
+      "priceHistory": [
+        {
+          "date": "2026-10-17",
+          "low": 19.42,
+          "trend": 18.71,
+          "label": "30T Ø"
+        },
+        {
+          "date": "2026-11-02",
+          "low": 19.32,
+          "trend": 18.71,
+          "label": "14T Ø"
+        },
+        {
+          "date": "2026-11-09",
+          "low": 19.21,
+          "trend": 18.71,
+          "label": "7T Ø"
+        },
+        {
+          "date": "2026-11-15",
+          "low": 17,
+          "trend": 18.71,
+          "label": "Gestern"
+        },
+        {
+          "date": "2026-11-16",
+          "low": 15,
+          "trend": 18.71,
+          "label": "Heute"
+        }
+      ],
+      "createdAt": "2026-11-16T18:32:31.140Z",
+      "expansionCode": "DLR",
+      "idCategory": 51,
+      "staticImageUrl": "images/918979.jpg"
+    },
+    {
+      "id": "item_1794852873945_mfhb5",
+      "idProduct": 907755,
+      "name": "Greninja ex [Stealthy Slash | Aqua Edge]",
+      "type": "single",
+      "categoryName": "Pokémon Single",
+      "expansionName": "30th Classic Collection",
+      "isHolo": false,
+      "condition": "NM",
+      "language": "DE",
+      "quantity": 1,
+      "buyPrice": 5,
+      "buyDate": "2026-11-16",
+      "customLowPrice": null,
+      "imageUrl": "/api/cm-image/907755",
+      "cardmarketUrl": "https://www.cardmarket.com/de/Pokemon/Products/Search?searchString=Greninja%20ex%20%5BStealthy%20Slash%20%7C%20Aqua%20Edge%5D",
+      "notes": "",
+      "marketPrices": {
+        "low": 11.99,
+        "trend": 15.65,
+        "dePrice": 15.29,
+        "avg1": 15.29,
+        "avg7": 15.84,
+        "avg30": 17.09,
+        "avg": 19.83,
+        "updatedAt": "2026-11-16T02:48:57+0100"
+      },
+      "priceHistory": [
+        {
+          "date": "2026-10-17",
+          "low": 17.09,
+          "trend": 15.65,
+          "label": "30T Ø"
+        },
+        {
+          "date": "2026-11-02",
+          "low": 16.46,
+          "trend": 15.65,
+          "label": "14T Ø"
+        },
+        {
+          "date": "2026-11-09",
+          "low": 15.84,
+          "trend": 15.65,
+          "label": "7T Ø"
+        },
+        {
+          "date": "2026-11-15",
+          "low": 15.29,
+          "trend": 15.65,
+          "label": "Gestern"
+        },
+        {
+          "date": "2026-11-16",
+          "low": 15.29,
+          "trend": 15.65,
+          "label": "Heute (Ab-Preis)"
+        }
+      ],
+      "createdAt": "2026-11-16T18:14:33.945Z",
+      "displayNameDe": "Quajutsu – Greninja ex [Stealthy Slash | Aqua Edge]",
+      "expansionCode": "30C",
+      "idCategory": 51,
+      "staticImageUrl": "images/907755.jpg"
+    },
+    {
+      "id": "item_1794852847384_wukbs",
+      "idProduct": 918949,
+      "name": "Groudon [Strength | Thrashing Earth]",
+      "type": "single",
+      "categoryName": "Pokémon Single",
+      "expansionName": "Delta Reign",
+      "isHolo": false,
+      "condition": "NM",
+      "language": "DE",
+      "quantity": 1,
+      "buyPrice": 5,
+      "buyDate": "2026-11-16",
+      "customLowPrice": null,
+      "imageUrl": "/api/cm-image/918949",
+      "cardmarketUrl": "https://www.cardmarket.com/de/Pokemon/Products/Search?searchString=Groudon%20%5BStrength%20%7C%20Thrashing%20Earth%5D",
+      "notes": "",
+      "marketPrices": {
+        "low": 12,
+        "trend": 16.81,
+        "dePrice": 16.66,
+        "avg1": 16.66,
+        "avg7": 17.96,
+        "avg30": 18.39,
+        "avg": 24.99,
+        "updatedAt": "2026-11-16T02:48:57+0100"
+      },
+      "priceHistory": [
+        {
+          "date": "2026-10-17",
+          "low": 18.39,
+          "trend": 16.81,
+          "label": "30T Ø"
+        },
+        {
+          "date": "2026-11-02",
+          "low": 18.18,
+          "trend": 16.81,
+          "label": "14T Ø"
+        },
+        {
+          "date": "2026-11-09",
+          "low": 17.96,
+          "trend": 16.81,
+          "label": "7T Ø"
+        },
+        {
+          "date": "2026-11-15",
+          "low": 16.66,
+          "trend": 16.81,
+          "label": "Gestern"
+        },
+        {
+          "date": "2026-11-16",
+          "low": 16.66,
+          "trend": 16.81,
+          "label": "Heute (Ab-Preis)"
+        }
+      ],
+      "createdAt": "2026-11-16T18:14:07.384Z",
+      "displayNameDe": "Groudon [Strength | Thrashing Earth]",
+      "expansionCode": "DLR",
+      "idCategory": 51,
+      "staticImageUrl": "images/918949.jpg"
+    },
+    {
+      "id": "item_1794852798488_92zfr",
+      "idProduct": 895576,
+      "name": "30th Celebration: Mew Figure Collection",
+      "type": "sealed",
+      "categoryName": "Pokémon Box Set",
+      "expansionName": "30th Classic Collection",
+      "isHolo": false,
+      "condition": "NM",
+      "language": "DE",
+      "quantity": 1,
+      "buyPrice": 60,
+      "buyDate": "2026-11-16",
+      "customLowPrice": null,
+      "imageUrl": "/api/cm-image/895576",
+      "cardmarketUrl": "https://www.cardmarket.com/de/Pokemon/Products/Search?searchString=30th%20Celebration%3A%20Mew%20Figure%20Collection",
+      "notes": "",
+      "marketPrices": {
+        "low": 45,
+        "trend": 58.54,
+        "dePrice": 58.54,
+        "avg1": null,
+        "avg7": null,
+        "avg30": null,
+        "avg": 102.66,
+        "updatedAt": "2026-11-16T02:48:57+0100"
+      },
+      "priceHistory": [
+        {
+          "date": "2026-10-17",
+          "low": 58.54,
+          "trend": 58.54,
+          "label": "30T Ø"
+        },
+        {
+          "date": "2026-11-02",
+          "low": 58.54,
+          "trend": 58.54,
+          "label": "14T Ø"
+        },
+        {
+          "date": "2026-11-09",
+          "low": 58.54,
+          "trend": 58.54,
+          "label": "7T Ø"
+        },
+        {
+          "date": "2026-11-15",
+          "low": 45,
+          "trend": 58.54,
+          "label": "Gestern"
+        },
+        {
+          "date": "2026-11-16",
+          "low": 58.54,
+          "trend": 58.54,
+          "label": "Heute (Ab-Preis)"
+        }
+      ],
+      "createdAt": "2026-11-16T18:13:18.488Z",
+      "displayNameDe": "30th Celebration: Mew Figure Collection",
+      "expansionCode": "30C",
+      "idCategory": 1015,
+      "staticImageUrl": "images/895576.jpg"
+    },
+    {
+      "id": "item_1794852786695_ommxj",
+      "idProduct": 895561,
+      "name": "30th Celebration Booster Bundle",
+      "type": "sealed",
+      "categoryName": "Pokémon Display",
+      "expansionName": "30th Classic Collection",
+      "isHolo": false,
+      "condition": "NM",
+      "language": "DE",
+      "quantity": 1,
+      "buyPrice": 30,
+      "buyDate": "2026-11-16",
+      "customLowPrice": null,
+      "imageUrl": "/api/cm-image/895561",
+      "cardmarketUrl": "https://www.cardmarket.com/de/Pokemon/Products/Search?searchString=30th%20Celebration%20Booster%20Bundle",
+      "notes": "",
+      "marketPrices": {
+        "low": 45,
+        "trend": 64.31,
+        "dePrice": 64.31,
+        "avg1": null,
+        "avg7": null,
+        "avg30": null,
+        "avg": 67.82,
+        "updatedAt": "2026-11-16T02:48:57+0100"
+      },
+      "priceHistory": [
+        {
+          "date": "2026-10-17",
+          "low": 64.31,
+          "trend": 64.31,
+          "label": "30T Ø"
+        },
+        {
+          "date": "2026-11-02",
+          "low": 64.31,
+          "trend": 64.31,
+          "label": "14T Ø"
+        },
+        {
+          "date": "2026-11-09",
+          "low": 64.31,
+          "trend": 64.31,
+          "label": "7T Ø"
+        },
+        {
+          "date": "2026-11-15",
+          "low": 45,
+          "trend": 64.31,
+          "label": "Gestern"
+        },
+        {
+          "date": "2026-11-16",
+          "low": 64.31,
+          "trend": 64.31,
+          "label": "Heute (Ab-Preis)"
+        }
+      ],
+      "createdAt": "2026-11-16T18:13:06.695Z",
+      "displayNameDe": "30th Celebration Booster Bundle",
+      "expansionCode": "30C",
+      "idCategory": 53,
+      "staticImageUrl": "images/895561.jpg"
+    },
+    {
+      "id": "item_1794852770380_zych2",
+      "idProduct": 895558,
+      "name": "30th Celebration: Greninja ex Box",
+      "type": "sealed",
+      "categoryName": "Pokémon Box Set",
+      "expansionName": "30th Classic Collection",
+      "isHolo": false,
+      "condition": "NM",
+      "language": "DE",
+      "quantity": 1,
+      "buyPrice": 24,
+      "buyDate": "2026-11-16",
+      "customLowPrice": null,
+      "imageUrl": "/api/cm-image/895558",
+      "cardmarketUrl": "https://www.cardmarket.com/de/Pokemon/Products/Search?searchString=30th%20Celebration%3A%20Greninja%20ex%20Box",
+      "notes": "",
+      "marketPrices": {
+        "low": 30,
+        "trend": 40.94,
+        "dePrice": 40.94,
+        "avg1": null,
+        "avg7": null,
+        "avg30": null,
+        "avg": 47.33,
+        "updatedAt": "2026-11-16T02:48:57+0100"
+      },
+      "priceHistory": [
+        {
+          "date": "2026-10-17",
+          "low": 40.94,
+          "trend": 40.94,
+          "label": "30T Ø"
+        },
+        {
+          "date": "2026-11-02",
+          "low": 40.94,
+          "trend": 40.94,
+          "label": "14T Ø"
+        },
+        {
+          "date": "2026-11-09",
+          "low": 40.94,
+          "trend": 40.94,
+          "label": "7T Ø"
+        },
+        {
+          "date": "2026-11-15",
+          "low": 30,
+          "trend": 40.94,
+          "label": "Gestern"
+        },
+        {
+          "date": "2026-11-16",
+          "low": 40.94,
+          "trend": 40.94,
+          "label": "Heute (Ab-Preis)"
+        }
+      ],
+      "createdAt": "2026-11-16T18:12:50.380Z",
+      "displayNameDe": "30th Celebration: Greninja ex Box",
+      "expansionCode": "30C",
+      "idCategory": 1015,
+      "staticImageUrl": "images/895558.jpg"
+    },
+    {
+      "id": "item_1794852659172_rp6w3",
+      "idProduct": 907758,
+      "name": "Sylveon ex [Colorful Harmony]",
+      "type": "single",
+      "categoryName": "Pokémon Single",
+      "expansionName": "30th Classic Collection",
+      "isHolo": false,
+      "condition": "NM",
+      "language": "DE",
+      "quantity": 1,
+      "buyPrice": 5,
+      "buyDate": "2026-11-16",
+      "customLowPrice": null,
+      "imageUrl": "/api/cm-image/907758",
+      "cardmarketUrl": "https://www.cardmarket.com/de/Pokemon/Products/Search?searchString=Sylveon%20ex%20%5BColorful%20Harmony%5D",
+      "notes": "",
+      "marketPrices": {
+        "low": 22.9,
+        "trend": 31.66,
+        "dePrice": 30.52,
+        "avg1": 31.54,
+        "avg7": 30.52,
+        "avg30": 31.9,
+        "avg": 38.68,
+        "updatedAt": "2026-11-16T02:48:57+0100"
+      },
+      "priceHistory": [
+        {
+          "date": "2026-10-17",
+          "low": 31.9,
+          "trend": 31.66,
+          "label": "30T Ø"
+        },
+        {
+          "date": "2026-11-02",
+          "low": 31.21,
+          "trend": 31.66,
+          "label": "14T Ø"
+        },
+        {
+          "date": "2026-11-09",
+          "low": 30.52,
+          "trend": 31.66,
+          "label": "7T Ø"
+        },
+        {
+          "date": "2026-11-15",
+          "low": 31.54,
+          "trend": 31.66,
+          "label": "Gestern"
+        },
+        {
+          "date": "2026-11-16",
+          "low": 30.52,
+          "trend": 31.66,
+          "label": "Heute (Ab-Preis)"
+        }
+      ],
+      "createdAt": "2026-11-16T18:10:59.172Z",
+      "displayNameDe": "Feelinara – Sylveon ex [Colorful Harmony]",
+      "expansionCode": "30C",
+      "idCategory": 51,
+      "staticImageUrl": "images/907758.jpg"
+    },
+    {
+      "id": "item_1794852641867_a29pj",
+      "idProduct": 907940,
+      "name": "Charizard [Energy Burn | Fire Spin]",
+      "type": "single",
+      "categoryName": "Pokémon Single",
+      "expansionName": "30th Classic Collection",
+      "isHolo": false,
+      "condition": "NM",
+      "language": "DE",
+      "quantity": 1,
+      "buyPrice": 12,
+      "buyDate": "2026-11-16",
+      "customLowPrice": null,
+      "imageUrl": "/api/cm-image/907940",
+      "cardmarketUrl": "https://www.cardmarket.com/de/Pokemon/Products/Search?searchString=Charizard%20%5BEnergy%20Burn%20%7C%20Fire%20Spin%5D",
+      "notes": "",
+      "marketPrices": {
+        "low": 119.99,
+        "trend": 163.09,
+        "dePrice": 163.09,
+        "avg1": 194.07,
+        "avg7": 163.11,
+        "avg30": 159.68,
+        "avg": 168.39,
+        "updatedAt": "2026-11-16T02:48:57+0100"
+      },
+      "priceHistory": [
+        {
+          "date": "2026-10-17",
+          "low": 159.68,
+          "trend": 163.09,
+          "label": "30T Ø"
+        },
+        {
+          "date": "2026-11-02",
+          "low": 161.4,
+          "trend": 163.09,
+          "label": "14T Ø"
+        },
+        {
+          "date": "2026-11-09",
+          "low": 163.11,
+          "trend": 163.09,
+          "label": "7T Ø"
+        },
+        {
+          "date": "2026-11-15",
+          "low": 194.07,
+          "trend": 163.09,
+          "label": "Gestern"
+        },
+        {
+          "date": "2026-11-16",
+          "low": 163.09,
+          "trend": 163.09,
+          "label": "Heute (Ab-Preis)"
+        }
+      ],
+      "createdAt": "2026-11-16T18:10:41.867Z",
+      "displayNameDe": "Glurak (Charizard) [Energy Burn | Fire Spin]",
+      "expansionCode": "30C",
+      "idCategory": 51,
+      "staticImageUrl": "images/907940.jpg"
+    },
+    {
+      "id": "item_1794852602520_wutln",
+      "idProduct": 903955,
+      "name": "Delta Reign Elite Trainer Box",
+      "type": "sealed",
+      "categoryName": "Pokémon Elite Trainer Boxes",
+      "expansionName": "Delta Reign",
+      "isHolo": false,
+      "condition": "NM",
+      "language": "DE",
+      "quantity": 1,
+      "buyPrice": 52,
+      "buyDate": "2026-11-16",
+      "customLowPrice": null,
+      "imageUrl": "/api/cm-image/903955",
+      "cardmarketUrl": "https://www.cardmarket.com/de/Pokemon/Products/Search?searchString=Delta%20Reign%20Elite%20Trainer%20Box",
+      "notes": "",
+      "marketPrices": {
+        "low": 50,
+        "trend": 70.03,
+        "dePrice": 70.03,
+        "avg1": null,
+        "avg7": null,
+        "avg30": null,
+        "avg": 95.37,
+        "updatedAt": "2026-11-16T02:48:57+0100"
+      },
+      "priceHistory": [
+        {
+          "date": "2026-10-17",
+          "low": 70.03,
+          "trend": 70.03,
+          "label": "30T Ø"
+        },
+        {
+          "date": "2026-11-02",
+          "low": 70.03,
+          "trend": 70.03,
+          "label": "14T Ø"
+        },
+        {
+          "date": "2026-11-09",
+          "low": 70.03,
+          "trend": 70.03,
+          "label": "7T Ø"
+        },
+        {
+          "date": "2026-11-15",
+          "low": 50,
+          "trend": 70.03,
+          "label": "Gestern"
+        },
+        {
+          "date": "2026-11-16",
+          "low": 70.03,
+          "trend": 70.03,
+          "label": "Heute (Ab-Preis)"
+        }
+      ],
+      "createdAt": "2026-11-16T18:10:02.520Z",
+      "displayNameDe": "Delta Reign Top-Trainer-Box (TTB)",
+      "expansionCode": "DLR",
+      "idCategory": 1016,
+      "staticImageUrl": "images/903955.jpg"
+    },
+    {
+      "id": "item_1794852592652_nzv36",
+      "idProduct": 903954,
+      "name": "Delta Reign Pokémon Center Elite Trainer Box",
+      "type": "sealed",
+      "categoryName": "Pokémon Elite Trainer Boxes",
+      "expansionName": "Delta Reign",
+      "isHolo": false,
+      "condition": "NM",
+      "language": "DE",
+      "quantity": 1,
+      "buyPrice": 62,
+      "buyDate": "2026-11-16",
+      "customLowPrice": null,
+      "imageUrl": "/api/cm-image/903954",
+      "cardmarketUrl": "https://www.cardmarket.com/de/Pokemon/Products/Search?searchString=Delta%20Reign%20Pok%C3%A9mon%20Center%20Elite%20Trainer%20Box",
+      "notes": "",
+      "marketPrices": {
+        "low": 95,
+        "trend": 102.96,
+        "dePrice": 102.96,
+        "avg1": null,
+        "avg7": null,
+        "avg30": null,
+        "avg": 129.1,
+        "updatedAt": "2026-11-16T02:48:57+0100"
+      },
+      "priceHistory": [
+        {
+          "date": "2026-10-17",
+          "low": 102.96,
+          "trend": 102.96,
+          "label": "30T Ø"
+        },
+        {
+          "date": "2026-11-02",
+          "low": 102.96,
+          "trend": 102.96,
+          "label": "14T Ø"
+        },
+        {
+          "date": "2026-11-09",
+          "low": 102.96,
+          "trend": 102.96,
+          "label": "7T Ø"
+        },
+        {
+          "date": "2026-11-15",
+          "low": 95,
+          "trend": 102.96,
+          "label": "Gestern"
+        },
+        {
+          "date": "2026-11-16",
+          "low": 102.96,
+          "trend": 102.96,
+          "label": "Heute (Ab-Preis)"
+        }
+      ],
+      "createdAt": "2026-11-16T18:09:52.652Z",
+      "displayNameDe": "Delta Reign Pokémon Center Top-Trainer-Box (TTB)",
+      "expansionCode": "DLR",
+      "idCategory": 1016,
+      "staticImageUrl": "images/903954.jpg"
+    },
+    {
+      "id": "item_1794852572383_81r0c",
+      "idProduct": 877294,
+      "name": "Chaos Rising Elite Trainer Box",
+      "type": "sealed",
+      "categoryName": "Pokémon Elite Trainer Boxes",
+      "expansionName": "Wachsendes Chaos",
+      "isHolo": false,
+      "condition": "NM",
+      "language": "DE",
+      "quantity": 2,
+      "buyPrice": 52,
+      "buyDate": "2026-11-16",
+      "customLowPrice": null,
+      "imageUrl": "/api/cm-image/877294",
+      "cardmarketUrl": "https://www.cardmarket.com/de/Pokemon/Products/Search?searchString=Chaos%20Rising%20Elite%20Trainer%20Box",
+      "notes": "",
+      "marketPrices": {
+        "low": 40,
+        "trend": 63.05,
+        "dePrice": 63.05,
+        "avg1": null,
+        "avg7": null,
+        "avg30": null,
+        "avg": 61.95,
+        "updatedAt": "2026-11-16T02:48:57+0100"
+      },
+      "priceHistory": [
+        {
+          "date": "2026-10-17",
+          "low": 63.05,
+          "trend": 63.05,
+          "label": "30T Ø"
+        },
+        {
+          "date": "2026-11-02",
+          "low": 63.05,
+          "trend": 63.05,
+          "label": "14T Ø"
+        },
+        {
+          "date": "2026-11-09",
+          "low": 63.05,
+          "trend": 63.05,
+          "label": "7T Ø"
+        },
+        {
+          "date": "2026-11-15",
+          "low": 40,
+          "trend": 63.05,
+          "label": "Gestern"
+        },
+        {
+          "date": "2026-11-16",
+          "low": 63.05,
+          "trend": 63.05,
+          "label": "Heute (Ab-Preis)"
+        }
+      ],
+      "createdAt": "2026-11-16T18:09:32.383Z",
+      "displayNameDe": "Wachsendes Chaos Top-Trainer-Box (TTB)",
+      "expansionCode": "CRI",
+      "idCategory": 1016,
+      "staticImageUrl": "images/877294.jpg"
+    },
+    {
+      "id": "item_1794852537040_n9zk7",
+      "idProduct": 846743,
+      "name": "Phantasmal Flames Pokémon Center Elite Trainer Box",
+      "type": "sealed",
+      "categoryName": "Pokémon Elite Trainer Boxes",
+      "expansionName": "Fatale Flammen",
+      "isHolo": false,
+      "condition": "NM",
+      "language": "DE",
+      "quantity": 1,
+      "buyPrice": 62,
+      "buyDate": "2026-11-16",
+      "customLowPrice": null,
+      "imageUrl": "/api/cm-image/846743",
+      "cardmarketUrl": "https://www.cardmarket.com/de/Pokemon/Products/Search?searchString=Phantasmal%20Flames%20Pok%C3%A9mon%20Center%20Elite%20Trainer%20Box",
+      "notes": "",
+      "marketPrices": {
+        "low": 84,
+        "trend": 136.43,
+        "dePrice": 136.43,
+        "avg1": null,
+        "avg7": null,
+        "avg30": null,
+        "avg": 96.29,
+        "updatedAt": "2026-11-16T02:48:57+0100"
+      },
+      "priceHistory": [
+        {
+          "date": "2026-10-17",
+          "low": 136.43,
+          "trend": 136.43,
+          "label": "30T Ø"
+        },
+        {
+          "date": "2026-11-02",
+          "low": 136.43,
+          "trend": 136.43,
+          "label": "14T Ø"
+        },
+        {
+          "date": "2026-11-09",
+          "low": 136.43,
+          "trend": 136.43,
+          "label": "7T Ø"
+        },
+        {
+          "date": "2026-11-15",
+          "low": 84,
+          "trend": 136.43,
+          "label": "Gestern"
+        },
+        {
+          "date": "2026-11-16",
+          "low": 136.43,
+          "trend": 136.43,
+          "label": "Heute (Ab-Preis)"
+        }
+      ],
+      "createdAt": "2026-11-16T18:08:57.040Z",
+      "displayNameDe": "Fatale Flammen Pokémon Center Top-Trainer-Box (TTB)",
+      "expansionCode": "PFL",
+      "idCategory": 1016,
+      "staticImageUrl": "images/846743.jpg"
+    },
+    {
+      "id": "item_1794852505015_jmvx6",
+      "idProduct": 761229,
+      "name": "Twilight Masquerade Elite Trainer Box",
+      "type": "sealed",
+      "categoryName": "Pokémon Elite Trainer Boxes",
+      "expansionName": "Maskerade im Zwielicht",
+      "isHolo": false,
+      "condition": "NM",
+      "language": "DE",
+      "quantity": 1,
+      "buyPrice": 52,
+      "buyDate": "2026-11-16",
+      "customLowPrice": null,
+      "imageUrl": "/api/cm-image/761229",
+      "cardmarketUrl": "https://www.cardmarket.com/de/Pokemon/Products/Search?searchString=Twilight%20Masquerade%20Elite%20Trainer%20Box",
+      "notes": "",
+      "marketPrices": {
+        "low": 45,
+        "trend": 72.47,
+        "dePrice": 72.47,
+        "avg1": null,
+        "avg7": null,
+        "avg30": null,
+        "avg": 68.13,
+        "updatedAt": "2026-11-16T02:48:57+0100"
+      },
+      "priceHistory": [
+        {
+          "date": "2026-10-17",
+          "low": 72.47,
+          "trend": 72.47,
+          "label": "30T Ø"
+        },
+        {
+          "date": "2026-11-02",
+          "low": 72.47,
+          "trend": 72.47,
+          "label": "14T Ø"
+        },
+        {
+          "date": "2026-11-09",
+          "low": 72.47,
+          "trend": 72.47,
+          "label": "7T Ø"
+        },
+        {
+          "date": "2026-11-15",
+          "low": 45,
+          "trend": 72.47,
+          "label": "Gestern"
+        },
+        {
+          "date": "2026-11-16",
+          "low": 72.47,
+          "trend": 72.47,
+          "label": "Heute (Ab-Preis)"
+        }
+      ],
+      "createdAt": "2026-11-16T18:08:25.015Z",
+      "displayNameDe": "Maskerade im Zwielicht Top-Trainer-Box (TTB)",
+      "expansionCode": "TWM",
+      "idCategory": 1016,
+      "staticImageUrl": "images/761229.jpg"
+    },
+    {
+      "id": "item_1794852477705_9di4r",
+      "idProduct": 885542,
+      "name": "Pitch Black Elite Trainer Box",
+      "type": "sealed",
+      "categoryName": "Pokémon Elite Trainer Boxes",
+      "expansionName": "Dunkelnacht",
+      "isHolo": false,
+      "condition": "NM",
+      "language": "DE",
+      "quantity": 1,
+      "buyPrice": 52,
+      "buyDate": "2026-11-16",
+      "customLowPrice": null,
+      "imageUrl": "/api/cm-image/885542",
+      "cardmarketUrl": "https://www.cardmarket.com/de/Pokemon/Products/Search?searchString=Pitch%20Black%20Elite%20Trainer%20Box",
+      "notes": "",
+      "marketPrices": {
+        "low": 44.9,
+        "trend": 67.24,
+        "dePrice": 67.24,
+        "avg1": null,
+        "avg7": null,
+        "avg30": null,
+        "avg": 68.41,
+        "updatedAt": "2026-11-16T02:48:57+0100"
+      },
+      "priceHistory": [
+        {
+          "date": "2026-10-17",
+          "low": 67.24,
+          "trend": 67.24,
+          "label": "30T Ø"
+        },
+        {
+          "date": "2026-11-02",
+          "low": 67.24,
+          "trend": 67.24,
+          "label": "14T Ø"
+        },
+        {
+          "date": "2026-11-09",
+          "low": 67.24,
+          "trend": 67.24,
+          "label": "7T Ø"
+        },
+        {
+          "date": "2026-11-15",
+          "low": 44.9,
+          "trend": 67.24,
+          "label": "Gestern"
+        },
+        {
+          "date": "2026-11-16",
+          "low": 67.24,
+          "trend": 67.24,
+          "label": "Heute (Ab-Preis)"
+        }
+      ],
+      "createdAt": "2026-11-16T18:07:57.705Z",
+      "displayNameDe": "Dunkelnacht Top-Trainer-Box (TTB)",
+      "expansionCode": "PBL",
+      "idCategory": 1016,
+      "staticImageUrl": "images/885542.jpg"
+    },
+    {
+      "id": "item_1794852459451_a9i2k",
+      "idProduct": 895551,
+      "name": "30th Celebration Elite Trainer Box",
+      "type": "sealed",
+      "categoryName": "Pokémon Elite Trainer Boxes",
+      "expansionName": "30th Classic Collection",
+      "isHolo": false,
+      "condition": "NM",
+      "language": "DE",
+      "quantity": 1,
+      "buyPrice": 70,
+      "buyDate": "2026-11-16",
+      "customLowPrice": null,
+      "imageUrl": "/api/cm-image/895551",
+      "cardmarketUrl": "https://www.cardmarket.com/de/Pokemon/Products/Search?searchString=30th%20Celebration%20Elite%20Trainer%20Box",
+      "notes": "",
+      "marketPrices": {
+        "low": 90,
+        "trend": 118.45,
+        "dePrice": 118.45,
+        "avg1": null,
+        "avg7": null,
+        "avg30": null,
+        "avg": 128.21,
+        "updatedAt": "2026-11-16T02:48:57+0100"
+      },
+      "priceHistory": [
+        {
+          "date": "2026-10-17",
+          "low": 118.45,
+          "trend": 118.45,
+          "label": "30T Ø"
+        },
+        {
+          "date": "2026-11-02",
+          "low": 118.45,
+          "trend": 118.45,
+          "label": "14T Ø"
+        },
+        {
+          "date": "2026-11-09",
+          "low": 118.45,
+          "trend": 118.45,
+          "label": "7T Ø"
+        },
+        {
+          "date": "2026-11-15",
+          "low": 90,
+          "trend": 118.45,
+          "label": "Gestern"
+        },
+        {
+          "date": "2026-11-16",
+          "low": 118.45,
+          "trend": 118.45,
+          "label": "Heute (Ab-Preis)"
+        }
+      ],
+      "createdAt": "2026-11-16T18:07:39.451Z",
+      "displayNameDe": "30th Celebration Top-Trainer-Box (TTB)",
+      "expansionCode": "30C",
+      "idCategory": 1016,
+      "staticImageUrl": "images/895551.jpg"
+    },
+    {
+      "id": "item_1794852433205_5ob5e",
+      "idProduct": 918982,
+      "name": "Mega Rayquaza ex [Roar of the Ruler | Storm Emeralda]",
+      "type": "single",
+      "categoryName": "Pokémon Single",
+      "expansionName": "Delta Reign",
+      "isHolo": false,
+      "condition": "NM",
+      "language": "DE",
+      "quantity": 1,
+      "buyPrice": 5,
+      "buyDate": "2026-11-16",
+      "customLowPrice": null,
+      "imageUrl": "/api/cm-image/918982",
+      "cardmarketUrl": "https://www.cardmarket.com/de/Pokemon/Products/Search?searchString=Mega%20Rayquaza%20ex%20%5BRoar%20of%20the%20Ruler%20%7C%20Storm%20Emeralda%5D",
+      "notes": "",
+      "marketPrices": {
+        "low": 200,
+        "trend": 308.18,
+        "dePrice": 297.3,
+        "avg1": 309.76,
+        "avg7": 297.3,
+        "avg30": 311.3,
+        "avg": 280,
+        "updatedAt": "2026-11-16T02:48:57+0100"
+      },
+      "priceHistory": [
+        {
+          "date": "2026-10-17",
+          "low": 311.3,
+          "trend": 308.18,
+          "label": "30T Ø"
+        },
+        {
+          "date": "2026-11-02",
+          "low": 304.3,
+          "trend": 308.18,
+          "label": "14T Ø"
+        },
+        {
+          "date": "2026-11-09",
+          "low": 297.3,
+          "trend": 308.18,
+          "label": "7T Ø"
+        },
+        {
+          "date": "2026-11-15",
+          "low": 309.76,
+          "trend": 308.18,
+          "label": "Gestern"
+        },
+        {
+          "date": "2026-11-16",
+          "low": 297.3,
+          "trend": 308.18,
+          "label": "Heute (Ab-Preis)"
+        }
+      ],
+      "createdAt": "2026-11-16T18:07:13.205Z",
+      "displayNameDe": "Mega Rayquaza ex [Roar of the Ruler | Storm Emeralda]",
+      "expansionCode": "DLR",
+      "idCategory": 51,
+      "staticImageUrl": "images/918982.jpg"
+    }
+  ]
+}
