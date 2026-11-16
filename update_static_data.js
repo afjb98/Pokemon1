@@ -253,7 +253,8 @@ async function run() {
         prices.low,
         prices.trend,
         prices.avg30,
-        p.idCategory
+        p.idCategory,
+        expInfo?.tcgdexId || ''
       ]);
     }
   }
@@ -294,7 +295,8 @@ async function run() {
         prices.low,
         prices.trend,
         prices.avg30,
-        51
+        51,
+        expInfo?.tcgdexId || ''
       ]);
     }
   }

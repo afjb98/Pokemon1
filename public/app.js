@@ -13,6 +13,98 @@ let searchDebounceTimer = null;
 let isStaticMode = false;
 let staticCatalogItems = null; // loaded lazily from ./data/catalog_compact.json when in static mode
 const LOCAL_STORAGE_KEY = 'pokevault_portfolio_v1';
+const PERSONAL_PORTFOLIO_KEY = 'pokevault_personal_portfolio_v1';
+const PROFILE_MODE_KEY = 'pokevault_profile_mode';
+const PROFILE_NAME_KEY = 'pokevault_profile_name';
+const IMG_FALLBACK_CACHE_KEY = 'pokevault_img_cache_v1';
+
+let profileMode = 'owner'; // 'owner' | 'personal'
+let profileName = '';
+
+// In-memory + localStorage caches for TCGdex fallback images on mobile
+let tcgdexImgCache = {};
+try {
+  tcgdexImgCache = JSON.parse(localStorage.getItem(IMG_FALLBACK_CACHE_KEY) || '{}');
+} catch (e) { tcgdexImgCache = {}; }
+const tcgdexSetPromises = new Map();
+const tcgdexInflightCard = new Map();
+
+function saveImgFallbackCache() {
+  try {
+    const keys = Object.keys(tcgdexImgCache);
+    if (keys.length > 500) {
+      // Keep cache bounded
+      for (const k of keys.slice(0, 100)) delete tcgdexImgCache[k];
+    }
+    localStorage.setItem(IMG_FALLBACK_CACHE_KEY, JSON.stringify(tcgdexImgCache));
+  } catch (e) {}
+}
+
+function showToast(msg, duration = 3200) {
+  const el = document.getElementById('toastBanner');
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.remove('hidden');
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => el.classList.add('hidden'), duration);
+}
+
+function getFriendShareUrl() {
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    return 'https://afjb98.github.io/Pokemon1/?friend=1';
+  }
+  return `${window.location.origin}${window.location.pathname}?friend=1`;
+}
+
+function initProfileState() {
+  const params = new URLSearchParams(window.location.search);
+  const storedMode = localStorage.getItem(PROFILE_MODE_KEY);
+  const storedName = localStorage.getItem(PROFILE_NAME_KEY) || '';
+
+  if (params.get('friend') === '1' || params.get('new') === '1') {
+    profileMode = 'personal';
+    profileName = storedName;
+    localStorage.setItem(PROFILE_MODE_KEY, 'personal');
+  } else if (params.get('owner') === '1') {
+    profileMode = 'owner';
+    profileName = storedName;
+    localStorage.setItem(PROFILE_MODE_KEY, 'owner');
+  } else {
+    profileMode = storedMode === 'personal' ? 'personal' : 'owner';
+    profileName = storedName;
+  }
+
+  updateProfileHeader();
+
+  // If opened via ?friend=1 without a saved name yet, prompt immediately for their name
+  if (profileMode === 'personal' && !profileName) {
+    setTimeout(() => openProfileModal(true), 120);
+  }
+}
+
+function updateProfileHeader() {
+  const titleEl = document.getElementById('appBrandTitle');
+  const markEl = document.getElementById('brandMark');
+  const badgeEl = document.getElementById('profileBadgeBtn');
+  const switchBtn = document.getElementById('btnOpenProfileModal');
+  const subtitleEl = document.getElementById('appBrandSubtitle');
+
+  if (profileMode === 'personal' && profileName) {
+    titleEl.textContent = `Portfolio von ${profileName}`;
+    document.title = `Portfolio von ${profileName} – Cardmarket DE`;
+    markEl.textContent = profileName.slice(0, 2).toUpperCase();
+    badgeEl.textContent = `Profil: ${profileName} ✎`;
+    switchBtn.textContent = 'Profil wechseln';
+    subtitleEl.textContent = 'Persönliche Sammlung mit täglichen deutschen Cardmarket-Preisen';
+  } else {
+    titleEl.textContent = 'Pokémon Portfolio';
+    document.title = 'Sammlung & Portfolio – Cardmarket DE';
+    markEl.textContent = 'CM';
+    badgeEl.textContent = 'DE Marktpreise';
+    switchBtn.textContent = 'Eigenes Portfolio';
+    subtitleEl.textContent = 'Bestand, Einkaufspreise & Wertentwicklung auf Basis deutscher Cardmarket-Preise';
+  }
+}
 
 function fmtEuro(val) {
   if (val === null || val === undefined || Number.isNaN(Number(val))) return '—';
@@ -58,21 +150,163 @@ function getUnitRawEuLow(item) {
 function resolveItemImageUrl(item) {
   if (isStaticMode) {
     if (item.staticImageUrl) return `./${item.staticImageUrl}`;
+    if (item.fallbackImageUrl) return item.fallbackImageUrl;
+    if (item.idProduct && tcgdexImgCache[String(item.idProduct)]) {
+      return tcgdexImgCache[String(item.idProduct)];
+    }
     if (item.idProduct) {
       const ext = item.type === 'sealed' ? 'png' : 'jpg';
       return `./images/${item.idProduct}.${ext}`;
     }
   }
-  if (item.imageUrl) return item.imageUrl;
-  if (item.idProduct) return `/api/cm-image/${item.idProduct}`;
-  return '';
+  if (item.imageUrl && !String(item.imageUrl).startsWith('./images/')) return item.imageUrl;
+  if (item.idProduct) {
+    return isStaticMode
+      ? (tcgdexImgCache[String(item.idProduct)] || `./images/${item.idProduct}.${item.type === 'sealed' ? 'png' : 'jpg'}`)
+      : `/api/cm-image/${item.idProduct}`;
+  }
+  return item.imageUrl || '';
+}
+
+function getActiveStorageKey() {
+  return profileMode === 'personal' ? PERSONAL_PORTFOLIO_KEY : LOCAL_STORAGE_KEY;
 }
 
 function saveLocalPortfolio() {
   try {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ items: portfolioItems, savedAt: new Date().toISOString() }));
+    localStorage.setItem(
+      getActiveStorageKey(),
+      JSON.stringify({ items: portfolioItems, ownerName: profileName, savedAt: new Date().toISOString() })
+    );
   } catch (e) {}
 }
+
+function cleanEnglishCardNameForApi(rawName) {
+  let n = String(rawName || '').replace(/\[.*?\]/g, '').trim();
+  // If formatted like "Glurak – Charizard ex" or "Glurak (Charizard)"
+  if (n.includes(' – ')) n = n.split(' – ').slice(1).join(' – ').trim();
+  const parenMatch = n.match(/^[^(]+\(([^)]+)\)$/);
+  if (parenMatch) n = parenMatch[1].trim();
+  return n.trim();
+}
+
+async function fetchTcgdexSet(tcgdexId) {
+  if (!tcgdexId) return null;
+  if (tcgdexSetPromises.has(tcgdexId)) return tcgdexSetPromises.get(tcgdexId);
+  const p = fetch(`https://api.tcgdex.net/v2/en/sets/${encodeURIComponent(tcgdexId)}`)
+    .then(r => (r.ok ? r.json() : null))
+    .catch(() => null);
+  tcgdexSetPromises.set(tcgdexId, p);
+  return p;
+}
+
+async function resolveTcgdexImage(idProduct, rawName, type, tcgdexId) {
+  const key = String(idProduct || rawName || '');
+  if (tcgdexImgCache[key]) return tcgdexImgCache[key];
+  if (tcgdexInflightCard.has(key)) return tcgdexInflightCard.get(key);
+
+  const task = (async () => {
+    try {
+      const cleanName = cleanEnglishCardNameForApi(rawName);
+      if (type === 'sealed') {
+        if (tcgdexId) {
+          const setObj = await fetchTcgdexSet(tcgdexId);
+          if (setObj?.logo) {
+            const url = `${setObj.logo}.webp`;
+            tcgdexImgCache[key] = url;
+            saveImgFallbackCache();
+            return url;
+          }
+        }
+        return null;
+      }
+
+      // Single card: first try exact set lookup via tcgdexId
+      if (tcgdexId && cleanName) {
+        const setObj = await fetchTcgdexSet(tcgdexId);
+        if (setObj && Array.isArray(setObj.cards)) {
+          const lower = cleanName.toLowerCase();
+          const norm = lower.replace(/[^a-z0-9]/g, '');
+          let match = setObj.cards.find(c => c.image && c.name && c.name.toLowerCase() === lower);
+          if (!match) {
+            match = setObj.cards.find(c => c.image && c.name && c.name.toLowerCase().replace(/[^a-z0-9]/g, '') === norm);
+          }
+          if (!match) {
+            match = setObj.cards.find(c => c.image && c.name && (c.name.toLowerCase().includes(lower) || lower.includes(c.name.toLowerCase())));
+          }
+          if (match?.image) {
+            const url = `${match.image}/low.webp`;
+            tcgdexImgCache[key] = url;
+            saveImgFallbackCache();
+            return url;
+          }
+        }
+      }
+
+      // Fallback: global TCGdex card search by name (prefer physical TCG cards over tcgp)
+      if (cleanName && cleanName.length >= 2) {
+        const res = await fetch(`https://api.tcgdex.net/v2/en/cards?name=${encodeURIComponent(cleanName)}`);
+        if (res.ok) {
+          const list = await res.json();
+          if (Array.isArray(list)) {
+            const withImg = list.filter(c => c.image);
+            const physical = withImg.filter(c => !String(c.image).includes('/tcgp/'));
+            const chosen = physical[0] || withImg[0];
+            if (chosen?.image) {
+              const url = `${chosen.image}/low.webp`;
+              tcgdexImgCache[key] = url;
+              saveImgFallbackCache();
+              return url;
+            }
+          }
+        }
+      }
+    } catch (e) {}
+    return null;
+  })();
+
+  tcgdexInflightCard.set(key, task);
+  const resUrl = await task;
+  tcgdexInflightCard.delete(key);
+  return resUrl;
+}
+
+window.handleCardImageError = async function(imgEl) {
+  if (!imgEl || imgEl.dataset.fbTried === '1') {
+    if (imgEl && imgEl.parentElement) {
+      imgEl.parentElement.textContent = imgEl.dataset.badge || 'TCG';
+    }
+    return;
+  }
+  imgEl.dataset.fbTried = '1';
+
+  const idProduct = imgEl.dataset.id;
+  const rawName = imgEl.dataset.name;
+  const type = imgEl.dataset.type || 'single';
+  const tcgdexId = imgEl.dataset.tcgdex || '';
+  const badge = imgEl.dataset.badge || (type === 'sealed' ? 'BOX' : 'TCG');
+
+  // On localhost, local server handles Cardmarket S3 directly
+  if (!isStaticMode && !tcgdexId) {
+    imgEl.parentElement.textContent = badge;
+    return;
+  }
+
+  const url = await resolveTcgdexImage(idProduct, rawName, type, tcgdexId);
+  if (url) {
+    imgEl.src = url;
+    // Save fallback URL on matching portfolio item if present
+    if (idProduct) {
+      const pItem = portfolioItems.find(i => String(i.idProduct) === String(idProduct));
+      if (pItem && !pItem.staticImageUrl && pItem.fallbackImageUrl !== url) {
+        pItem.fallbackImageUrl = url;
+        saveLocalPortfolio();
+      }
+    }
+  } else if (imgEl.parentElement) {
+    imgEl.parentElement.textContent = badge;
+  }
+};
 
 // Check Backend Status or Switch to Static GitHub Pages Mode
 async function pollCatalogStatus() {
@@ -99,7 +333,7 @@ async function pollCatalogStatus() {
     // Running on GitHub Pages / Static iPhone PWA
     isStaticMode = true;
     badge.className = 'status-pill ready';
-    text.textContent = 'Cloud / iPhone Modus aktiv';
+    text.textContent = profileMode === 'personal' ? 'Persönlicher Modus' : 'Cloud / iPhone Modus aktiv';
   }
 }
 
@@ -118,8 +352,68 @@ async function ensureStaticCatalogLoaded() {
   return staticCatalogLoadingPromise;
 }
 
-// Load Portfolio (merges latest server/GitHub daily prices with local iPhone additions)
+// Refresh prices for a friend's personal portfolio using daily-updated catalog_compact.json
+async function refreshPersonalItemsFromCatalog() {
+  if (portfolioItems.length === 0) return;
+  try {
+    const list = await ensureStaticCatalogLoaded();
+    const byId = new Map();
+    for (const row of list) {
+      byId.set(Number(row[0]), row);
+    }
+    const today = new Date().toISOString().slice(0, 10);
+    let updated = false;
+    for (const item of portfolioItems) {
+      if (!item.idProduct) continue;
+      const row = byId.get(Number(item.idProduct));
+      if (!row) continue;
+      const [, , , , , , , dePrice, low, trend, avg30, , tcgdexId] = row;
+      if (tcgdexId && !item.tcgdexId) item.tcgdexId = tcgdexId;
+      item.marketPrices = {
+        ...(item.marketPrices || {}),
+        dePrice: dePrice ?? item.marketPrices?.dePrice ?? null,
+        low: low ?? item.marketPrices?.low ?? null,
+        trend: trend ?? item.marketPrices?.trend ?? null,
+        avg30: avg30 ?? item.marketPrices?.avg30 ?? null,
+        updatedAt: today
+      };
+      const eff = item.customLowPrice != null
+        ? Number(item.customLowPrice)
+        : (dePrice ?? trend ?? low ?? 0);
+      if (eff > 0) {
+        if (!Array.isArray(item.priceHistory)) item.priceHistory = [];
+        const ex = item.priceHistory.find(h => h.date === today);
+        if (ex) {
+          ex.low = eff;
+          ex.trend = trend ?? eff;
+        } else {
+          item.priceHistory.push({ date: today, low: eff, trend: trend ?? eff, label: 'Heute' });
+        }
+      }
+      updated = true;
+    }
+    if (updated) {
+      saveLocalPortfolio();
+      renderAll();
+    }
+  } catch (e) {}
+}
+
+// Load Portfolio (supports both Owner Mode and Personal/Friends Mode)
 async function fetchPortfolio() {
+  if (profileMode === 'personal') {
+    let personalData = null;
+    try {
+      const raw = localStorage.getItem(PERSONAL_PORTFOLIO_KEY);
+      if (raw) personalData = JSON.parse(raw);
+    } catch (e) {}
+    portfolioItems = Array.isArray(personalData?.items) ? personalData.items : [];
+    renderAll();
+    // Silently sync latest daily Cardmarket prices for the friend's cards
+    refreshPersonalItemsFromCatalog();
+    return;
+  }
+
   try {
     const res = await fetch('/api/portfolio');
     if (!res.ok) throw new Error('Static fallback');
@@ -315,9 +609,10 @@ function renderTable() {
 
     const profitClass = profit > 0.001 ? 'pos' : profit < -0.001 ? 'neg' : 'neutral';
     const effectiveImg = resolveItemImageUrl(item);
+    const badgeTxt = item.expansionCode || (item.type === 'sealed' ? 'BOX' : 'TCG');
     const thumbContent = effectiveImg
-      ? `<img src="${escapeHtml(effectiveImg)}" alt="" onerror="this.parentElement.textContent='${item.type === 'sealed' ? 'BOX' : 'TCG'}'" />`
-      : (item.type === 'sealed' ? 'BOX' : 'TCG');
+      ? `<img src="${escapeHtml(effectiveImg)}" alt="" data-id="${escapeHtml(item.idProduct || '')}" data-name="${escapeHtml(item.name)}" data-type="${escapeHtml(item.type)}" data-tcgdex="${escapeHtml(item.tcgdexId || '')}" data-badge="${escapeHtml(badgeTxt)}" onerror="handleCardImageError(this)" />`
+      : escapeHtml(badgeTxt);
 
     const displayTitle = item.displayNameDe || item.name;
     const priceSourceLabel = item.customLowPrice != null
@@ -481,6 +776,7 @@ function renderSetGallery(items, container) {
 
       const effectiveImg = resolveItemImageUrl(item);
       const displayTitle = (item.displayNameDe || item.name).replace(/\[.*?\]/g, '').trim();
+      const cardBadgeTxt = item.expansionCode || (item.type === 'sealed' ? 'BOX' : 'TCG');
 
       const cardEl = document.createElement('div');
       cardEl.className = `gallery-card${selectedChartItemId === item.id ? ' selected-card' : ''}`;
@@ -488,7 +784,7 @@ function renderSetGallery(items, container) {
       cardEl.innerHTML = `
         <div class="gallery-card-visual">
           ${qty > 1 ? `<span class="gallery-qty-badge">${qty}x</span>` : ''}
-          ${effectiveImg ? `<img src="${escapeHtml(effectiveImg)}" loading="lazy" alt="" onerror="this.style.display='none'" />` : `<span>${item.type === 'sealed' ? 'BOX' : 'TCG'}</span>`}
+          ${effectiveImg ? `<img src="${escapeHtml(effectiveImg)}" loading="lazy" alt="" data-id="${escapeHtml(item.idProduct || '')}" data-name="${escapeHtml(item.name)}" data-type="${escapeHtml(item.type)}" data-tcgdex="${escapeHtml(item.tcgdexId || '')}" data-badge="${escapeHtml(cardBadgeTxt)}" onerror="handleCardImageError(this)" />` : `<span>${escapeHtml(cardBadgeTxt)}</span>`}
           <span class="gallery-price-pill">${fmtEuro(uDe)}</span>
         </div>
         <div class="gallery-card-footer">
@@ -690,8 +986,8 @@ async function searchStaticCatalogClient(q, typeFilter) {
 
   for (let i = 0; i < list.length; i++) {
     const row = list[i];
-    // [idProduct, name, displayNameDe, type('s'|'c'), categoryName, expansionName, expansionCode, dePrice, low, trend, avg30, idCategory]
-    const [idProduct, name, displayNameDe, shortType, categoryName, expansionName, expansionCode, dePrice, low, trend, avg30, idCategory] = row;
+    // [idProduct, name, displayNameDe, type('s'|'c'), categoryName, expansionName, expansionCode, dePrice, low, trend, avg30, idCategory, tcgdexId]
+    const [idProduct, name, displayNameDe, shortType, categoryName, expansionName, expansionCode, dePrice, low, trend, avg30, idCategory, tcgdexId] = row;
     const itemType = shortType === 's' ? 'sealed' : 'single';
     if (typeFilter === 'single' && itemType !== 'single') continue;
     if (typeFilter === 'sealed' && itemType !== 'sealed') continue;
@@ -711,6 +1007,7 @@ async function searchStaticCatalogClient(q, typeFilter) {
     if (!match) continue;
 
     const ext = itemType === 'sealed' ? 'png' : 'jpg';
+    const cachedImg = tcgdexImgCache[String(idProduct)];
     results.push({
       idProduct,
       name,
@@ -719,7 +1016,8 @@ async function searchStaticCatalogClient(q, typeFilter) {
       categoryName,
       expansionName,
       expansionCode,
-      imageUrl: `./images/${idProduct}.${ext}`,
+      tcgdexId: tcgdexId || '',
+      imageUrl: cachedImg || `./images/${idProduct}.${ext}`,
       cardmarketUrl: `https://www.cardmarket.com/de/Pokemon/Products/Search?searchString=${encodeURIComponent(name)}&language=3`,
       prices: { dePrice, low, trend, avg30 }
     });
@@ -768,7 +1066,7 @@ async function performCatalogSearch() {
 
       const dePriceTxt = prod.prices?.dePrice != null ? fmtEuro(prod.prices.dePrice) : '—';
       const euLowTxt = prod.prices?.low != null ? fmtEuro(prod.prices.low) : '—';
-      const imgUrl = prod.imageUrl || (isStaticMode ? `./images/${prod.idProduct}.${prod.type === 'sealed' ? 'png' : 'jpg'}` : `/api/cm-image/${prod.idProduct}`);
+      const imgUrl = prod.imageUrl || (isStaticMode ? (tcgdexImgCache[String(prod.idProduct)] || `./images/${prod.idProduct}.${prod.type === 'sealed' ? 'png' : 'jpg'}`) : `/api/cm-image/${prod.idProduct}`);
       const setLabel = prod.expansionName ? `${escapeHtml(prod.expansionName)} • ` : '';
       const mainTitle = prod.displayNameDe || prod.name;
       const showOriginalSub = prod.displayNameDe && prod.displayNameDe !== prod.name;
@@ -776,7 +1074,7 @@ async function performCatalogSearch() {
       const setBadgeTxt = prod.expansionCode || (prod.type === 'sealed' ? 'BOX' : 'TCG');
       div.innerHTML = `
         <div class="catalog-thumb">
-          <img src="${escapeHtml(imgUrl)}" loading="lazy" alt="" onerror="this.parentElement.textContent='${escapeHtml(setBadgeTxt)}'" />
+          <img src="${escapeHtml(imgUrl)}" loading="lazy" alt="" data-id="${escapeHtml(prod.idProduct)}" data-name="${escapeHtml(prod.name)}" data-type="${escapeHtml(prod.type)}" data-tcgdex="${escapeHtml(prod.tcgdexId || '')}" data-badge="${escapeHtml(setBadgeTxt)}" onerror="handleCardImageError(this)" />
         </div>
         <div class="catalog-item-info">
           <div class="catalog-item-name">${escapeHtml(mainTitle)}</div>
@@ -805,7 +1103,7 @@ let lastSelectedCatalogProd = null;
 
 function selectCatalogProduct(prod) {
   lastSelectedCatalogProd = prod;
-  const imgUrl = prod.imageUrl || (isStaticMode ? `./images/${prod.idProduct}.${prod.type === 'sealed' ? 'png' : 'jpg'}` : `/api/cm-image/${prod.idProduct}`);
+  const imgUrl = tcgdexImgCache[String(prod.idProduct)] || prod.imageUrl || (isStaticMode ? `./images/${prod.idProduct}.${prod.type === 'sealed' ? 'png' : 'jpg'}` : `/api/cm-image/${prod.idProduct}`);
   const mainTitle = prod.displayNameDe || prod.name;
 
   document.getElementById('formIdProduct').value = prod.idProduct;
@@ -819,8 +1117,9 @@ function selectCatalogProduct(prod) {
   const pricesEl = document.getElementById('selectedCmPrices');
   const thumbEl = document.getElementById('selectedBannerThumb');
   const cmLink = document.getElementById('selectedDirectCmLink');
+  const setBadgeTxt = prod.expansionCode || (prod.type === 'sealed' ? 'BOX' : 'TCG');
 
-  thumbEl.innerHTML = `<img src="${escapeHtml(imgUrl)}" alt="" onerror="this.parentElement.textContent='${prod.type === 'sealed' ? 'BOX' : 'TCG'}'" />`;
+  thumbEl.innerHTML = `<img src="${escapeHtml(imgUrl)}" alt="" data-id="${escapeHtml(prod.idProduct)}" data-name="${escapeHtml(prod.name)}" data-type="${escapeHtml(prod.type)}" data-tcgdex="${escapeHtml(prod.tcgdexId || '')}" data-badge="${escapeHtml(setBadgeTxt)}" onerror="handleCardImageError(this)" />`;
   badge.textContent = `${prod.type === 'sealed' ? 'Sealed' : 'Einzelkarte'} #${prod.idProduct}${prod.expansionName ? ' • ' + prod.expansionName : ''}`;
   nameEl.textContent = mainTitle;
   pricesEl.innerHTML = `DE-Richtwert: <strong style="color:var(--text-main)">${fmtEuro(prod.prices?.dePrice)}</strong> • EU-Low (inkl. IT/ES): ${fmtEuro(prod.prices?.low)}`;
@@ -948,7 +1247,7 @@ async function deleteItem(itemId) {
   if (!item) return;
   if (!confirm(`Möchtest du „${item.displayNameDe || item.name}“ wirklich entfernen?`)) return;
 
-  if (!isStaticMode) {
+  if (!isStaticMode && profileMode === 'owner') {
     await fetch(`/api/portfolio/${itemId}`, { method: 'DELETE' });
     if (selectedChartItemId === itemId) selectedChartItemId = null;
     await fetchPortfolio();
@@ -957,6 +1256,62 @@ async function deleteItem(itemId) {
     if (selectedChartItemId === itemId) selectedChartItemId = null;
     saveLocalPortfolio();
     renderAll();
+  }
+}
+
+function openProfileModal(isFirstFriendPrompt = false) {
+  const modal = document.getElementById('profileModal');
+  const titleEl = document.getElementById('profileModalTitle');
+  const subEl = document.getElementById('profileModalSub');
+  const nameInput = document.getElementById('profileNameInput');
+  const switchOwnerBtn = document.getElementById('btnSwitchToOwner');
+  const saveBtn = document.getElementById('btnSaveProfile');
+
+  nameInput.value = profileName || '';
+
+  if (isFirstFriendPrompt || profileMode !== 'personal') {
+    titleEl.textContent = 'Eigenes Portfolio starten';
+    subEl.textContent = 'Gib deinen Namen ein – deine Karten werden nur auf deinem Gerät gespeichert';
+    saveBtn.textContent = 'Mein Portfolio starten';
+  } else {
+    titleEl.textContent = 'Profil bearbeiten';
+    subEl.textContent = 'Namen anpassen oder zur geteilten Sammlung wechseln';
+    saveBtn.textContent = 'Namen speichern';
+  }
+
+  if (profileMode === 'personal') {
+    switchOwnerBtn.classList.remove('hidden');
+  } else {
+    switchOwnerBtn.classList.add('hidden');
+  }
+
+  modal.classList.remove('hidden');
+  setTimeout(() => nameInput.focus(), 60);
+}
+
+function closeProfileModal() {
+  document.getElementById('profileModal').classList.add('hidden');
+}
+
+async function shareFriendLink() {
+  const url = getFriendShareUrl();
+  try {
+    if (navigator.share) {
+      await navigator.share({
+        title: 'Pokémon Portfolio Tracker',
+        text: 'Leg dir hier dein eigenes Pokémon-Karten & Sealed-Portfolio an (mit täglichen Cardmarket-Preisen):',
+        url
+      });
+      return;
+    }
+  } catch (e) {
+    // Fallback to clipboard if user cancelled share sheet or unsupported
+  }
+  try {
+    await navigator.clipboard.writeText(url);
+    showToast('Freunde-Link kopiert! Einfach per WhatsApp / Nachricht teilen.');
+  } catch (e) {
+    prompt('Kopiere diesen Link für deine Freunde:', url);
   }
 }
 
@@ -969,6 +1324,7 @@ function escapeHtml(str) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  initProfileState();
   pollCatalogStatus();
   fetchPortfolio();
 
@@ -980,12 +1336,48 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btnCloseSnapshotModal').addEventListener('click', closeSnapshotModal);
   document.getElementById('btnCancelSnapshot').addEventListener('click', closeSnapshotModal);
 
+  // Friends / Profile Modal listeners
+  document.getElementById('btnShareFriendLink').addEventListener('click', shareFriendLink);
+  document.getElementById('btnOpenProfileModal').addEventListener('click', () => openProfileModal(false));
+  document.getElementById('profileBadgeBtn').addEventListener('click', () => openProfileModal(false));
+  document.getElementById('btnCloseProfileModal').addEventListener('click', closeProfileModal);
+  document.getElementById('btnCancelProfile').addEventListener('click', closeProfileModal);
+
+  document.getElementById('btnSwitchToOwner').addEventListener('click', () => {
+    profileMode = 'owner';
+    localStorage.setItem(PROFILE_MODE_KEY, 'owner');
+    selectedChartItemId = null;
+    closeProfileModal();
+    updateProfileHeader();
+    fetchPortfolio();
+    showToast('Geteilte Hauptsammlung geladen.');
+  });
+
+  document.getElementById('profileForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const enteredName = document.getElementById('profileNameInput').value.trim();
+    if (!enteredName) return;
+
+    const wasOwner = profileMode !== 'personal';
+    profileName = enteredName;
+    profileMode = 'personal';
+    localStorage.setItem(PROFILE_NAME_KEY, profileName);
+    localStorage.setItem(PROFILE_MODE_KEY, 'personal');
+
+    selectedChartItemId = null;
+    closeProfileModal();
+    updateProfileHeader();
+    fetchPortfolio();
+    showToast(wasOwner ? `Willkommen, ${profileName}! Dein Portfolio ist bereit.` : `Profilname auf „${profileName}“ aktualisiert.`);
+  });
+
   // Export Backup (for Google Drive / iCloud / GitHub)
   document.getElementById('btnExportBackup').addEventListener('click', () => {
-    const blob = new Blob([JSON.stringify({ items: portfolioItems }, null, 2)], { type: 'application/json' });
+    const safeName = profileName ? `-${profileName.toLowerCase().replace(/[^a-z0-9]/g, '')}` : '';
+    const blob = new Blob([JSON.stringify({ ownerName: profileName || 'Standard', items: portfolioItems }, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `portfolio.json`;
+    a.download = `portfolio${safeName}.json`;
     a.click();
   });
 
@@ -1000,7 +1392,7 @@ document.addEventListener('DOMContentLoaded', () => {
         portfolioItems = parsed.items;
         saveLocalPortfolio();
         renderAll();
-        alert(`${portfolioItems.length} Einträge erfolgreich geladen!`);
+        showToast(`${portfolioItems.length} Einträge erfolgreich geladen!`);
       }
     } catch (err) {
       alert('Ungültige Portfolio-Datei.');
@@ -1020,12 +1412,19 @@ document.addEventListener('DOMContentLoaded', () => {
     badge.className = 'status-pill loading';
     text.textContent = 'Aktualisiere...';
 
-    if (!isStaticMode) {
+    if (!isStaticMode && profileMode === 'owner') {
       await fetch('/api/refresh-catalog', { method: 'POST' });
       setTimeout(async () => {
         await pollCatalogStatus();
         await fetchPortfolio();
       }, 1500);
+    } else if (profileMode === 'personal') {
+      staticCatalogItems = null;
+      staticCatalogLoadingPromise = null;
+      await refreshPersonalItemsFromCatalog();
+      badge.className = 'status-pill ready';
+      text.textContent = 'Preise synchronisiert';
+      showToast('Cardmarket-Preise aktualisiert.');
     } else {
       window.location.href = window.location.pathname + '?v=' + Date.now();
     }
@@ -1091,7 +1490,7 @@ document.addEventListener('DOMContentLoaded', () => {
       cardmarketUrl: document.getElementById('formCardmarketUrl').value.trim()
     };
 
-    if (!isStaticMode) {
+    if (!isStaticMode && profileMode === 'owner') {
       if (editId) {
         await fetch(`/api/portfolio/${editId}`, {
           method: 'PUT',
@@ -1108,8 +1507,9 @@ document.addEventListener('DOMContentLoaded', () => {
       closeAddModal();
       await fetchPortfolio();
     } else {
-      // Static / iPhone mode
-      const today = new Date().toISOString().slice(0, 10);
+      // Static / iPhone / Personal Friends mode
+      const now = new Date();
+      const today = now.toISOString().slice(0, 10);
       const customLow = payload.customLowPrice !== '' && payload.customLowPrice != null ? Number(payload.customLowPrice) : null;
       if (editId) {
         const idx = portfolioItems.findIndex(i => i.id === editId);
@@ -1127,15 +1527,25 @@ document.addEventListener('DOMContentLoaded', () => {
       } else {
         const pr = lastSelectedCatalogProd?.prices || {};
         const eff = customLow ?? pr.dePrice ?? pr.trend ?? pr.low ?? payload.buyPrice;
+        const hist = [];
+        const d30 = new Date(now.getTime() - 30 * 86400000).toISOString().slice(0, 10);
+        const d7 = new Date(now.getTime() - 7 * 86400000).toISOString().slice(0, 10);
+        const p30 = pr.avg30 ?? pr.trend ?? eff;
+        if (p30 > 0) hist.push({ date: d30, low: Number(p30.toFixed(2)), trend: Number((pr.trend ?? p30).toFixed(2)), label: '30T Ø' });
+        if ((pr.trend ?? eff) > 0) hist.push({ date: d7, low: Number((pr.trend ?? eff).toFixed(2)), trend: Number((pr.trend ?? eff).toFixed(2)), label: '7T Ø' });
+        hist.push({ date: today, low: Number(eff.toFixed(2)), trend: Number((pr.trend ?? eff).toFixed(2)), label: 'Heute' });
+
+        const cachedFallback = payload.idProduct ? tcgdexImgCache[String(payload.idProduct)] : '';
         portfolioItems.unshift({
           id: 'mobile_' + Date.now(),
           idProduct: payload.idProduct ? Number(payload.idProduct) : null,
-          name: payload.name,
+          name: lastSelectedCatalogProd?.name || payload.name,
           displayNameDe: payload.name,
           type: payload.type,
           categoryName: lastSelectedCatalogProd?.categoryName || (payload.type === 'sealed' ? 'Sealed' : 'Single'),
           expansionName: lastSelectedCatalogProd?.expansionName || '',
           expansionCode: lastSelectedCatalogProd?.expansionCode || '',
+          tcgdexId: lastSelectedCatalogProd?.tcgdexId || '',
           isHolo: payload.isHolo,
           condition: payload.condition,
           language: payload.language,
@@ -1144,6 +1554,7 @@ document.addEventListener('DOMContentLoaded', () => {
           buyDate: payload.buyDate || today,
           customLowPrice: customLow,
           imageUrl: payload.imageUrl,
+          fallbackImageUrl: cachedFallback || '',
           cardmarketUrl: payload.cardmarketUrl,
           marketPrices: {
             dePrice: pr.dePrice ?? eff,
@@ -1152,10 +1563,8 @@ document.addEventListener('DOMContentLoaded', () => {
             avg30: pr.avg30 ?? eff,
             updatedAt: today
           },
-          priceHistory: [
-            { date: today, low: Number(eff.toFixed(2)), trend: Number((pr.trend ?? eff).toFixed(2)), label: 'Heute' }
-          ],
-          createdAt: new Date().toISOString()
+          priceHistory: hist,
+          createdAt: now.toISOString()
         });
       }
       saveLocalPortfolio();
@@ -1170,7 +1579,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const price = Number(document.getElementById('snapshotPrice').value);
     const date = document.getElementById('snapshotDate').value;
 
-    if (!isStaticMode) {
+    if (!isStaticMode && profileMode === 'owner') {
       await fetch(`/api/portfolio/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },

@@ -1,6 +1,71 @@
 {
   "items": [
     {
+      "id": "item_1794859439514_jk8mv",
+      "idProduct": 907752,
+      "name": "Hisuian Zorua [Scratch]",
+      "displayNameDe": "Hisuian Zorua [Scratch]",
+      "type": "single",
+      "categoryName": "Pokémon Single",
+      "expansionName": "30th Classic Collection",
+      "expansionCode": "30C",
+      "isHolo": false,
+      "condition": "NM",
+      "language": "DE",
+      "quantity": 1,
+      "buyPrice": 5,
+      "buyDate": "2026-11-16",
+      "customLowPrice": null,
+      "imageUrl": "/api/cm-image/907752",
+      "cardmarketUrl": "https://www.cardmarket.com/de/Pokemon/Products/Search?searchString=Hisuian%20Zorua%20%5BScratch%5D&language=3",
+      "notes": "",
+      "marketPrices": {
+        "low": 0.9,
+        "trend": 3.13,
+        "dePrice": 3.12,
+        "avg1": 3.12,
+        "avg7": 3.17,
+        "avg30": 3.72,
+        "avg": 4.51,
+        "updatedAt": "2026-11-16T02:48:57+0100"
+      },
+      "priceHistory": [
+        {
+          "date": "2026-10-17",
+          "low": 3.72,
+          "trend": 3.13,
+          "label": "30T Ø"
+        },
+        {
+          "date": "2026-11-02",
+          "low": 3.45,
+          "trend": 3.13,
+          "label": "14T Ø"
+        },
+        {
+          "date": "2026-11-09",
+          "low": 3.17,
+          "trend": 3.13,
+          "label": "7T Ø"
+        },
+        {
+          "date": "2026-11-15",
+          "low": 3.12,
+          "trend": 3.13,
+          "label": "Gestern"
+        },
+        {
+          "date": "2026-11-16",
+          "low": 3.12,
+          "trend": 3.13,
+          "label": "Heute"
+        }
+      ],
+      "createdAt": "2026-11-16T20:03:59.514Z",
+      "staticImageUrl": "images/907752.jpg",
+      "idCategory": 51
+    },
+    {
       "id": "item_1794859245618_ijqe7",
       "idProduct": 918969,
       "name": "Ben & Svenja – Tate & Liza's Training",

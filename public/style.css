@@ -102,7 +102,8 @@ body {
   letter-spacing: -0.02em;
   display: flex;
   align-items: center;
-  gap: 10px;
+  flex-wrap: wrap;
+  gap: 8px 10px;
 }
 
 .badge-cm {
@@ -113,6 +114,46 @@ body {
   background: var(--bg-elevated);
   color: var(--text-muted);
   border: 1px solid var(--border);
+  font-family: inherit;
+}
+
+.badge-btn {
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.badge-btn:hover {
+  border-color: #52525b;
+  color: var(--text-main);
+}
+
+.profile-info-box {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: var(--bg-main);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.toast-banner {
+  position: fixed;
+  bottom: max(20px, env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  background: #18181b;
+  border: 1px solid #3f3f46;
+  color: var(--text-main);
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.65);
+  z-index: 2000;
+  max-width: calc(100vw - 32px);
+  text-align: center;
 }
 
 .subtitle {

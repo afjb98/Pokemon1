@@ -18,17 +18,17 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <link rel="stylesheet" href="./style.css?v=6" />
+  <link rel="stylesheet" href="./style.css?v=7" />
 </head>
 <body>
   <div class="app-shell">
     <!-- Top Header -->
     <header class="topbar">
       <div class="brand">
-        <div class="brand-mark">CM</div>
+        <div class="brand-mark" id="brandMark">CM</div>
         <div>
-          <h1>Pokémon Portfolio <span class="badge-cm">DE Marktpreise</span></h1>
-          <p class="subtitle">Bestand, Einkaufspreise & Wertentwicklung auf Basis deutscher Cardmarket-Preise</p>
+          <h1><span id="appBrandTitle">Pokémon Portfolio</span> <button type="button" id="profileBadgeBtn" class="badge-cm badge-btn" title="Profil / Name ändern">DE Marktpreise</button></h1>
+          <p class="subtitle" id="appBrandSubtitle">Bestand, Einkaufspreise & Wertentwicklung auf Basis deutscher Cardmarket-Preise</p>
         </div>
       </div>
 
@@ -37,6 +37,12 @@
           <span class="dot"></span>
           <span id="catalogStatusText">Katalog wird geladen...</span>
         </div>
+        <button id="btnShareFriendLink" class="btn btn-secondary" title="Link für Freunde kopieren, damit sie ihr eigenes Portfolio starten können">
+          Freunde-Link
+        </button>
+        <button id="btnOpenProfileModal" class="btn btn-secondary" title="Eigenes Portfolio anlegen oder Namen ändern">
+          Eigenes Portfolio
+        </button>
         <button id="btnExportBackup" class="btn btn-secondary" title="Sammlung als Datei sichern (z.B. für iCloud / Google Drive)">
           Backup ↓
         </button>
@@ -330,6 +336,41 @@
     </div>
   </div>
 
-  <script src="./app.js?v=6"></script>
+  <!-- Modal: Friend / Personal Profile Setup -->
+  <div id="profileModal" class="modal-backdrop hidden">
+    <div class="modal modal-sm">
+      <div class="modal-header">
+        <div>
+          <h2 id="profileModalTitle">Eigenes Portfolio einrichten</h2>
+          <p class="modal-sub" id="profileModalSub">Erstelle deine persönliche Sammlung direkt auf diesem Gerät</p>
+        </div>
+        <button id="btnCloseProfileModal" class="btn-icon">✕</button>
+      </div>
+      <form id="profileForm" class="modal-body">
+        <div class="form-group">
+          <label for="profileNameInput">Dein Name *</label>
+          <input type="text" id="profileNameInput" maxlength="32" required placeholder="z.B. Max, Lisa, Kevin..." />
+          <small class="field-help">Deine Karten, Einkaufspreise und Charts werden lokal auf deinem Gerät gespeichert. Die Cardmarket-Preise aktualisieren sich automatisch.</small>
+        </div>
+
+        <div class="profile-info-box" id="profileInfoBox">
+          Tipp: Auf dem iPhone kannst du diese Seite über <strong>Teilen → Zum Home-Bildschirm</strong> wie eine eigene App installieren.
+        </div>
+
+        <div class="modal-footer" style="margin-top: 18px; flex-wrap: wrap;">
+          <button type="button" id="btnSwitchToOwner" class="btn btn-secondary hidden" style="margin-right: auto;">
+            Geteilte Sammlung
+          </button>
+          <button type="button" id="btnCancelProfile" class="btn btn-secondary">Abbrechen</button>
+          <button type="submit" class="btn btn-primary" id="btnSaveProfile">Mein Portfolio starten</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toastBanner" class="toast-banner hidden"></div>
+
+  <script src="./app.js?v=7"></script>
 </body>
 </html>
