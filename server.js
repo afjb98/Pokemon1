@@ -2,7 +2,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-const PORT = 3000;
+// Local server on PC handles live syncing; placeholder in GITHUB_UPLOAD so token is not pushed
 const DATA_DIR = path.join(__dirname, 'data');
 const CACHE_DIR = path.join(DATA_DIR, 'cache');
 const IMG_CACHE_DIR = path.join(CACHE_DIR, 'images');

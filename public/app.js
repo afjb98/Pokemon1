@@ -148,24 +148,16 @@ async function fetchPortfolio() {
     if (raw) localData = JSON.parse(raw);
   } catch (e) {}
 
-  if (localData && Array.isArray(localData.items) && localData.items.length > 0) {
-    // Update marketPrices and priceHistory of matching items from remote daily GitHub update
-    const remoteById = new Map(remoteItems.map(i => [i.id, i]));
-    const remoteByProd = new Map(remoteItems.filter(i => i.idProduct).map(i => [Number(i.idProduct), i]));
-
-    for (const locItem of localData.items) {
-      const rem = remoteById.get(locItem.id) || (locItem.idProduct ? remoteByProd.get(Number(locItem.idProduct)) : null);
-      if (rem) {
-        locItem.marketPrices = rem.marketPrices || locItem.marketPrices;
-        locItem.priceHistory = rem.priceHistory || locItem.priceHistory;
-        locItem.staticImageUrl = rem.staticImageUrl || locItem.staticImageUrl;
-        locItem.displayNameDe = locItem.displayNameDe || rem.displayNameDe;
-      }
-    }
+  if (localData && Array.isArray(localData.items) && localData.items.length > 0 && remoteItems.length === 0) {
     portfolioItems = localData.items;
-  } else {
-    portfolioItems = remoteItems;
+  } else if (remoteItems.length > 0) {
+    // Always include all items synced from PC (remoteItems) + any mobile-only items created on iPhone
+    const remoteIds = new Set(remoteItems.map(i => i.id));
+    const mobileOnlyItems = (localData?.items || []).filter(i => !remoteIds.has(i.id) && String(i.id).startsWith('mobile_'));
+    portfolioItems = [...mobileOnlyItems, ...remoteItems];
     saveLocalPortfolio();
+  } else {
+    portfolioItems = [];
   }
 
   renderAll();
@@ -1136,7 +1128,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const pr = lastSelectedCatalogProd?.prices || {};
         const eff = customLow ?? pr.dePrice ?? pr.trend ?? pr.low ?? payload.buyPrice;
         portfolioItems.unshift({
-          id: 'item_' + Date.now(),
+          id: 'mobile_' + Date.now(),
           idProduct: payload.idProduct ? Number(payload.idProduct) : null,
           name: payload.name,
           displayNameDe: payload.name,
