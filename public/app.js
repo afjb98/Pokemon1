@@ -781,9 +781,10 @@ async function performCatalogSearch() {
       const mainTitle = prod.displayNameDe || prod.name;
       const showOriginalSub = prod.displayNameDe && prod.displayNameDe !== prod.name;
 
+      const setBadgeTxt = prod.expansionCode || (prod.type === 'sealed' ? 'BOX' : 'TCG');
       div.innerHTML = `
         <div class="catalog-thumb">
-          <img src="${escapeHtml(imgUrl)}" loading="lazy" alt="" onerror="this.parentElement.textContent='${prod.type === 'sealed' ? 'BOX' : 'TCG'}'" />
+          <img src="${escapeHtml(imgUrl)}" loading="lazy" alt="" onerror="this.parentElement.textContent='${escapeHtml(setBadgeTxt)}'" />
         </div>
         <div class="catalog-item-info">
           <div class="catalog-item-name">${escapeHtml(mainTitle)}</div>
@@ -1034,10 +1035,7 @@ document.addEventListener('DOMContentLoaded', () => {
         await fetchPortfolio();
       }, 1500);
     } else {
-      staticCatalogItems = null;
-      await fetchPortfolio();
-      badge.className = 'status-pill ready';
-      text.textContent = 'Preise synchronisiert';
+      window.location.href = window.location.pathname + '?v=' + Date.now();
     }
   });
 
