@@ -1703,6 +1703,26 @@ document.addEventListener('DOMContentLoaded', () => {
   pollCatalogStatus();
   fetchPortfolio();
 
+  // Secret 5-tap on CM logo to unlock Admin/Freunde button inside iPhone Home-Screen PWA
+  let brandTapCount = 0;
+  let brandTapTimer = null;
+  const brandMarkEl = document.getElementById('brandMark');
+  if (brandMarkEl) {
+    brandMarkEl.style.cursor = 'pointer';
+    brandMarkEl.addEventListener('click', () => {
+      brandTapCount++;
+      clearTimeout(brandTapTimer);
+      brandTapTimer = setTimeout(() => { brandTapCount = 0; }, 1600);
+      if (brandTapCount >= 5) {
+        brandTapCount = 0;
+        isAdminMode = true;
+        localStorage.setItem(ADMIN_FLAG_KEY, '1');
+        updateProfileHeader();
+        openFriendsModal();
+      }
+    });
+  }
+
   document.getElementById('btnOpenAddModal').addEventListener('click', openAddModal);
   document.getElementById('btnEmptyAdd').addEventListener('click', openAddModal);
   document.getElementById('btnCloseModal').addEventListener('click', closeAddModal);
