@@ -673,10 +673,28 @@ body {
 @media (max-width: 920px) {
   .modal.modal-wide {
     height: 94vh;
+    max-height: 94vh;
   }
   .modal-split-body {
-    grid-template-columns: 1fr;
+    display: flex;
+    flex-direction: column;
     overflow-y: auto;
+  }
+  .catalog-browser-pane {
+    flex: none;
+    height: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+  .catalog-results-grid {
+    max-height: 46vh;
+    min-height: 220px;
+    overflow-y: auto;
+    grid-template-columns: 1fr;
+  }
+  .catalog-form-pane {
+    flex: none;
+    overflow-y: visible;
   }
 }
 

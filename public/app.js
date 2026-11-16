@@ -101,13 +101,19 @@ async function pollCatalogStatus() {
   }
 }
 
+let staticCatalogLoadingPromise = null;
+
 // Load Static Catalog on demand when on GitHub Pages
 async function ensureStaticCatalogLoaded() {
   if (staticCatalogItems) return staticCatalogItems;
-  const res = await fetch(`./data/catalog_compact.json?t=${Date.now()}`);
-  const data = await res.json();
-  staticCatalogItems = data.items || [];
-  return staticCatalogItems;
+  if (staticCatalogLoadingPromise) return staticCatalogLoadingPromise;
+  staticCatalogLoadingPromise = (async () => {
+    const res = await fetch(`./data/catalog_compact.json`);
+    const data = await res.json();
+    staticCatalogItems = data.items || [];
+    return staticCatalogItems;
+  })();
+  return staticCatalogLoadingPromise;
 }
 
 // Load Portfolio (merges latest server/GitHub daily prices with local iPhone additions)
@@ -690,10 +696,16 @@ function selectCatalogProduct(prod) {
   }
 
   document.getElementById('formBuyPrice').focus();
+  if (window.innerWidth <= 920) {
+    document.querySelector('.catalog-form-pane')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 }
 
 function openAddModal() {
   lastSelectedCatalogProd = null;
+  if (isStaticMode) {
+    ensureStaticCatalogLoaded().catch(() => {});
+  }
   document.getElementById('modalTitle').textContent = 'Produkt suchen & hinzufügen';
   document.getElementById('btnSaveItem').textContent = 'Zum Portfolio hinzufügen';
   document.getElementById('catalogSearchSection').classList.remove('hidden');

@@ -280,8 +280,7 @@ async function run() {
     };
     productMap.set(id, item);
 
-    const hasValue = (prices.dePrice != null && prices.dePrice >= 1.0) || (prices.trend != null && prices.trend >= 1.0);
-    if (hasValue || (expCode && prices.dePrice != null && prices.dePrice >= 0.25)) {
+    if (prices.dePrice != null || prices.low != null || prices.trend != null) {
       compactCatalog.push([
         id,
         p.name || '',
