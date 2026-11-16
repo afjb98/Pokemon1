@@ -675,6 +675,7 @@ const server = http.createServer(async (req, res) => {
         type: body.type || (productInfo ? productInfo.type : 'single'),
         categoryName: body.categoryName || (productInfo ? productInfo.categoryName : 'Pokémon Single'),
         expansionName: productInfo ? productInfo.expansionName : '',
+        expansionCode: productInfo ? productInfo.expansionCode : '',
         isHolo: isHolo,
         condition: body.condition || 'NM',
         language: body.language || 'DE',

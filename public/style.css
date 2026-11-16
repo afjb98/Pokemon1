@@ -323,17 +323,24 @@ body {
   width: 100%;
 }
 
-/* Collection Table */
+/* Collection Toolbar & Set Gallery View */
 .collection-toolbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
   flex-wrap: wrap;
 }
 
-.tabs {
+.toolbar-left-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.tabs, .view-switcher {
   display: flex;
   background: var(--bg-main);
   padding: 3px;
@@ -341,7 +348,7 @@ body {
   border: 1px solid var(--border);
 }
 
-.tab {
+.tab, .view-btn {
   background: transparent;
   border: none;
   color: var(--text-muted);
@@ -353,9 +360,236 @@ body {
   font-family: inherit;
 }
 
-.tab.active {
+.tab.active, .view-btn.active {
   background: var(--bg-elevated);
   color: var(--text-main);
+}
+
+/* Set Gallery Groups (Like Collector App Screenshot) */
+.set-gallery-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.set-group {
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 18px;
+}
+
+.set-group:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.set-group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 4px 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.set-group-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.set-code-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 42px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 6px;
+  background: #27272a;
+  border: 1px solid #3f3f46;
+  color: #f4f4f5;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.set-group-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.set-group-count {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-weight: 400;
+  margin-left: 6px;
+}
+
+.set-group-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.82rem;
+}
+
+.set-group-chevron {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  transition: transform 0.18s ease;
+}
+
+.set-group.collapsed .set-group-chevron {
+  transform: rotate(-90deg);
+}
+
+.set-group.collapsed .set-cards-grid {
+  display: none;
+}
+
+.set-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(158px, 1fr));
+  gap: 14px;
+}
+
+@media (max-width: 640px) {
+  .set-cards-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 9px;
+  }
+  .set-group-title {
+    font-size: 0.95rem;
+  }
+  .set-group-right {
+    font-size: 0.74rem;
+    gap: 8px;
+  }
+}
+
+@media (max-width: 390px) {
+  .set-cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.gallery-card {
+  background: var(--bg-main);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  transition: transform 0.14s ease, border-color 0.14s ease;
+  position: relative;
+}
+
+.gallery-card:hover {
+  transform: translateY(-2px);
+  border-color: #52525b;
+}
+
+.gallery-card.selected-card {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.gallery-card-visual {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 0.72;
+  background: #0d0d10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 6px;
+}
+
+.gallery-card-visual img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 6px;
+}
+
+/* Floating Price Pill like in User Screenshot */
+.gallery-price-pill {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  background: rgba(244, 244, 245, 0.95);
+  color: #09090b;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 700;
+  font-size: 0.76rem;
+  padding: 2px 7px;
+  border-radius: 99px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.65);
+}
+
+.gallery-qty-badge {
+  position: absolute;
+  top: 7px;
+  left: 7px;
+  background: rgba(9, 9, 11, 0.85);
+  border: 1px solid var(--border);
+  color: var(--text-main);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 5px;
+}
+
+.gallery-card-footer {
+  padding: 8px 9px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.gallery-card-title {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gallery-card-profit-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.71rem;
+}
+
+.gallery-buy-txt {
+  color: var(--text-muted);
+}
+
+.gallery-profit-txt.pos { color: var(--green); font-weight: 600; }
+.gallery-profit-txt.neg { color: var(--red); font-weight: 600; }
+.gallery-profit-txt.neutral { color: var(--text-muted); }
+
+.gallery-card-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.gallery-card-actions .action-btn {
+  flex: 1;
+  text-align: center;
+  padding: 4px 4px;
+  font-size: 0.68rem;
 }
 
 .toolbar-right {

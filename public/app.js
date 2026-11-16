@@ -1,5 +1,7 @@
 let portfolioItems = [];
 let activeFilter = 'all';
+let viewMode = 'sets'; // 'sets' (Pro Set Galerie wie im Screenshot) | 'table'
+let collapsedSets = new Set();
 let searchQuery = '';
 let sortMode = 'profitDesc';
 let selectedChartItemId = null;
@@ -234,14 +236,23 @@ function renderTable() {
   const tbody = document.getElementById('portfolioTbody');
   const emptyState = document.getElementById('emptyState');
   const tableWrap = document.getElementById('portfolioTableWrap');
+  const setGalleryWrap = document.getElementById('setGalleryWrap');
 
   if (portfolioItems.length === 0) {
     emptyState.classList.remove('hidden');
     tableWrap.classList.add('hidden');
+    if (setGalleryWrap) setGalleryWrap.classList.add('hidden');
     return;
   }
   emptyState.classList.add('hidden');
-  tableWrap.classList.remove('hidden');
+
+  if (viewMode === 'sets') {
+    tableWrap.classList.add('hidden');
+    if (setGalleryWrap) setGalleryWrap.classList.remove('hidden');
+  } else {
+    tableWrap.classList.remove('hidden');
+    if (setGalleryWrap) setGalleryWrap.classList.add('hidden');
+  }
 
   let filtered = portfolioItems.filter(item => {
     if (activeFilter === 'single' && item.type === 'sealed') return false;
@@ -253,13 +264,14 @@ function renderTable() {
         (item.displayNameDe || '').toLowerCase().includes(q) ||
         String(item.idProduct || '').includes(q) ||
         (item.expansionName || '').toLowerCase().includes(q) ||
+        (item.expansionCode || '').toLowerCase().includes(q) ||
         (item.categoryName || '').toLowerCase().includes(q)
       );
     }
     return true;
   });
 
-  filtered.sort((a, b) => {
+  const sortItemsFn = (a, b) => {
     const qtyA = Number(a.quantity) || 1;
     const qtyB = Number(b.quantity) || 1;
     const valA = getUnitDePrice(a) * qtyA;
@@ -281,7 +293,14 @@ function renderTable() {
       default:
         return (b.createdAt || '').localeCompare(a.createdAt || '');
     }
-  });
+  };
+
+  filtered.sort(sortItemsFn);
+
+  // Render Grouped by Set Gallery (like user's screenshot)
+  if (setGalleryWrap) {
+    renderSetGallery(filtered, setGalleryWrap);
+  }
 
   tbody.innerHTML = '';
 
@@ -381,6 +400,131 @@ function selectItemForChart(itemId) {
   selectedChartItemId = selectedChartItemId === itemId ? null : itemId;
   renderTable();
   renderChart();
+}
+
+function toggleSetCollapse(setKey) {
+  if (collapsedSets.has(setKey)) {
+    collapsedSets.delete(setKey);
+  } else {
+    collapsedSets.add(setKey);
+  }
+  renderTable();
+}
+
+function renderSetGallery(items, container) {
+  container.innerHTML = '';
+  if (items.length === 0) {
+    container.innerHTML = `<div class="search-hint">Keine passenden Einträge gefunden.</div>`;
+    return;
+  }
+
+  // Group items by expansionName
+  const groupsMap = new Map();
+  for (const item of items) {
+    const setName = item.expansionName || (item.type === 'sealed' ? 'Sealed & Boxen' : 'Weitere Einzelkarten');
+    const setCode = item.expansionCode || (item.type === 'sealed' ? 'BOX' : 'SET');
+    if (!groupsMap.has(setName)) {
+      groupsMap.set(setName, {
+        name: setName,
+        code: setCode,
+        items: [],
+        totalVal: 0,
+        totalBuy: 0,
+        totalQty: 0
+      });
+    }
+    const g = groupsMap.get(setName);
+    if (!g.code || g.code === 'SET' || g.code === 'BOX') {
+      if (item.expansionCode) g.code = item.expansionCode;
+    }
+    const qty = Number(item.quantity) || 1;
+    const uDe = getUnitDePrice(item);
+    const uBuy = Number(item.buyPrice) || 0;
+    g.items.push(item);
+    g.totalVal += uDe * qty;
+    g.totalBuy += uBuy * qty;
+    g.totalQty += qty;
+  }
+
+  // Sort sets by total value descending
+  const groups = Array.from(groupsMap.values()).sort((a, b) => b.totalVal - a.totalVal);
+
+  for (const g of groups) {
+    const setProfit = g.totalVal - g.totalBuy;
+    const profitColor = setProfit >= 0 ? 'var(--green)' : 'var(--red)';
+    const isCollapsed = collapsedSets.has(g.name);
+
+    const groupEl = document.createElement('div');
+    groupEl.className = `set-group${isCollapsed ? ' collapsed' : ''}`;
+
+    const headerEl = document.createElement('div');
+    headerEl.className = 'set-group-header';
+    headerEl.innerHTML = `
+      <div class="set-group-left">
+        <span class="set-code-badge">${escapeHtml(g.code.slice(0, 4))}</span>
+        <div>
+          <span class="set-group-title">${escapeHtml(g.name)}</span>
+          <span class="set-group-count">(${g.totalQty}x)</span>
+        </div>
+      </div>
+      <div class="set-group-right">
+        <span>${fmtEuro(g.totalVal)}</span>
+        <span style="color:${profitColor}; font-weight:600;">${fmtSignedEuro(setProfit)}</span>
+        <span class="set-group-chevron">⌄</span>
+      </div>
+    `;
+    headerEl.addEventListener('click', () => toggleSetCollapse(g.name));
+
+    const gridEl = document.createElement('div');
+    gridEl.className = 'set-cards-grid';
+
+    for (const item of g.items) {
+      const qty = Number(item.quantity) || 1;
+      const uDe = getUnitDePrice(item);
+      const uBuy = Number(item.buyPrice) || 0;
+      const totVal = uDe * qty;
+      const totBuy = uBuy * qty;
+      const prof = totVal - totBuy;
+      const profClass = prof > 0.001 ? 'pos' : prof < -0.001 ? 'neg' : 'neutral';
+
+      const effectiveImg = resolveItemImageUrl(item);
+      const displayTitle = (item.displayNameDe || item.name).replace(/\[.*?\]/g, '').trim();
+
+      const cardEl = document.createElement('div');
+      cardEl.className = `gallery-card${selectedChartItemId === item.id ? ' selected-card' : ''}`;
+
+      cardEl.innerHTML = `
+        <div class="gallery-card-visual">
+          ${qty > 1 ? `<span class="gallery-qty-badge">${qty}x</span>` : ''}
+          ${effectiveImg ? `<img src="${escapeHtml(effectiveImg)}" loading="lazy" alt="" onerror="this.style.display='none'" />` : `<span>${item.type === 'sealed' ? 'BOX' : 'TCG'}</span>`}
+          <span class="gallery-price-pill">${fmtEuro(uDe)}</span>
+        </div>
+        <div class="gallery-card-footer">
+          <div class="gallery-card-title" title="${escapeHtml(item.displayNameDe || item.name)}">${escapeHtml(displayTitle)}</div>
+          <div class="gallery-card-profit-row">
+            <span class="gallery-buy-txt">EK: ${fmtEuro(uBuy)}</span>
+            <span class="gallery-profit-txt ${profClass}">${fmtSignedEuro(prof)}</span>
+          </div>
+          <div class="gallery-card-actions" onclick="event.stopPropagation();">
+            <button class="action-btn" onclick="openSnapshotModal('${item.id}')">DE €</button>
+            <button class="action-btn" onclick="openEditModal('${item.id}')">Edit</button>
+            <button class="action-btn delete" onclick="deleteItem('${item.id}')">✕</button>
+          </div>
+        </div>
+      `;
+
+      cardEl.addEventListener('click', () => {
+        selectItemForChart(item.id);
+        document.querySelector('.chart-section')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      });
+
+      gridEl.appendChild(cardEl);
+    }
+
+    groupEl.appendChild(headerEl);
+    groupEl.appendChild(gridEl);
+    container.appendChild(groupEl);
+  }
 }
 
 function renderChart() {
@@ -906,6 +1050,15 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
+  document.querySelectorAll('.view-switcher .view-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.view-switcher .view-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      viewMode = btn.dataset.view;
+      renderTable();
+    });
+  });
+
   document.getElementById('portfolioSearch').addEventListener('input', e => {
     searchQuery = e.target.value.trim();
     renderTable();
@@ -992,6 +1145,7 @@ document.addEventListener('DOMContentLoaded', () => {
           type: payload.type,
           categoryName: lastSelectedCatalogProd?.categoryName || (payload.type === 'sealed' ? 'Sealed' : 'Single'),
           expansionName: lastSelectedCatalogProd?.expansionName || '',
+          expansionCode: lastSelectedCatalogProd?.expansionCode || '',
           isHolo: payload.isHolo,
           condition: payload.condition,
           language: payload.language,

@@ -104,13 +104,20 @@
       </div>
     </section>
 
-    <!-- Portfolio Table -->
+    <!-- Portfolio Collection Section -->
     <section class="collection-section card">
       <div class="collection-toolbar">
-        <div class="tabs">
-          <button class="tab active" data-filter="all">Alle (<span id="countAll">0</span>)</button>
-          <button class="tab" data-filter="single">Einzelkarten (<span id="countSingles">0</span>)</button>
-          <button class="tab" data-filter="sealed">Sealed / Boxen (<span id="countSealed">0</span>)</button>
+        <div class="toolbar-left-group">
+          <div class="tabs">
+            <button class="tab active" data-filter="all">Alle (<span id="countAll">0</span>)</button>
+            <button class="tab" data-filter="single">Einzelkarten (<span id="countSingles">0</span>)</button>
+            <button class="tab" data-filter="sealed">Sealed / Boxen (<span id="countSealed">0</span>)</button>
+          </div>
+
+          <div class="view-switcher" title="Ansicht wechseln">
+            <button class="view-btn active" data-view="sets">Nach Sets (Galerie)</button>
+            <button class="view-btn" data-view="table">Tabelle</button>
+          </div>
         </div>
 
         <div class="toolbar-right">
@@ -135,7 +142,11 @@
         <button id="btnEmptyAdd" class="btn btn-primary">+ Produkt hinzufügen</button>
       </div>
 
-      <div class="table-responsive" id="portfolioTableWrap">
+      <!-- Set Gallery View (Grouped by Expansion like Collector App) -->
+      <div id="setGalleryWrap" class="set-gallery-wrap"></div>
+
+      <!-- Table View -->
+      <div class="table-responsive hidden" id="portfolioTableWrap">
         <table class="portfolio-table">
           <thead>
             <tr>
