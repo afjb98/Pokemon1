@@ -1,6 +1,70 @@
 {
   "items": [
     {
+      "id": "item_1794859245618_ijqe7",
+      "idProduct": 918969,
+      "name": "Ben & Svenja – Tate & Liza's Training",
+      "displayNameDe": "Ben & Svenja – Tate & Liza's Training",
+      "type": "single",
+      "categoryName": "Pokémon Single",
+      "expansionName": "Delta Reign",
+      "expansionCode": "DLR",
+      "isHolo": false,
+      "condition": "NM",
+      "language": "DE",
+      "quantity": 1,
+      "buyPrice": 5,
+      "buyDate": "2026-11-16",
+      "customLowPrice": null,
+      "imageUrl": "/api/cm-image/918969",
+      "cardmarketUrl": "https://www.cardmarket.com/de/Pokemon/Products/Search?searchString=Tate%20%26%20Liza's%20Training&language=3",
+      "notes": "",
+      "marketPrices": {
+        "low": 1,
+        "trend": 0.96,
+        "dePrice": 1,
+        "avg1": 2.19,
+        "avg7": 2.41,
+        "avg30": 2.7,
+        "avg": 10.99,
+        "updatedAt": "2026-11-16T02:48:57+0100"
+      },
+      "priceHistory": [
+        {
+          "date": "2026-10-17",
+          "low": 2.7,
+          "trend": 0.96,
+          "label": "30T Ø"
+        },
+        {
+          "date": "2026-11-02",
+          "low": 2.56,
+          "trend": 0.96,
+          "label": "14T Ø"
+        },
+        {
+          "date": "2026-11-09",
+          "low": 2.41,
+          "trend": 0.96,
+          "label": "7T Ø"
+        },
+        {
+          "date": "2026-11-15",
+          "low": 2.19,
+          "trend": 0.96,
+          "label": "Gestern"
+        },
+        {
+          "date": "2026-11-16",
+          "low": 1,
+          "trend": 0.96,
+          "label": "Heute"
+        }
+      ],
+      "createdAt": "2026-11-16T20:00:45.618Z",
+      "staticImageUrl": "images/918969.jpg"
+    },
+    {
       "id": "item_1794859215524_d7ge5",
       "idProduct": 918961,
       "name": "Golgantes – Mega Golurk ex [Mobility Restriction | Goliath Punch]",
