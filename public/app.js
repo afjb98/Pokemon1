@@ -250,24 +250,18 @@ function getUnitRawEuLow(item) {
 
 // Resolve image URL for both local server mode and GitHub Pages static mode
 function resolveItemImageUrl(item) {
-  if (isStaticMode) {
-    if (item.staticImageUrl) return `./${item.staticImageUrl}`;
-    if (item.fallbackImageUrl) return item.fallbackImageUrl;
-    if (item.idProduct && tcgdexImgCache[String(item.idProduct)]) {
-      return tcgdexImgCache[String(item.idProduct)];
-    }
-    if (item.idProduct) {
-      const ext = item.type === 'sealed' ? 'png' : 'jpg';
-      return `./images/${item.idProduct}.${ext}`;
-    }
+  if (!isStaticMode) {
+    // On PC server: always prefer real Cardmarket image proxy when idProduct is present
+    if (item.idProduct) return `/api/cm-image/${item.idProduct}`;
+    return item.imageUrl || '';
   }
-  if (item.imageUrl && !String(item.imageUrl).startsWith('./images/')) return item.imageUrl;
+  if (item.staticImageUrl) return `./${item.staticImageUrl}`;
   if (item.idProduct) {
-    return isStaticMode
-      ? (tcgdexImgCache[String(item.idProduct)] || `./images/${item.idProduct}.${item.type === 'sealed' ? 'png' : 'jpg'}`)
-      : `/api/cm-image/${item.idProduct}`;
+    // Always try real Cardmarket cached image (.jpg -> .png via handleCardImageError) before any fallback
+    return `./images/${item.idProduct}.jpg`;
   }
-  return item.imageUrl || '';
+  if (item.imageUrl && !String(item.imageUrl).includes('tcgdex.net')) return item.imageUrl;
+  return item.fallbackImageUrl || '';
 }
 
 function getActiveStorageKey() {
@@ -378,39 +372,42 @@ async function resolveTcgdexImage(idProduct, rawName, type, tcgdexId) {
 }
 
 window.handleCardImageError = async function(imgEl) {
-  if (!imgEl || imgEl.dataset.fbTried === '1') {
-    if (imgEl && imgEl.parentElement) {
-      imgEl.parentElement.textContent = imgEl.dataset.badge || 'TCG';
-    }
-    return;
-  }
-  imgEl.dataset.fbTried = '1';
+  if (!imgEl) return;
 
   const idProduct = imgEl.dataset.id;
   const rawName = imgEl.dataset.name;
   const type = imgEl.dataset.type || 'single';
   const tcgdexId = imgEl.dataset.tcgdex || '';
   const badge = imgEl.dataset.badge || (type === 'sealed' ? 'BOX' : 'TCG');
+  const step = imgEl.dataset.tryStep || '';
 
-  // On localhost, local server handles Cardmarket S3 directly
+  // Step 1 on static mode: if .jpg failed, try .png in ./images/
+  if (isStaticMode && idProduct && step === '' && imgEl.getAttribute('src')?.endsWith('.jpg')) {
+    imgEl.dataset.tryStep = 'png';
+    imgEl.src = `./images/${idProduct}.png`;
+    return;
+  }
+
+  // Step 2: if already tried TCGdex fallback, show badge
+  if (step === 'tcgdex' || step === 'done') {
+    if (imgEl.parentElement) imgEl.parentElement.textContent = badge;
+    return;
+  }
+
+  imgEl.dataset.tryStep = 'tcgdex';
+
+  // On PC localhost, local server handles Cardmarket S3 directly (no TCGdex set-logo override needed)
   if (!isStaticMode && !tcgdexId) {
-    imgEl.parentElement.textContent = badge;
+    if (imgEl.parentElement) imgEl.parentElement.textContent = badge;
     return;
   }
 
   const url = await resolveTcgdexImage(idProduct, rawName, type, tcgdexId);
   if (url) {
     imgEl.src = url;
-    // Save fallback URL on matching portfolio item if present
-    if (idProduct) {
-      const pItem = portfolioItems.find(i => String(i.idProduct) === String(idProduct));
-      if (pItem && !pItem.staticImageUrl && pItem.fallbackImageUrl !== url) {
-        pItem.fallbackImageUrl = url;
-        saveLocalPortfolio();
-      }
-    }
-  } else if (imgEl.parentElement) {
-    imgEl.parentElement.textContent = badge;
+  } else {
+    imgEl.dataset.tryStep = 'done';
+    if (imgEl.parentElement) imgEl.parentElement.textContent = badge;
   }
 };
 
@@ -1132,8 +1129,6 @@ async function searchStaticCatalogClient(q, typeFilter) {
     }
     if (!match) continue;
 
-    const ext = itemType === 'sealed' ? 'png' : 'jpg';
-    const cachedImg = tcgdexImgCache[String(idProduct)];
     results.push({
       idProduct,
       name,
@@ -1143,7 +1138,7 @@ async function searchStaticCatalogClient(q, typeFilter) {
       expansionName,
       expansionCode,
       tcgdexId: tcgdexId || '',
-      imageUrl: cachedImg || `./images/${idProduct}.${ext}`,
+      imageUrl: `./images/${idProduct}.jpg`,
       cardmarketUrl: `https://www.cardmarket.com/de/Pokemon/Products/Search?searchString=${encodeURIComponent(name)}&language=3`,
       prices: { dePrice, low, trend, avg30 }
     });
@@ -1192,7 +1187,7 @@ async function performCatalogSearch() {
 
       const dePriceTxt = prod.prices?.dePrice != null ? fmtEuro(prod.prices.dePrice) : '—';
       const euLowTxt = prod.prices?.low != null ? fmtEuro(prod.prices.low) : '—';
-      const imgUrl = prod.imageUrl || (isStaticMode ? (tcgdexImgCache[String(prod.idProduct)] || `./images/${prod.idProduct}.${prod.type === 'sealed' ? 'png' : 'jpg'}`) : `/api/cm-image/${prod.idProduct}`);
+      const imgUrl = prod.imageUrl || (isStaticMode ? `./images/${prod.idProduct}.jpg` : `/api/cm-image/${prod.idProduct}`);
       const setLabel = prod.expansionName ? `${escapeHtml(prod.expansionName)} • ` : '';
       const mainTitle = prod.displayNameDe || prod.name;
       const showOriginalSub = prod.displayNameDe && prod.displayNameDe !== prod.name;
@@ -1229,7 +1224,7 @@ let lastSelectedCatalogProd = null;
 
 function selectCatalogProduct(prod) {
   lastSelectedCatalogProd = prod;
-  const imgUrl = tcgdexImgCache[String(prod.idProduct)] || prod.imageUrl || (isStaticMode ? `./images/${prod.idProduct}.${prod.type === 'sealed' ? 'png' : 'jpg'}` : `/api/cm-image/${prod.idProduct}`);
+  const imgUrl = prod.imageUrl || (isStaticMode ? `./images/${prod.idProduct}.jpg` : `/api/cm-image/${prod.idProduct}`);
   const mainTitle = prod.displayNameDe || prod.name;
 
   document.getElementById('formIdProduct').value = prod.idProduct;
@@ -1442,15 +1437,25 @@ async function openFriendsModal() {
       return;
     }
 
+    // Filter out empty 0-item duplicate rows if another row with same name has items
+    const nonEmptyNames = new Set(
+      friends.filter(f => Array.isArray(f.items) && f.items.length > 0).map(f => (f.owner_name || '').toLowerCase())
+    );
+    const filteredFriends = friends.filter(f => {
+      const hasItems = Array.isArray(f.items) && f.items.length > 0;
+      if (hasItems) return true;
+      return !nonEmptyNames.has((f.owner_name || '').toLowerCase());
+    });
+
     // Enrich all friends' items with today's Cardmarket catalog prices
-    for (const f of friends) {
+    for (const f of filteredFriends) {
       if (Array.isArray(f.items) && f.items.length > 0) {
         await enrichItemsWithCatalog(f.items);
       }
     }
 
     container.innerHTML = '';
-    for (const f of friends) {
+    for (const f of filteredFriends) {
       const fItems = Array.isArray(f.items) ? f.items : [];
       let totalVal = 0;
       let totalBuy = 0;

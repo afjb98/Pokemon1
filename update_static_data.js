@@ -371,6 +371,45 @@ async function run() {
   };
   fs.writeFileSync(path.join(PUBLIC_DATA_DIR, 'catalog_compact.json'), JSON.stringify(catalogPayload), 'utf8');
   console.log(`Static data built: ${compactCatalog.length} items in public/data/catalog_compact.json`);
+
+  // Ensure real Cardmarket images for all friends' items in Supabase
+  try {
+    const sbRes = await fetch('https://gpvttfbvbwgseztpsibb.supabase.co/rest/v1/portfolios?select=items', {
+      headers: {
+        'apikey': 'sb_publishable_GOIbDeTsXqcvz2tWiTv7nA_3fehgJf5',
+        'Authorization': 'Bearer sb_publishable_GOIbDeTsXqcvz2tWiTv7nA_3fehgJf5'
+      }
+    });
+    if (sbRes.ok) {
+      const rows = await sbRes.json();
+      const friendIds = new Set();
+      for (const r of (rows || [])) {
+        for (const it of (r.items || [])) {
+          if (it.idProduct) friendIds.add(Number(it.idProduct));
+        }
+      }
+      for (const id of friendIds) {
+        const prod = productMap.get(id);
+        if (prod) await ensurePortfolioImage(prod);
+      }
+      console.log(`Ensured images for ${friendIds.size} friend items from Supabase.`);
+    }
+  } catch (e) {}
+
+  // In GitHub Actions Pages build (--with-sealed-images), also pre-cache all ETBs (1016) & Displays (53) into public/images/
+  if (process.argv.includes('--with-sealed-images')) {
+    const sealedTargets = [];
+    for (const prod of productMap.values()) {
+      if (prod.idCategory === 1016 || prod.idCategory === 53) {
+        sealedTargets.push(prod);
+      }
+    }
+    console.log(`Pre-caching ${sealedTargets.length} ETB & Display images for GitHub Pages...`);
+    for (let i = 0; i < sealedTargets.length; i += 25) {
+      await Promise.all(sealedTargets.slice(i, i + 25).map(p => ensurePortfolioImage(p).catch(() => null)));
+    }
+    console.log('Done pre-caching ETB & Display images.');
+  }
 }
 
 run().catch(err => {

@@ -31,16 +31,26 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Aktuelle Cardmarket-Preise herunterladen (bei Zeitplan / manuellem Start)
-        if: github.event_name != 'push'
+      - name: Produktbilder-Cache wiederherstellen
+        uses: actions/cache@v4
+        with:
+          path: ./public/images
+          key: cm-images-v1-${{ github.run_id }}
+          restore-keys: |
+            cm-images-v1-
+
+      - name: Cardmarket-Preise & Sealed-Bilder aktualisieren
         run: |
-          node update_static_data.js --force
-          curl -s -H "apikey: sb_publishable_GOIbDeTsXqcvz2tWiTv7nA_3fehgJf5" "https://gpvttfbvbwgseztpsibb.supabase.co/rest/v1/portfolios?select=id&limit=1" > /dev/null || true
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git pull --rebase origin main || true
-          git add data/portfolio.json public/data/portfolio.json public/data/catalog_compact.json public/images/
-          git diff --staged --quiet || (git commit -m "Automatischer Cardmarket Preis-Sync" && git push)
+          if [ "${{ github.event_name }}" != "push" ]; then
+            node update_static_data.js --force --with-sealed-images
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git pull --rebase origin main || true
+            git add data/portfolio.json public/data/portfolio.json public/data/catalog_compact.json
+            git diff --staged --quiet || (git commit -m "Automatischer Cardmarket Preis-Sync" && git push)
+          else
+            node update_static_data.js --with-sealed-images
+          fi
 
       - name: GitHub Pages konfigurieren
         uses: actions/configure-pages@v5
