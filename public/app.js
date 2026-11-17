@@ -23,6 +23,7 @@ const ADMIN_FLAG_KEY = 'pokevault_is_admin';
 const ADMIN_SESSION_KEY = 'pokevault_admin_session_v1';
 const IMG_FALLBACK_CACHE_KEY = 'pokevault_img_cache_v3';
 const CHECKLIST_STORAGE_PREFIX = 'pokevault_checklist_v1_';
+const CHECKLIST_SAVED_AT_KEY = 'pokevault_checklist_saved_at_v1';
 const CHECKLIST_LAST_SET_KEY = 'pokevault_checklist_last_set_v1';
 
 let activeMainPage = 'portfolio'; // 'portfolio' | 'sets'
@@ -1065,22 +1066,10 @@ async function fetchPortfolio() {
     saveDeletedOwnerIdsSet(deletedIds);
   }
 
-  // Merge Set-Checkliste from cloud if available
-  if (cloudVault && cloudVault.checklists && typeof cloudVault.checklists === 'object') {
-    const localChk = loadChecklistOwnedMap();
-    const mergedChk = { ...cloudVault.checklists };
-    for (const [setKey, bucket] of Object.entries(localChk)) {
-      if (bucket && typeof bucket === 'object') {
-        mergedChk[setKey] = { ...(mergedChk[setKey] || {}), ...bucket };
-      }
-    }
-    try {
-      localStorage.setItem(getChecklistStorageKey(), JSON.stringify(mergedChk));
-    } catch (e) {}
-  }
-
+  // Merge Set-Checkliste from cloud cleanly (timestamp-aware)
+  const chkMerge = mergeChecklistWithCloud(cloudVault);
   const cloudUpdatedMs = cloudVault?.updated_at ? Date.parse(cloudVault.updated_at) : 0;
-  let needsCloudPush = false;
+  let needsCloudPush = Boolean(chkMerge.needsPush);
 
   if (cloudVault && Array.isArray(cloudVault.items) && cloudVault.items.length > 0) {
     // Cloud Vault exists -> use as primary truth across PC & iPhone, plus newer local edits & any new GitHub items
@@ -2665,12 +2654,71 @@ function loadChecklistOwnedMap() {
   }
 }
 
-function saveChecklistOwnedMap(mapObj) {
+function getChecklistSavedAtMs() {
+  try {
+    return Number(localStorage.getItem(CHECKLIST_SAVED_AT_KEY)) || 0;
+  } catch (e) {
+    return 0;
+  }
+}
+
+function saveChecklistOwnedMap(mapObj, skipCloudPush = false) {
   try {
     localStorage.setItem(getChecklistStorageKey(), JSON.stringify(mapObj));
+    localStorage.setItem(CHECKLIST_SAVED_AT_KEY, String(Date.now()));
   } catch (e) {}
-  if (profileMode === 'owner' && isAdminMode && !viewingFriend) {
-    scheduleOwnerCloudSync();
+  if (!skipCloudPush && profileMode === 'owner' && isAdminMode && !viewingFriend) {
+    pushOwnerCloudVaultNow();
+  }
+}
+
+function mergeChecklistWithCloud(cloudVault) {
+  const localChk = loadChecklistOwnedMap();
+  const cloudChk = (cloudVault && cloudVault.checklists && typeof cloudVault.checklists === 'object')
+    ? cloudVault.checklists
+    : {};
+  const cloudUpdatedMs = cloudVault?.updated_at ? Date.parse(cloudVault.updated_at) : 0;
+  const localSavedAtMs = getChecklistSavedAtMs();
+  const cloudWins = cloudUpdatedMs > localSavedAtMs;
+
+  const allSetKeys = new Set([...Object.keys(cloudChk), ...Object.keys(localChk)]);
+  const merged = {};
+  for (const sk of allSetKeys) {
+    const cBucket = (cloudChk[sk] && typeof cloudChk[sk] === 'object') ? cloudChk[sk] : {};
+    const lBucket = (localChk[sk] && typeof localChk[sk] === 'object') ? localChk[sk] : {};
+    merged[sk] = cloudWins ? { ...lBucket, ...cBucket } : { ...cBucket, ...lBucket };
+  }
+
+  try {
+    localStorage.setItem(getChecklistStorageKey(), JSON.stringify(merged));
+    if (cloudWins && cloudUpdatedMs > 0) {
+      localStorage.setItem(CHECKLIST_SAVED_AT_KEY, String(cloudUpdatedMs));
+    }
+  } catch (e) {}
+
+  const needsPush = Object.keys(localChk).length > 0 &&
+    JSON.stringify(merged) !== JSON.stringify(cloudChk);
+  return { merged, needsPush };
+}
+
+let lastCloudLiveCheckMs = 0;
+async function syncOwnerChecklistsFromCloud() {
+  if (profileMode !== 'owner' || !isAdminMode || viewingFriend) return;
+  const now = Date.now();
+  if (now - lastCloudLiveCheckMs < 2500) return;
+  lastCloudLiveCheckMs = now;
+
+  const token = await getValidAdminAccessToken();
+  if (!token) return;
+  const cloudVault = await fetchOwnerCloudVault(token);
+  if (!cloudVault) return;
+
+  const { needsPush } = mergeChecklistWithCloud(cloudVault);
+  if (needsPush) {
+    await pushOwnerCloudVaultNow();
+  }
+  if (activeMainPage === 'sets' && currentChecklistData) {
+    renderChecklistView();
   }
 }
 
@@ -2847,6 +2895,10 @@ function toggleChecklistCardOwned(tcgdexId, cardKey, card, portfolioMatchedKeys)
   ownedMap[tcgdexId][cardKey] = !currentlyOwned;
   saveChecklistOwnedMap(ownedMap);
   renderChecklistView();
+  if (profileMode === 'owner' && isAdminMode && !getAdminSession()?.access_token && !toggleChecklistCardOwned._warned) {
+    toggleChecklistCardOwned._warned = true;
+    showToast('Tipp: Oben als Admin anmelden, damit die Checkliste auch auf dem PC synct.');
+  }
 }
 
 async function fetchTcgdexSetDe(tcgdexId) {
@@ -3160,6 +3212,7 @@ async function switchMainPage(page) {
     }
     populateSetPickerSelect(document.getElementById('setPickerSearch')?.value || '');
     renderFeaturedSetsStrip();
+    syncOwnerChecklistsFromCloud();
     if (!currentChecklistData || currentChecklistData.tcgdexId !== selectedChecklistSetId) {
       await loadChecklistSet(selectedChecklistSetId);
     } else {
@@ -3170,6 +3223,12 @@ async function switchMainPage(page) {
     portEl?.classList.remove('hidden');
   }
 }
+
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && profileMode === 'owner' && isAdminMode && !viewingFriend && isStaticMode) {
+    fetchPortfolio();
+  }
+});
 
 document.addEventListener('DOMContentLoaded', () => {
   initProfileState();
