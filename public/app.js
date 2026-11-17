@@ -19,7 +19,7 @@ const PROFILE_MODE_KEY = 'pokevault_profile_mode';
 const PROFILE_NAME_KEY = 'pokevault_profile_name';
 const ADMIN_FLAG_KEY = 'pokevault_is_admin';
 const ADMIN_SESSION_KEY = 'pokevault_admin_session_v1';
-const IMG_FALLBACK_CACHE_KEY = 'pokevault_img_cache_v2';
+const IMG_FALLBACK_CACHE_KEY = 'pokevault_img_cache_v3';
 
 // Supabase Cloud Config (for Friends' Portfolios -> protected via Supabase Auth + RLS)
 const SUPABASE_BASE_URL = 'https://gpvttfbvbwgseztpsibb.supabase.co';
@@ -521,7 +521,24 @@ async function fetchTcgdexCardDetail(cardId) {
   return p;
 }
 
-async function pickBestCardCandidate(matches, hints) {
+function getCatalogSiblingIndex(idProduct, rawName, expansionName) {
+  if (!idProduct || !rawName || !Array.isArray(staticCatalogItems)) return 0;
+  const normName = String(rawName).trim().toLowerCase();
+  const normExp = String(expansionName || '').trim().toLowerCase();
+  const siblingIds = [];
+  for (let i = 0; i < staticCatalogItems.length; i++) {
+    const row = staticCatalogItems[i];
+    if (String(row[1] || '').trim().toLowerCase() !== normName) continue;
+    if (normExp && String(row[5] || '').trim().toLowerCase() !== normExp) continue;
+    siblingIds.push(Number(row[0]));
+  }
+  if (siblingIds.length <= 1) return 0;
+  siblingIds.sort((a, b) => a - b);
+  const idx = siblingIds.indexOf(Number(idProduct));
+  return idx >= 0 ? idx : 0;
+}
+
+async function pickBestCardCandidate(matches, hints, siblingIdx = 0) {
   if (!Array.isArray(matches) || matches.length === 0) return null;
   if (matches.length === 1) return matches[0];
 
@@ -530,10 +547,11 @@ async function pickBestCardCandidate(matches, hints) {
     if (byNum) return byNum;
   }
 
+  let pool = matches;
   if (hints.attackHints.length > 0) {
     const slice = matches.slice(0, 8);
     const details = await Promise.all(slice.map(c => fetchTcgdexCardDetail(c.id)));
-    let bestIdx = -1;
+    const scores = new Array(slice.length).fill(0);
     let bestScore = 0;
     for (let i = 0; i < details.length; i++) {
       const d = details[i];
@@ -546,23 +564,27 @@ async function pickBestCardCandidate(matches, hints) {
       for (const h of hints.attackHints) {
         if (moveNames.some(m => m === h || m.includes(h) || h.includes(m))) score += 1;
       }
-      if (score > bestScore) {
-        bestScore = score;
-        bestIdx = i;
-      }
+      scores[i] = score;
+      if (score > bestScore) bestScore = score;
     }
-    if (bestIdx !== -1 && bestScore > 0) return slice[bestIdx];
+    if (bestScore > 0) {
+      pool = slice.filter((_, i) => scores[i] === bestScore);
+    }
   }
 
   if (hints.variantIndex && hints.variantIndex >= 1) {
-    const idx = Math.min(hints.variantIndex - 1, matches.length - 1);
-    return matches[idx];
+    const idx = Math.min(hints.variantIndex - 1, pool.length - 1);
+    return pool[idx];
   }
 
-  return matches[0];
+  if (siblingIdx > 0 && pool.length > 1) {
+    return pool[siblingIdx % pool.length];
+  }
+
+  return pool[0];
 }
 
-async function resolveTcgdexImage(idProduct, rawName, type, tcgdexId, expansionName = '') {
+async function resolveTcgdexImage(idProduct, rawName, type, tcgdexId, expansionName = '', siblingIdxOverride = null) {
   const key = String(idProduct || rawName || '');
   if (tcgdexImgCache[key]) return tcgdexImgCache[key];
   if (tcgdexInflightCard.has(key)) return tcgdexInflightCard.get(key);
@@ -570,6 +592,9 @@ async function resolveTcgdexImage(idProduct, rawName, type, tcgdexId, expansionN
   const task = (async () => {
     try {
       const hints = parseCardmarketHints(rawName);
+      const siblingIdx = siblingIdxOverride != null
+        ? Number(siblingIdxOverride) || 0
+        : getCatalogSiblingIndex(idProduct, rawName, expansionName);
       const resolvedSetId = tcgdexId || await findTcgdexSetIdByExpansion(expansionName);
 
       if (type === 'sealed') {
@@ -603,7 +628,7 @@ async function resolveTcgdexImage(idProduct, rawName, type, tcgdexId, expansionN
             if (matches.length > 0) break;
           }
 
-          const chosen = await pickBestCardCandidate(matches, hints);
+          const chosen = await pickBestCardCandidate(matches, hints, siblingIdx);
           if (chosen?.image) {
             const url = `${chosen.image}/low.webp`;
             tcgdexImgCache[key] = url;
@@ -638,7 +663,7 @@ async function resolveTcgdexImage(idProduct, rawName, type, tcgdexId, expansionN
           continue;
         }
 
-        const chosen = await pickBestCardCandidate(pool, hints);
+        const chosen = await pickBestCardCandidate(pool, hints, siblingIdx);
         if (chosen?.image) {
           const url = `${chosen.image}/low.webp`;
           tcgdexImgCache[key] = url;
@@ -664,6 +689,7 @@ window.handleCardImageError = async function(imgEl) {
   const type = imgEl.dataset.type || 'single';
   const tcgdexId = imgEl.dataset.tcgdex || '';
   const expName = imgEl.dataset.exp || '';
+  const sidx = imgEl.dataset.sidx != null && imgEl.dataset.sidx !== '' ? Number(imgEl.dataset.sidx) : null;
   const badge = imgEl.dataset.badge || (type === 'sealed' ? 'BOX' : 'TCG');
   const step = imgEl.dataset.tryStep || '';
 
@@ -687,7 +713,7 @@ window.handleCardImageError = async function(imgEl) {
     return;
   }
 
-  const url = await resolveTcgdexImage(idProduct, rawName, type, tcgdexId, expName);
+  const url = await resolveTcgdexImage(idProduct, rawName, type, tcgdexId, expName, sidx);
   if (url) {
     imgEl.src = url;
   } else {
@@ -1517,10 +1543,26 @@ async function performCatalogSearch() {
       return;
     }
 
+    // Group sibling printings (e.g., Normal / Full Art / SIR / Gold in the same set) sorted by idProduct
+    const siblingGroups = new Map();
+    for (const prod of items) {
+      const k = `${String(prod.name || '').trim().toLowerCase()}::${String(prod.expansionName || '').trim().toLowerCase()}`;
+      if (!siblingGroups.has(k)) siblingGroups.set(k, []);
+      siblingGroups.get(k).push(Number(prod.idProduct));
+    }
+    for (const ids of siblingGroups.values()) {
+      ids.sort((a, b) => a - b);
+    }
+
     container.innerHTML = '';
     for (const prod of items) {
       const div = document.createElement('div');
       div.className = 'catalog-item';
+
+      const k = `${String(prod.name || '').trim().toLowerCase()}::${String(prod.expansionName || '').trim().toLowerCase()}`;
+      const sibIds = siblingGroups.get(k) || [];
+      const sibIdx = sibIds.length > 1 ? sibIds.indexOf(Number(prod.idProduct)) : 0;
+      const sibLabel = sibIds.length > 1 && sibIdx >= 0 ? ` • Variante ${sibIdx + 1}/${sibIds.length}` : '';
 
       const dePriceTxt = prod.prices?.dePrice != null ? fmtEuro(prod.prices.dePrice) : '—';
       const euLowTxt = prod.prices?.low != null ? fmtEuro(prod.prices.low) : '—';
@@ -1535,12 +1577,12 @@ async function performCatalogSearch() {
         : '';
       div.innerHTML = `
         <div class="catalog-thumb">
-          <img src="${escapeHtml(imgUrl)}" loading="lazy" alt="" data-id="${escapeHtml(prod.idProduct)}" data-name="${escapeHtml(prod.name)}" data-type="${escapeHtml(prod.type)}" data-tcgdex="${escapeHtml(prod.tcgdexId || '')}" data-exp="${escapeHtml(prod.expansionName || '')}" data-badge="${escapeHtml(setBadgeTxt)}" onerror="handleCardImageError(this)" />
+          <img src="${escapeHtml(imgUrl)}" loading="lazy" alt="" data-id="${escapeHtml(prod.idProduct)}" data-name="${escapeHtml(prod.name)}" data-type="${escapeHtml(prod.type)}" data-tcgdex="${escapeHtml(prod.tcgdexId || '')}" data-exp="${escapeHtml(prod.expansionName || '')}" data-sidx="${sibIdx >= 0 ? sibIdx : 0}" data-badge="${escapeHtml(setBadgeTxt)}" onerror="handleCardImageError(this)" />
         </div>
         <div class="catalog-item-info">
           <div class="catalog-item-name">${escapeHtml(mainTitle)}</div>
           ${showOriginalSub ? `<div class="catalog-item-subname">${escapeHtml(prod.name)}</div>` : ''}
-          <div class="catalog-item-meta">${setLabel}${escapeHtml(prod.categoryName)} (#${prod.idProduct})</div>
+          <div class="catalog-item-meta">${setLabel}${escapeHtml(prod.categoryName)} (#${prod.idProduct})${escapeHtml(sibLabel)}</div>
           <div class="catalog-item-price-row">
             <span class="cm-de-tag">DE: ${dePriceTxt}${holoTagTxt}</span>
             <span class="cm-eu-tag">(EU-Low: ${euLowTxt})</span>
