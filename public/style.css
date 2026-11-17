@@ -1358,3 +1358,91 @@ body {
   padding-top: 14px;
   border-top: 1px solid var(--border);
 }
+
+/* Card Zoom Lightbox */
+.gallery-card {
+  cursor: pointer;
+}
+
+.product-thumb {
+  cursor: zoom-in;
+}
+
+.card-zoom-modal {
+  max-width: 480px;
+  width: 94vw;
+}
+
+.card-zoom-body {
+  padding: 16px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.card-zoom-image-wrap {
+  width: 100%;
+  max-width: 340px;
+  aspect-ratio: 63 / 88;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-main);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.55);
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.card-zoom-image-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.card-zoom-details {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.card-zoom-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+}
+
+.card-zoom-prices {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  background: var(--bg-main);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  text-align: center;
+}
+
+.card-zoom-stat-label {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+.card-zoom-stat-val {
+  font-size: 0.9rem;
+  font-weight: 700;
+  margin-top: 2px;
+}
+
+.card-zoom-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+}

@@ -1142,6 +1142,14 @@ function renderTable() {
       </td>
     `;
 
+    const thumbEl = tr.querySelector('.product-thumb');
+    if (thumbEl) {
+      thumbEl.addEventListener('click', e => {
+        e.stopPropagation();
+        openCardZoomModal(item, thumbEl.querySelector('img'));
+      });
+    }
+
     tr.addEventListener('click', () => {
       selectItemForChart(item.id);
     });
@@ -1281,8 +1289,11 @@ function renderSetGallery(items, container) {
       `;
 
       cardEl.addEventListener('click', () => {
-        selectItemForChart(item.id);
-        document.querySelector('.chart-section')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        selectedChartItemId = item.id;
+        renderChart();
+        document.querySelectorAll('.gallery-card.selected-card').forEach(el => el.classList.remove('selected-card'));
+        cardEl.classList.add('selected-card');
+        openCardZoomModal(item, cardEl.querySelector('.gallery-card-visual img'));
       });
 
       gridEl.appendChild(cardEl);
@@ -2094,6 +2105,105 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
+function openCardZoomModal(item, sourceImgEl = null) {
+  if (!item) return;
+  const modal = document.getElementById('cardZoomModal');
+  if (!modal) return;
+
+  const displayTitle = item.displayNameDe || item.name || 'Produkt';
+  document.getElementById('cardZoomTitle').textContent = displayTitle.replace(/\[.*?\]/g, '').trim();
+  const subParts = [];
+  if (item.expansionName) subParts.push(item.expansionName);
+  if (item.idProduct) subParts.push(`#${item.idProduct}`);
+  document.getElementById('cardZoomSubtitle').textContent = subParts.join(' • ');
+
+  // Badges
+  const badgesEl = document.getElementById('cardZoomBadges');
+  const variantTxt = getVariantBadgeText(item);
+  const badgeHtml = [
+    `<span class="badge ${item.type === 'sealed' ? 'badge-sealed' : 'badge-single'}">${item.type === 'sealed' ? 'Sealed' : 'Karte'}</span>`,
+    variantTxt ? `<span class="badge">${escapeHtml(variantTxt)}</span>` : '',
+    item.isFirstEdition ? `<span class="badge badge-sealed">1st Edition</span>` : '',
+    `<span class="badge badge-meta">${escapeHtml(item.condition || 'NM')} • ${escapeHtml(item.language || 'DE')}</span>`,
+    `<span class="badge badge-meta">${Number(item.quantity) || 1}x</span>`
+  ].filter(Boolean).join('');
+  badgesEl.innerHTML = badgeHtml;
+
+  // Prices
+  const qty = Number(item.quantity) || 1;
+  const uDe = getUnitDePrice(item);
+  const hasCost = hasBuyPrice(item);
+  const uBuy = hasCost ? Number(item.buyPrice) : null;
+  const prof = hasCost ? (uDe - uBuy) * qty : null;
+  const profColor = prof == null ? 'var(--text-muted)' : prof >= 0 ? 'var(--green)' : 'var(--red)';
+
+  document.getElementById('cardZoomPrices').innerHTML = `
+    <div>
+      <div class="card-zoom-stat-label">DE Richtwert</div>
+      <div class="card-zoom-stat-val">${fmtEuro(uDe)}</div>
+    </div>
+    <div>
+      <div class="card-zoom-stat-label">Einkaufspreis</div>
+      <div class="card-zoom-stat-val">${hasCost ? fmtEuro(uBuy) : '—'}</div>
+    </div>
+    <div>
+      <div class="card-zoom-stat-label">Ergebnis</div>
+      <div class="card-zoom-stat-val" style="color:${profColor};">${prof != null ? fmtSignedEuro(prof) : 'Kein EK'}</div>
+    </div>
+  `;
+
+  // Links & Chart button
+  const cmLink = document.getElementById('cardZoomCmLink');
+  if (item.cardmarketUrl) {
+    cmLink.href = item.cardmarketUrl.includes('language=') ? item.cardmarketUrl : `${item.cardmarketUrl}&language=3`;
+    cmLink.classList.remove('hidden');
+  } else {
+    cmLink.classList.add('hidden');
+  }
+
+  const chartBtn = document.getElementById('btnCardZoomChart');
+  chartBtn.onclick = () => {
+    closeCardZoomModal();
+    selectedChartItemId = item.id;
+    renderTable();
+    renderChart();
+    document.querySelector('.chart-section')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  };
+
+  // High-res Image (upgrade TCGdex /low.webp -> /high.webp with clean fallback to low/original)
+  const imgWrap = document.getElementById('cardZoomImageWrap');
+  const badgeTxt = item.expansionCode || (item.type === 'sealed' ? 'BOX' : 'TCG');
+  let rawSrc = (sourceImgEl && sourceImgEl.getAttribute('src')) ? sourceImgEl.src : resolveItemImageUrl(item);
+  if (rawSrc) {
+    const isTcgdexLow = rawSrc.includes('assets.tcgdex.net') && rawSrc.endsWith('/low.webp');
+    const initialSrc = isTcgdexLow ? rawSrc.replace(/\/low\.webp$/, '/high.webp') : rawSrc;
+    imgWrap.innerHTML = `<img src="${escapeHtml(initialSrc)}" alt="${escapeHtml(displayTitle)}" />`;
+    const zoomImg = imgWrap.querySelector('img');
+    zoomImg.onerror = () => {
+      if (isTcgdexLow && zoomImg.src.endsWith('/high.webp')) {
+        zoomImg.src = rawSrc;
+        return;
+      }
+      zoomImg.dataset.id = item.idProduct || '';
+      zoomImg.dataset.name = item.name || '';
+      zoomImg.dataset.type = item.type || 'single';
+      zoomImg.dataset.tcgdex = item.tcgdexId || '';
+      zoomImg.dataset.exp = item.expansionName || '';
+      zoomImg.dataset.badge = badgeTxt;
+      handleCardImageError(zoomImg);
+    };
+  } else {
+    imgWrap.textContent = badgeTxt;
+  }
+
+  modal.classList.remove('hidden');
+}
+
+function closeCardZoomModal() {
+  const modal = document.getElementById('cardZoomModal');
+  if (modal) modal.classList.add('hidden');
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   initProfileState();
   pollCatalogStatus();
@@ -2126,6 +2236,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('btnCloseSnapshotModal').addEventListener('click', closeSnapshotModal);
   document.getElementById('btnCancelSnapshot').addEventListener('click', closeSnapshotModal);
+
+  document.getElementById('btnCloseCardZoom').addEventListener('click', closeCardZoomModal);
+  document.getElementById('cardZoomModal').addEventListener('click', e => {
+    if (e.target && e.target.id === 'cardZoomModal') closeCardZoomModal();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeCardZoomModal();
+  });
 
   // Friends Admin Viewer & Secure Login listeners
   document.getElementById('btnOpenFriendsModal').addEventListener('click', openFriendsModal);

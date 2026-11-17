@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <link rel="stylesheet" href="./style.css?v=14" />
+  <link rel="stylesheet" href="./style.css?v=15" />
 </head>
 <body>
   <div class="app-shell">
@@ -448,9 +448,33 @@
     </div>
   </div>
 
+  <!-- Modal: Card Image Zoom Lightbox -->
+  <div id="cardZoomModal" class="modal-backdrop hidden">
+    <div class="modal card-zoom-modal">
+      <div class="modal-header">
+        <div>
+          <h2 id="cardZoomTitle">Karte</h2>
+          <p class="modal-sub" id="cardZoomSubtitle"></p>
+        </div>
+        <button id="btnCloseCardZoom" class="btn-icon" aria-label="Schließen">✕</button>
+      </div>
+      <div class="card-zoom-body">
+        <div class="card-zoom-image-wrap" id="cardZoomImageWrap"></div>
+        <div class="card-zoom-details">
+          <div class="card-zoom-badges" id="cardZoomBadges"></div>
+          <div class="card-zoom-prices" id="cardZoomPrices"></div>
+          <div class="card-zoom-actions">
+            <button type="button" id="btnCardZoomChart" class="btn btn-secondary btn-sm">📈 Preisverlauf</button>
+            <a id="cardZoomCmLink" href="#" target="_blank" rel="noopener" class="btn btn-primary btn-sm hidden">Auf Cardmarket ↗</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Notification -->
   <div id="toastBanner" class="toast-banner hidden"></div>
 
-  <script src="./app.js?v=14"></script>
+  <script src="./app.js?v=15"></script>
 </body>
 </html>
