@@ -432,6 +432,37 @@ body {
   flex-wrap: wrap;
 }
 
+.chart-range-pills {
+  display: inline-flex;
+  background: var(--bg-main);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.chart-range-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, color 0.15s;
+}
+
+.chart-range-btn:hover {
+  color: var(--text-main);
+}
+
+.chart-range-btn.active {
+  background: var(--bg-card-hover, #27272a);
+  color: var(--text-main);
+}
+
 .legend-pills {
   display: flex;
   gap: 14px;

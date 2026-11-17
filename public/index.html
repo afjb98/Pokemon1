@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <link rel="stylesheet" href="./style.css?v=17" />
+  <link rel="stylesheet" href="./style.css?v=18" />
 </head>
 <body>
   <div class="app-shell">
@@ -113,6 +113,14 @@
             <p class="card-subtitle" id="chartSubtitle">Klicke unten in der Liste auf eine Position, um den Einzelverlauf anzuzeigen</p>
           </div>
           <div class="chart-controls">
+            <div class="chart-range-pills" id="chartRangePills" role="group" aria-label="Zeitraum">
+              <button type="button" class="chart-range-btn" data-range="7">7T</button>
+              <button type="button" class="chart-range-btn" data-range="14">14T</button>
+              <button type="button" class="chart-range-btn" data-range="30">30T</button>
+              <button type="button" class="chart-range-btn" data-range="90">90T</button>
+              <button type="button" class="chart-range-btn" data-range="365">1J</button>
+              <button type="button" class="chart-range-btn active" data-range="all">Alle</button>
+            </div>
             <button id="btnResetChartFilter" class="btn btn-sm btn-secondary hidden">
               Gesamtes Portfolio zeigen
             </button>
@@ -541,6 +549,6 @@
   <!-- Toast Notification -->
   <div id="toastBanner" class="toast-banner hidden"></div>
 
-  <script src="./app.js?v=17"></script>
+  <script src="./app.js?v=18"></script>
 </body>
 </html>

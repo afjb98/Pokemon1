@@ -5,6 +5,7 @@ let collapsedSets = new Set();
 let searchQuery = '';
 let sortMode = 'profitDesc';
 let selectedChartItemId = null;
+let chartTimeframe = 'all'; // '7' | '14' | '30' | '90' | '365' | 'all'
 let catalogSearchType = 'all';
 let priceChartInstance = null;
 let searchDebounceTimer = null;
@@ -1469,7 +1470,16 @@ function renderChart() {
     }
   }
 
-  const sortedDates = Array.from(dateSet).sort();
+  let sortedDates = Array.from(dateSet).sort();
+  if (chartTimeframe !== 'all') {
+    const days = Number(chartTimeframe) || 30;
+    const cutoffStr = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+    sortedDates = sortedDates.filter(d => d >= cutoffStr);
+    if (!sortedDates.includes(cutoffStr)) {
+      sortedDates.unshift(cutoffStr);
+    }
+  }
+
   const valSeries = [];
   const buySeries = [];
 
@@ -1511,6 +1521,18 @@ function renderChart() {
 
     valSeries.push(Number(sumVal.toFixed(2)));
     buySeries.push(Number(sumBuy.toFixed(2)));
+  }
+
+  if (valSeries.length >= 2) {
+    const firstVal = valSeries[0];
+    const lastVal = valSeries[valSeries.length - 1];
+    const rangeDiff = lastVal - firstVal;
+    const rangePct = firstVal > 0 ? (rangeDiff / firstVal) * 100 : 0;
+    const rangeLabelMap = { '7': '7T', '14': '14T', '30': '30T', '90': '90T', '365': '1J', 'all': 'Gesamt' };
+    const rLabel = rangeLabelMap[chartTimeframe] || 'Zeitraum';
+    if (selectedChartItemId || chartTimeframe !== 'all') {
+      subtitleEl.textContent += ` • ${rLabel}: ${fmtSignedEuro(rangeDiff)} (${fmtSignedPct(rangePct)})`;
+    }
   }
 
   const labels = sortedDates.map(d => {
@@ -2659,6 +2681,15 @@ document.addEventListener('DOMContentLoaded', () => {
     selectedChartItemId = null;
     renderTable();
     renderChart();
+  });
+
+  document.querySelectorAll('#chartRangePills .chart-range-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#chartRangePills .chart-range-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      chartTimeframe = btn.dataset.range || 'all';
+      renderChart();
+    });
   });
 
   document.getElementById('btnRefreshCatalog').addEventListener('click', async () => {
