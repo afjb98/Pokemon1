@@ -105,19 +105,114 @@ function scheduleSupabaseSync() {
   supabaseSyncTimer = setTimeout(syncPersonalPortfolioToSupabase, 600);
 }
 
+function stripTransientPortfolioFields(items) {
+  return (items || []).map(it => {
+    const copy = { ...it };
+    if (copy.marketPrices && copy.marketPrices.raw) {
+      copy.marketPrices = { ...copy.marketPrices };
+      delete copy.marketPrices.raw;
+    }
+    return copy;
+  });
+}
+
+function getDeletedOwnerIds() {
+  try {
+    const arr = JSON.parse(localStorage.getItem(DELETED_OWNER_IDS_KEY) || '[]');
+    return new Set(Array.isArray(arr) ? arr : []);
+  } catch (e) {
+    return new Set();
+  }
+}
+
+function addDeletedOwnerId(id) {
+  if (!id) return;
+  try {
+    const set = getDeletedOwnerIds();
+    set.add(id);
+    localStorage.setItem(DELETED_OWNER_IDS_KEY, JSON.stringify([...set]));
+  } catch (e) {}
+}
+
+function saveDeletedOwnerIdsSet(set) {
+  try {
+    localStorage.setItem(DELETED_OWNER_IDS_KEY, JSON.stringify([...set]));
+  } catch (e) {}
+}
+
+let ownerCloudSyncTimer = null;
+let ownerCloudVaultSetupMissing = false;
+
+function scheduleOwnerCloudSync() {
+  if (profileMode !== 'owner' || !isAdminMode || viewingFriend || ownerCloudVaultSetupMissing) return;
+  clearTimeout(ownerCloudSyncTimer);
+  ownerCloudSyncTimer = setTimeout(() => {
+    pushOwnerCloudVaultNow();
+  }, 500);
+}
+
+async function fetchOwnerCloudVault(token) {
+  if (!token) return null;
+  try {
+    const res = await fetch(`${SUPABASE_REST_URL}/owner_vault?id=eq.main&select=id,items,checklists,deleted_ids,updated_at`, {
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    if (res.status === 404) {
+      ownerCloudVaultSetupMissing = true;
+      return null;
+    }
+    if (!res.ok) return null;
+    ownerCloudVaultSetupMissing = false;
+    const rows = await res.json();
+    return Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+async function pushOwnerCloudVaultNow() {
+  if (profileMode !== 'owner' || !isAdminMode || viewingFriend || ownerCloudVaultSetupMissing) return false;
+  const token = await getValidAdminAccessToken();
+  if (!token) return false;
+  try {
+    const res = await fetch(`${SUPABASE_REST_URL}/owner_vault?on_conflict=id`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates,return=minimal'
+      },
+      body: JSON.stringify({
+        id: 'main',
+        items: stripTransientPortfolioFields(portfolioItems),
+        checklists: loadChecklistOwnedMap(),
+        deleted_ids: [...getDeletedOwnerIds()],
+        updated_at: new Date().toISOString()
+      })
+    });
+    if (res.status === 404) {
+      ownerCloudVaultSetupMissing = true;
+      return false;
+    }
+    if (res.ok) {
+      updateStaticStatusBadge();
+      return true;
+    }
+    return false;
+  } catch (e) {
+    return false;
+  }
+}
+
 async function syncPersonalPortfolioToSupabase() {
   if (profileMode !== 'personal' || !profileName || viewingFriend) return;
   try {
     const pid = personalProfileId || getOrCreatePersonalId();
-    // Strip any huge transient fields before uploading
-    const cleanItems = portfolioItems.map(it => {
-      const copy = { ...it };
-      if (copy.marketPrices && copy.marketPrices.raw) {
-        copy.marketPrices = { ...copy.marketPrices };
-        delete copy.marketPrices.raw;
-      }
-      return copy;
-    });
+    const cleanItems = stripTransientPortfolioFields(portfolioItems);
     await fetch(`${SUPABASE_REST_URL}/rpc/save_friend_portfolio`, {
       method: 'POST',
       headers: {
@@ -420,7 +515,7 @@ function getActiveStorageKey() {
   return profileMode === 'personal' ? PERSONAL_PORTFOLIO_KEY : LOCAL_STORAGE_KEY;
 }
 
-function saveLocalPortfolio() {
+function saveLocalPortfolio(skipCloudSync = false) {
   if (viewingFriend) return; // Never overwrite local storage when inspecting a friend
   try {
     localStorage.setItem(
@@ -428,8 +523,12 @@ function saveLocalPortfolio() {
       JSON.stringify({ items: portfolioItems, ownerName: profileName, savedAt: new Date().toISOString() })
     );
   } catch (e) {}
-  if (profileMode === 'personal' && profileName) {
-    scheduleSupabaseSync();
+  if (!skipCloudSync) {
+    if (profileMode === 'personal' && profileName) {
+      scheduleSupabaseSync();
+    } else if (profileMode === 'owner' && isAdminMode) {
+      scheduleOwnerCloudSync();
+    }
   }
 }
 
@@ -749,6 +848,47 @@ window.handleCardImageError = async function(imgEl) {
   }
 };
 
+function updateStaticStatusBadge() {
+  if (!isStaticMode) return;
+  const badge = document.getElementById('catalogStatusBadge');
+  const text = document.getElementById('catalogStatusText');
+  if (!badge || !text) return;
+
+  if (profileMode === 'personal') {
+    badge.className = 'status-pill ready';
+    text.textContent = 'Persönlicher Modus';
+    badge.style.cursor = 'default';
+    badge.onclick = null;
+    return;
+  }
+
+  if (isAdminMode) {
+    const sess = getAdminSession();
+    if (ownerCloudVaultSetupMissing) {
+      badge.className = 'status-pill loading';
+      text.textContent = 'Cloud-Sync: SQL Setup offen';
+      badge.style.cursor = 'pointer';
+      badge.onclick = () => openAdminLoginModal('sync');
+    } else if (sess && sess.access_token) {
+      badge.className = 'status-pill ready';
+      text.textContent = '☁️ Cloud-Sync aktiv';
+      badge.style.cursor = 'default';
+      badge.onclick = null;
+    } else {
+      badge.className = 'status-pill loading';
+      text.textContent = 'Cloud-Sync: Admin-Login';
+      badge.style.cursor = 'pointer';
+      badge.title = 'Klicken zum Einloggen für iPhone ↔ PC Sync';
+      badge.onclick = () => openAdminLoginModal('sync');
+    }
+  } else {
+    badge.className = 'status-pill ready';
+    text.textContent = 'Cloud / iPhone Modus aktiv';
+    badge.style.cursor = 'default';
+    badge.onclick = null;
+  }
+}
+
 // Check Backend Status or Switch to Static GitHub Pages Mode
 async function pollCatalogStatus() {
   const badge = document.getElementById('catalogStatusBadge');
@@ -773,8 +913,7 @@ async function pollCatalogStatus() {
   } catch (e) {
     // Running on GitHub Pages / Static iPhone PWA
     isStaticMode = true;
-    badge.className = 'status-pill ready';
-    text.textContent = profileMode === 'personal' ? 'Persönlicher Modus' : 'Cloud / iPhone Modus aktiv';
+    updateStaticStatusBadge();
   }
 }
 
@@ -890,25 +1029,7 @@ async function fetchPortfolio() {
     isStaticMode = true;
   }
 
-function getDeletedOwnerIds() {
-  try {
-    const arr = JSON.parse(localStorage.getItem(DELETED_OWNER_IDS_KEY) || '[]');
-    return new Set(Array.isArray(arr) ? arr : []);
-  } catch (e) {
-    return new Set();
-  }
-}
-
-function addDeletedOwnerId(id) {
-  if (!id) return;
-  try {
-    const set = getDeletedOwnerIds();
-    set.add(id);
-    localStorage.setItem(DELETED_OWNER_IDS_KEY, JSON.stringify([...set]));
-  } catch (e) {}
-}
-
-  // Static Mode (GitHub Pages / iPhone): Fetch latest daily-updated `./data/portfolio.json` from repo
+  // Static Mode (GitHub Pages / iPhone): Fetch `./data/portfolio.json` + 2-way Supabase Admin Vault if logged in
   let remoteItems = [];
   try {
     const res = await fetch(`./data/portfolio.json?t=${Date.now()}`);
@@ -924,14 +1045,75 @@ function addDeletedOwnerId(id) {
     if (raw) localData = JSON.parse(raw);
   } catch (e) {}
 
-  if (localData && Array.isArray(localData.items) && localData.items.length > 0 && remoteItems.length === 0) {
-    portfolioItems = localData.items;
+  const deletedIds = getDeletedOwnerIds();
+  const adminToken = isAdminMode ? await getValidAdminAccessToken() : null;
+  const cloudVault = adminToken ? await fetchOwnerCloudVault(adminToken) : null;
+  updateStaticStatusBadge();
+
+  if (cloudVault && Array.isArray(cloudVault.deleted_ids)) {
+    for (const did of cloudVault.deleted_ids) deletedIds.add(did);
+    saveDeletedOwnerIdsSet(deletedIds);
+  }
+
+  // Merge Set-Checkliste from cloud if available
+  if (cloudVault && cloudVault.checklists && typeof cloudVault.checklists === 'object') {
+    const localChk = loadChecklistOwnedMap();
+    const mergedChk = { ...cloudVault.checklists };
+    for (const [setKey, bucket] of Object.entries(localChk)) {
+      if (bucket && typeof bucket === 'object') {
+        mergedChk[setKey] = { ...(mergedChk[setKey] || {}), ...bucket };
+      }
+    }
+    try {
+      localStorage.setItem(getChecklistStorageKey(), JSON.stringify(mergedChk));
+    } catch (e) {}
+  }
+
+  const cloudUpdatedMs = cloudVault?.updated_at ? Date.parse(cloudVault.updated_at) : 0;
+  let needsCloudPush = false;
+
+  if (cloudVault && Array.isArray(cloudVault.items) && cloudVault.items.length > 0) {
+    // Cloud Vault exists -> use as primary truth across PC & iPhone, plus newer local edits & any new GitHub items
+    const cloudById = new Map(cloudVault.items.map(i => [i.id, i]));
+    const localById = new Map((localData?.items || []).map(i => [i.id, i]));
+    const mergedList = [];
+
+    for (const cItem of cloudVault.items) {
+      if (deletedIds.has(cItem.id)) continue;
+      const localEd = localById.get(cItem.id);
+      const localEdMs = localEd?.mobileEditedAt ? Date.parse(localEd.mobileEditedAt) : 0;
+      if (localEd && localEdMs > cloudUpdatedMs) {
+        mergedList.push({ ...cItem, ...localEd });
+        needsCloudPush = true;
+      } else {
+        mergedList.push(cItem);
+      }
+    }
+
+    // Add brand-new items from GitHub portfolio.json or local mobile_ items not yet in cloudVault
+    for (const rItem of remoteItems) {
+      if (deletedIds.has(rItem.id) || cloudById.has(rItem.id)) continue;
+      const localEd = localById.get(rItem.id);
+      mergedList.push(localEd?.mobileEditedAt ? { ...rItem, ...localEd } : rItem);
+      needsCloudPush = true;
+    }
+    for (const lItem of (localData?.items || [])) {
+      if (deletedIds.has(lItem.id) || cloudById.has(lItem.id)) continue;
+      if (String(lItem.id).startsWith('mobile_')) {
+        mergedList.unshift(lItem);
+        needsCloudPush = true;
+      }
+    }
+
+    portfolioItems = mergedList;
+    saveLocalPortfolio(true);
+  } else if (localData && Array.isArray(localData.items) && localData.items.length > 0 && remoteItems.length === 0) {
+    portfolioItems = localData.items.filter(i => !deletedIds.has(i.id));
+    if (adminToken && !ownerCloudVaultSetupMissing) needsCloudPush = true;
   } else if (remoteItems.length > 0) {
-    // Merge remote items from PC/GitHub with mobile-only items & preserve mobile edits / deletions
-    const deletedIds = getDeletedOwnerIds();
+    // No Cloud Vault row yet -> merge GitHub portfolio.json with local mobile edits / deletions
     const localById = new Map((localData?.items || []).map(i => [i.id, i]));
     const remoteIds = new Set(remoteItems.map(i => i.id));
-
     const mergedRemote = [];
     for (const rItem of remoteItems) {
       if (deletedIds.has(rItem.id)) continue;
@@ -960,10 +1142,10 @@ function addDeletedOwnerId(id) {
         mergedRemote.push(rItem);
       }
     }
-
-    const mobileOnlyItems = (localData?.items || []).filter(i => !remoteIds.has(i.id) && String(i.id).startsWith('mobile_'));
+    const mobileOnlyItems = (localData?.items || []).filter(i => !remoteIds.has(i.id) && String(i.id).startsWith('mobile_') && !deletedIds.has(i.id));
     portfolioItems = [...mobileOnlyItems, ...mergedRemote];
-    saveLocalPortfolio();
+    saveLocalPortfolio(true);
+    if (adminToken && !ownerCloudVaultSetupMissing) needsCloudPush = true;
   } else {
     portfolioItems = [];
   }
@@ -971,8 +1153,11 @@ function addDeletedOwnerId(id) {
   renderAll();
   const enriched = await enrichItemsWithCatalog(portfolioItems);
   if (enriched) {
-    saveLocalPortfolio();
+    saveLocalPortfolio(true);
     renderAll();
+  }
+  if (needsCloudPush && adminToken && !ownerCloudVaultSetupMissing) {
+    await pushOwnerCloudVaultNow();
   }
 }
 
@@ -2087,7 +2272,10 @@ function closeProfileModal() {
   document.getElementById('profileModal').classList.add('hidden');
 }
 
-function openAdminLoginModal() {
+let adminLoginNextAction = 'friends';
+
+function openAdminLoginModal(nextAction = 'friends') {
+  adminLoginNextAction = nextAction || 'friends';
   const modal = document.getElementById('adminLoginModal');
   const errEl = document.getElementById('adminLoginError');
   const emailEl = document.getElementById('adminEmailInput');
@@ -2471,6 +2659,9 @@ function saveChecklistOwnedMap(mapObj) {
   try {
     localStorage.setItem(getChecklistStorageKey(), JSON.stringify(mapObj));
   } catch (e) {}
+  if (profileMode === 'owner' && isAdminMode && !viewingFriend) {
+    scheduleOwnerCloudSync();
+  }
 }
 
 async function ensureSetsIndexLoaded() {
@@ -3124,8 +3315,16 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       await adminSignIn(email, pw);
       closeAdminLoginModal();
-      showToast('Erfolgreich angemeldet.');
-      openFriendsModal();
+      updateStaticStatusBadge();
+      if (profileMode === 'owner' && isStaticMode) {
+        await fetchPortfolio();
+      }
+      if (adminLoginNextAction === 'friends') {
+        showToast('Erfolgreich angemeldet.');
+        openFriendsModal();
+      } else {
+        showToast('☁️ 2-Wege Cloud-Sync aktiviert!');
+      }
     } catch (err) {
       errEl.textContent = err.message || 'Anmeldung fehlgeschlagen.';
       errEl.classList.remove('hidden');
