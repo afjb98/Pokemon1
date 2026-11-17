@@ -34,6 +34,7 @@ let checklistSearch = '';
 let currentChecklistData = null;
 const FEATURED_CHECKLIST_SETS = [
   { id: 'me06', label: 'Delta-Herrschaft (DLR)' },
+  { id: '30th-c', label: '30th Classic Collection (30C)' },
   { id: 'me05', label: 'Dunkelnacht (PBL)' },
   { id: 'me01', label: 'Mega-Entwicklung (MEG)' },
   { id: 'sv08.5', label: 'Prismatische Entwicklungen (PRE)' },
@@ -819,15 +820,24 @@ window.handleCardImageError = async function(imgEl) {
   const badge = imgEl.dataset.badge || (type === 'sealed' ? 'BOX' : 'TCG');
   const step = imgEl.dataset.tryStep || '';
 
+  const curSrc = imgEl.getAttribute('src') || '';
+
+  // If a TCGdex image 404s on a card that also has a Cardmarket idProduct, try local/static Cardmarket image first
+  if (idProduct && step === '' && curSrc.includes('tcgdex.net')) {
+    imgEl.dataset.tryStep = isStaticMode ? 'cm_jpg' : 'cm_api';
+    imgEl.src = isStaticMode ? `./images/${idProduct}.jpg` : `/api/cm-image/${idProduct}`;
+    return;
+  }
+
   // Step 1 on static mode: if .jpg failed, try .png in ./images/
-  if (isStaticMode && idProduct && step === '' && imgEl.getAttribute('src')?.endsWith('.jpg')) {
+  if (isStaticMode && idProduct && (step === '' || step === 'cm_jpg') && curSrc.endsWith('.jpg')) {
     imgEl.dataset.tryStep = 'png';
     imgEl.src = `./images/${idProduct}.png`;
     return;
   }
 
-  // Step 2: if already tried TCGdex fallback, show badge
-  if (step === 'tcgdex' || step === 'done') {
+  // Step 2: if already tried TCGdex fallback (or cm_api failed), show badge
+  if (step === 'tcgdex' || step === 'done' || step === 'cm_api') {
     if (imgEl.parentElement) imgEl.parentElement.textContent = badge;
     return;
   }
@@ -2880,6 +2890,29 @@ async function loadChecklistSet(tcgdexId) {
   let logoUrl = enSet?.logo ? `${enSet.logo}.webp` : (deSet?.logo ? `${deSet.logo}.webp` : '');
   const officialCount = Number(enSet?.cardCount?.official || deSet?.cardCount?.official || 0);
 
+  // Build quick lookup from staticCatalogItems for this set so cards know their Cardmarket idProduct
+  const catalogSetSingles = [];
+  if (Array.isArray(staticCatalogItems)) {
+    const targetCode = String(setInfo.code || '').trim().toUpperCase();
+    const targetEn = String(setInfo.en || '').trim().toLowerCase();
+    const targetDe = String(setInfo.de || '').trim().toLowerCase();
+    for (let i = 0; i < staticCatalogItems.length; i++) {
+      const r = staticCatalogItems[i];
+      if (r[3] !== 'c') continue;
+      const rCode = String(r[6] || '').trim().toUpperCase();
+      const rExp = String(r[5] || '').trim().toLowerCase();
+      if (
+        r[12] === tcgdexId ||
+        (targetCode && rCode === targetCode) ||
+        (targetEn && rExp === targetEn) ||
+        (targetDe && rExp === targetDe)
+      ) {
+        catalogSetSingles.push(r);
+      }
+    }
+    catalogSetSingles.sort((a, b) => Number(a[0]) - Number(b[0]));
+  }
+
   if (enSet && Array.isArray(enSet.cards) && enSet.cards.length > 0) {
     const deByLocal = new Map();
     if (deSet && Array.isArray(deSet.cards)) {
@@ -2895,55 +2928,72 @@ async function loadChecklistSet(tcgdexId) {
       return String(a.localId || '').localeCompare(String(b.localId || ''));
     });
 
+    // Track per-name counts to pair multi-rarity cards in set order with catalogSetSingles
+    const nameOccCount = new Map();
     cards = sortedEn.map(c => {
       const loc = String(c.localId || '');
       const deCard = deByLocal.get(loc);
       const numVal = parseInt(loc, 10);
       const isSecret = officialCount > 0 && !Number.isNaN(numVal) && numVal > officialCount;
       const baseImg = c.image || deCard?.image || '';
+
+      const enNorm = normalizeCardMatchName(c.name || '');
+      const occIdx = nameOccCount.get(enNorm) || 0;
+      nameOccCount.set(enNorm, occIdx + 1);
+      const matchingCatRows = catalogSetSingles.filter(r => {
+        const clean = parseCardmarketHints(r[1]).cleanName;
+        return normalizeCardMatchName(clean) === enNorm;
+      });
+      const matchedRow = matchingCatRows.length > 0
+        ? matchingCatRows[Math.min(occIdx, matchingCatRows.length - 1)]
+        : null;
+      const matchedId = matchedRow ? Number(matchedRow[0]) : null;
+      const fallbackCmImg = matchedId ? (isStaticMode ? `./images/${matchedId}.jpg` : `/api/cm-image/${matchedId}`) : '';
+
       return {
         key: String(c.id || loc),
         id: c.id || `${tcgdexId}-${loc}`,
         localId: loc,
         enName: c.name || '',
+        rawName: matchedRow ? matchedRow[1] : (c.name || ''),
         deName: deCard?.name || '',
         name: deCard?.name && deCard.name !== c.name ? deCard.name : (c.name || ''),
-        imageLow: baseImg ? `${baseImg}/low.webp` : '',
-        imageHigh: baseImg ? `${baseImg}/high.webp` : '',
+        imageLow: baseImg ? `${baseImg}/low.webp` : fallbackCmImg,
+        imageHigh: baseImg ? `${baseImg}/high.webp` : fallbackCmImg,
         isSecret,
-        idProduct: null
+        idProduct: matchedId,
+        siblingIdx: occIdx
       };
     });
   } else {
     // Fallback for brand-new sets not yet on TCGdex: pull set singles directly from Cardmarket catalog
     try {
-      let catalogRows = [];
-      if (isStaticMode) {
-        catalogRows = await ensureStaticCatalogLoaded();
-        cards = catalogRows
-          .filter(r => r[3] === 'c' && (r[12] === tcgdexId || (setInfo.code && r[6] === setInfo.code) || (setInfo.en && r[5] === setInfo.en)))
-          .map(r => ({
-            key: String(r[0]),
-            id: String(r[0]),
-            localId: `#${r[0]}`,
-            enName: r[1] || '',
-            deName: r[2] || '',
-            name: (r[2] || r[1] || '').replace(/\[.*?\]/g, '').trim(),
-            imageLow: `./images/${r[0]}.jpg`,
-            imageHigh: `./images/${r[0]}.jpg`,
-            isSecret: false,
-            idProduct: r[0]
-          }));
-      } else {
+      if (catalogSetSingles.length > 0) {
+        cards = catalogSetSingles.map(r => ({
+          key: String(r[0]),
+          id: String(r[0]),
+          localId: `#${r[0]}`,
+          enName: r[1] || '',
+          rawName: r[1] || '',
+          deName: r[2] || '',
+          name: (r[2] || r[1] || '').replace(/\[.*?\]/g, '').trim(),
+          imageLow: isStaticMode ? `./images/${r[0]}.jpg` : `/api/cm-image/${r[0]}`,
+          imageHigh: isStaticMode ? `./images/${r[0]}.jpg` : `/api/cm-image/${r[0]}`,
+          isSecret: false,
+          idProduct: r[0]
+        }));
+      } else if (!isStaticMode) {
         const res = await fetch(`/api/search?q=${encodeURIComponent(setInfo.en || setInfo.de)}&type=single`);
         const data = await res.json();
         cards = (data.results || [])
           .filter(p => (setInfo.code && p.expansionCode === setInfo.code) || p.expansionName === setInfo.de || p.expansionName === setInfo.en)
+          .sort((a, b) => Number(a.idProduct) - Number(b.idProduct))
           .map(p => ({
             key: String(p.idProduct),
             id: String(p.idProduct),
             localId: `#${p.idProduct}`,
             enName: p.name || '',
+            rawName: p.name || '',
             deName: p.displayNameDe || '',
             name: (p.displayNameDe || p.name || '').replace(/\[.*?\]/g, '').trim(),
             imageLow: `/api/cm-image/${p.idProduct}`,
@@ -3040,7 +3090,7 @@ function renderChecklistView() {
     el.innerHTML = `
       <div class="checklist-card-visual">
         ${card.imageLow
-          ? `<img src="${escapeHtml(card.imageLow)}" loading="lazy" alt="${escapeHtml(card.name)}" onerror="this.parentElement.textContent='${badgeFallback}'" />`
+          ? `<img src="${escapeHtml(card.imageLow)}" loading="lazy" alt="${escapeHtml(card.name)}" data-id="${escapeHtml(card.idProduct || '')}" data-name="${escapeHtml(card.rawName || card.enName || card.name)}" data-type="single" data-tcgdex="${escapeHtml(tcgdexId)}" data-exp="${escapeHtml(setInfo.en || setInfo.de || '')}" data-sidx="${card.siblingIdx ?? 0}" data-badge="${badgeFallback}" onerror="handleCardImageError(this)" />`
           : badgeFallback}
       </div>
       <div class="checklist-card-footer">

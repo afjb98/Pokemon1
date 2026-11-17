@@ -460,19 +460,22 @@ async function run() {
     }
   } catch (e) {}
 
-  // In GitHub Actions Pages build (--with-sealed-images), also pre-cache all ETBs (1016) & Displays (53) into public/images/
+  // In GitHub Actions Pages build (--with-sealed-images), also pre-cache all ETBs (1016), Displays (53)
+  // AND newest featured sets whose artworks may still be missing on TCGdex!
   if (process.argv.includes('--with-sealed-images')) {
-    const sealedTargets = [];
+    const FEATURED_SET_CODES = new Set(['30C', 'DLR', 'PBL', 'CRI', 'POR', 'ASC', 'PFL', 'MEG']);
+    const targets = [];
     for (const prod of productMap.values()) {
-      if (prod.idCategory === 1016 || prod.idCategory === 53) {
-        sealedTargets.push(prod);
+      const hasFeaturedCode = prod.expansionCode && FEATURED_SET_CODES.has(String(prod.expansionCode).toUpperCase());
+      if (prod.idCategory === 1016 || prod.idCategory === 53 || (prod.type === 'single' && hasFeaturedCode)) {
+        targets.push(prod);
       }
     }
-    console.log(`Pre-caching ${sealedTargets.length} ETB & Display images for GitHub Pages...`);
-    for (let i = 0; i < sealedTargets.length; i += 25) {
-      await Promise.all(sealedTargets.slice(i, i + 25).map(p => ensurePortfolioImage(p).catch(() => null)));
+    console.log(`Pre-caching ${targets.length} ETB, Display & newest set images for GitHub Pages...`);
+    for (let i = 0; i < targets.length; i += 25) {
+      await Promise.all(targets.slice(i, i + 25).map(p => ensurePortfolioImage(p).catch(() => null)));
     }
-    console.log('Done pre-caching ETB & Display images.');
+    console.log('Done pre-caching ETB, Display & newest set images.');
   }
 }
 
