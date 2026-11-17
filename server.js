@@ -2,7 +2,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-// Local server on PC handles live syncing; placeholder in GITHUB_UPLOAD so token is not pushed
+const PORT = 3000;
 const DATA_DIR = path.join(__dirname, 'data');
 const CACHE_DIR = path.join(DATA_DIR, 'cache');
 const IMG_CACHE_DIR = path.join(CACHE_DIR, 'images');
@@ -128,7 +128,145 @@ function loadPortfolio() {
   }
 }
 
-function savePortfolio(data) {
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN || '';
+const GITHUB_OWNER = 'afjb98';
+const GITHUB_REPO = 'Pokemon1';
+let githubSyncTimer = null;
+
+async function ghApi(endpoint, options = {}) {
+  const res = await fetch(`https://api.github.com${endpoint}`, {
+    ...options,
+    headers: {
+      'Authorization': `Bearer ${GITHUB_TOKEN}`,
+      'Accept': 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+      'User-Agent': 'PokeVault-AutoSync',
+      ...(options.headers || {})
+    }
+  });
+  const text = await res.text();
+  let data = null;
+  try { data = JSON.parse(text); } catch (e) {}
+  return { ok: res.ok, status: res.status, data, text };
+}
+
+async function ensureLocalPortfolioImageBuffer(idProduct) {
+  if (!idProduct) return null;
+  const product = productMap.get(Number(idProduct));
+  if (!product) return null;
+
+  const pubImgDir = path.join(__dirname, 'public', 'images');
+  if (!fs.existsSync(pubImgDir)) fs.mkdirSync(pubImgDir, { recursive: true });
+
+  for (const ext of ['.jpg', '.png']) {
+    const p1 = path.join(pubImgDir, `${idProduct}${ext}`);
+    if (fs.existsSync(p1)) return { ext, buffer: fs.readFileSync(p1), relPath: `public/images/${idProduct}${ext}`, staticUrl: `images/${idProduct}${ext}` };
+    const p2 = path.join(IMG_CACHE_DIR, `${idProduct}${ext}`);
+    if (fs.existsSync(p2)) {
+      fs.copyFileSync(p2, p1);
+      return { ext, buffer: fs.readFileSync(p2), relPath: `public/images/${idProduct}${ext}`, staticUrl: `images/${idProduct}${ext}` };
+    }
+  }
+
+  for (const s3Url of getCandidateS3ImageUrls(product)) {
+    try {
+      const r = await fetch(s3Url, {
+        headers: { 'Referer': 'https://www.cardmarket.com/', 'User-Agent': 'Mozilla/5.0' }
+      });
+      if (r.ok) {
+        const ct = r.headers.get('content-type') || '';
+        const ext = ct.includes('png') || s3Url.endsWith('.png') ? '.png' : '.jpg';
+        const buf = Buffer.from(await r.arrayBuffer());
+        fs.writeFileSync(path.join(IMG_CACHE_DIR, `${idProduct}${ext}`), buf);
+        fs.writeFileSync(path.join(pubImgDir, `${idProduct}${ext}`), buf);
+        return { ext, buffer: buf, relPath: `public/images/${idProduct}${ext}`, staticUrl: `images/${idProduct}${ext}` };
+      }
+    } catch (e) {}
+  }
+  return null;
+}
+
+async function syncPortfolioToGitHubNow() {
+  try {
+    const portfolio = loadPortfolio();
+    const extraImageFiles = [];
+
+    for (const item of (portfolio.items || [])) {
+      if (item.idProduct) {
+        const imgObj = await ensureLocalPortfolioImageBuffer(item.idProduct);
+        if (imgObj) {
+          item.staticImageUrl = imgObj.staticUrl;
+          extraImageFiles.push(imgObj);
+        }
+      }
+    }
+
+    const jsonStr = JSON.stringify(portfolio, null, 2);
+    fs.writeFileSync(PORTFOLIO_FILE, jsonStr, 'utf8');
+    const pubDataDir = path.join(__dirname, 'public', 'data');
+    if (!fs.existsSync(pubDataDir)) fs.mkdirSync(pubDataDir, { recursive: true });
+    fs.writeFileSync(path.join(pubDataDir, 'portfolio.json'), jsonStr, 'utf8');
+
+    const refRes = await ghApi(`/repos/${GITHUB_OWNER}/${GITHUB_REPO}/git/ref/heads/main`);
+    if (!refRes.ok) return;
+    const latestCommitSha = refRes.data.object.sha;
+    const commitRes = await ghApi(`/repos/${GITHUB_OWNER}/${GITHUB_REPO}/git/commits/${latestCommitSha}`);
+    const baseTreeSha = commitRes.data.tree.sha;
+
+    const treeItems = [];
+    // Upload portfolio.json blob
+    const portBlob = await ghApi(`/repos/${GITHUB_OWNER}/${GITHUB_REPO}/git/blobs`, {
+      method: 'POST',
+      body: JSON.stringify({ content: Buffer.from(jsonStr, 'utf8').toString('base64'), encoding: 'base64' })
+    });
+    if (portBlob.ok) {
+      treeItems.push({ path: 'data/portfolio.json', mode: '100644', type: 'blob', sha: portBlob.data.sha });
+      treeItems.push({ path: 'public/data/portfolio.json', mode: '100644', type: 'blob', sha: portBlob.data.sha });
+    }
+
+    // Also include images of portfolio items
+    for (const img of extraImageFiles) {
+      const bRes = await ghApi(`/repos/${GITHUB_OWNER}/${GITHUB_REPO}/git/blobs`, {
+        method: 'POST',
+        body: JSON.stringify({ content: img.buffer.toString('base64'), encoding: 'base64' })
+      });
+      if (bRes.ok) {
+        treeItems.push({ path: img.relPath, mode: '100644', type: 'blob', sha: bRes.data.sha });
+      }
+    }
+
+    const newTree = await ghApi(`/repos/${GITHUB_OWNER}/${GITHUB_REPO}/git/trees`, {
+      method: 'POST',
+      body: JSON.stringify({ base_tree: baseTreeSha, tree: treeItems })
+    });
+    if (!newTree.ok) return;
+
+    const newCommit = await ghApi(`/repos/${GITHUB_OWNER}/${GITHUB_REPO}/git/commits`, {
+      method: 'POST',
+      body: JSON.stringify({
+        message: 'Auto-Sync Portfolio vom PC auf iPhone',
+        tree: newTree.data.sha,
+        parents: [latestCommitSha]
+      })
+    });
+    if (!newCommit.ok) return;
+
+    await ghApi(`/repos/${GITHUB_OWNER}/${GITHUB_REPO}/git/refs/heads/main`, {
+      method: 'PATCH',
+      body: JSON.stringify({ sha: newCommit.data.sha, force: true })
+    });
+    console.log('✓ Portfolio & Bilder automatisch mit GitHub / iPhone synchronisiert!');
+  } catch (err) {
+    console.error('Auto-Sync Fehler:', err.message);
+  }
+}
+
+function scheduleGitHubSync() {
+  clearTimeout(githubSyncTimer);
+  githubSyncTimer = setTimeout(syncPortfolioToGitHubNow, 1500);
+}
+
+function savePortfolio(data, triggerCloudSync = false) {
   if (fs.existsSync(PORTFOLIO_FILE)) {
     try {
       fs.copyFileSync(PORTFOLIO_FILE, path.join(DATA_DIR, 'portfolio.backup.json'));
@@ -139,6 +277,9 @@ function savePortfolio(data) {
   const pubDataDir = path.join(__dirname, 'public', 'data');
   if (!fs.existsSync(pubDataDir)) fs.mkdirSync(pubDataDir, { recursive: true });
   fs.writeFileSync(path.join(pubDataDir, 'portfolio.json'), jsonStr, 'utf8');
+  if (triggerCloudSync) {
+    scheduleGitHubSync();
+  }
 }
 
 function isCacheFresh(filePath) {
@@ -195,6 +336,39 @@ function getCandidateS3ImageUrls(product) {
   return urls;
 }
 
+const CONDITION_FACTORS = {
+  M: 1.10,
+  NM: 1.00,
+  EX: 0.80,
+  GD: 0.62,
+  LP: 0.48,
+  PL: 0.35,
+  PO: 0.22
+};
+
+function applyConditionPrice(basePrice, condition = 'NM', isSealed = false) {
+  if (basePrice == null) return null;
+  const factor = isSealed
+    ? (CONDITION_FACTORS[condition] != null && CONDITION_FACTORS[condition] < 1 ? CONDITION_FACTORS[condition] : 1)
+    : (CONDITION_FACTORS[condition] ?? 1);
+  return Number((Number(basePrice) * factor).toFixed(2));
+}
+
+function hasHoloFields(priceEntry) {
+  if (!priceEntry) return false;
+  return (
+    (priceEntry['low-holo'] != null && Number(priceEntry['low-holo']) > 0) ||
+    (priceEntry['trend-holo'] != null && Number(priceEntry['trend-holo']) > 0) ||
+    (priceEntry['avg1-holo'] != null && Number(priceEntry['avg1-holo']) > 0) ||
+    (priceEntry['avg7-holo'] != null && Number(priceEntry['avg7-holo']) > 0) ||
+    (priceEntry['avg30-holo'] != null && Number(priceEntry['avg30-holo']) > 0)
+  );
+}
+
+function posNum(v) {
+  return (v != null && Number(v) > 0) ? Number(v) : null;
+}
+
 // Calculate effective prices including smart German price estimation (dePrice)
 // Note: Cardmarket's bulk JSON `low` is EU-wide across all languages (including cheap IT/ES/PT/JP listings).
 // For Sealed products (especially ETBs/Displays) & German cards, `trend` (or `avg7`/`avg`) reflects realistic German market prices much closer than an Italian outlier `low`.
@@ -207,27 +381,26 @@ function getEffectivePrices(priceEntry, isHolo = false, isSealed = false) {
       avg1: null,
       avg7: null,
       avg30: null,
-      avg: null
+      avg: null,
+      hasHoloPrices: false
     };
   }
 
-  let low = isHolo ? (priceEntry['low-holo'] ?? priceEntry.low ?? null) : (priceEntry.low ?? priceEntry['low-holo'] ?? null);
-  let trend = isHolo ? (priceEntry['trend-holo'] ?? priceEntry.trend ?? null) : (priceEntry.trend ?? priceEntry['trend-holo'] ?? null);
-  let avg1 = isHolo ? (priceEntry['avg1-holo'] ?? priceEntry.avg1 ?? null) : (priceEntry.avg1 ?? priceEntry['avg1-holo'] ?? null);
-  let avg7 = isHolo ? (priceEntry['avg7-holo'] ?? priceEntry.avg7 ?? null) : (priceEntry.avg7 ?? priceEntry['avg7-holo'] ?? null);
-  let avg30 = isHolo ? (priceEntry['avg30-holo'] ?? priceEntry.avg30 ?? null) : (priceEntry.avg30 ?? priceEntry['avg30-holo'] ?? null);
-  let avg = isHolo ? (priceEntry['avg-holo'] ?? priceEntry.avg ?? null) : (priceEntry.avg ?? priceEntry['avg-holo'] ?? null);
+  const hasHoloPrices = hasHoloFields(priceEntry);
+  const useHolo = Boolean(isHolo) && hasHoloPrices;
 
-  // Realistic German price calculation (`dePrice`):
-  // For Sealed products (TTBs/Displays), `low` in Cardmarket's global JSON is almost always an Italian/Spanish/Portuguese box (often 25-40% cheaper than DE).
-  // The realistic German lowest price on Cardmarket aligns with `trend` (or `avg1`/`avg7` if available).
-  // For Singles, if `low` is drastically below `trend` (< 75% of trend, typical for Poor condition or IT/ES/JP language), we use `trend` (or `avg1`/`avg7` lower bound) as the realistic German NM price.
-  let dePrice = trend ?? low;
+  let low = useHolo ? posNum(priceEntry['low-holo']) : (posNum(priceEntry.low) ?? posNum(priceEntry['low-holo']));
+  let trend = useHolo ? posNum(priceEntry['trend-holo']) : (posNum(priceEntry.trend) ?? posNum(priceEntry['trend-holo']));
+  let avg1 = useHolo ? posNum(priceEntry['avg1-holo']) : (posNum(priceEntry.avg1) ?? posNum(priceEntry['avg1-holo']));
+  let avg7 = useHolo ? posNum(priceEntry['avg7-holo']) : (posNum(priceEntry.avg7) ?? posNum(priceEntry['avg7-holo']));
+  let avg30 = useHolo ? posNum(priceEntry['avg30-holo']) : (posNum(priceEntry.avg30) ?? posNum(priceEntry['avg30-holo']));
+  let avg = useHolo ? posNum(priceEntry['avg-holo']) : (posNum(priceEntry.avg) ?? posNum(priceEntry['avg-holo']));
+
+  let dePrice = trend ?? avg7 ?? avg1 ?? avg30 ?? low;
   if (!isSealed && low != null && trend != null) {
     if (low >= trend * 0.78) {
       dePrice = low;
     } else {
-      // If low is an extreme foreign/damaged outlier, use the minimum of trend and avg1/avg7 if reasonable
       const candidates = [trend, avg1, avg7].filter(v => v != null && v >= trend * 0.75);
       dePrice = candidates.length > 0 ? Math.min(...candidates) : trend;
     }
@@ -242,7 +415,8 @@ function getEffectivePrices(priceEntry, isHolo = false, isSealed = false) {
     avg1,
     avg7,
     avg30,
-    avg
+    avg,
+    hasHoloPrices
   };
 }
 
@@ -283,6 +457,7 @@ function syncPortfolioPrices() {
       avg7: prices.avg7,
       avg30: prices.avg30,
       avg: prices.avg,
+      hasHoloPrices: prices.hasHoloPrices,
       raw: priceEntry,
       updatedAt: catalogState.priceGuideDate || today
     };
@@ -291,10 +466,12 @@ function syncPortfolioPrices() {
       item.priceHistory = [];
     }
 
-    // Effective current price: custom override > German realistic price (dePrice) > trend > low
+    // Effective current price: custom override > condition-adjusted DE price
+    const baseDe = prices.dePrice ?? prices.trend ?? prices.low ?? 0;
+    const condAdjusted = applyConditionPrice(baseDe, item.condition || 'NM', isSealed);
     const currentEffective = item.customLowPrice != null
       ? Number(item.customLowPrice)
-      : (prices.dePrice ?? prices.trend ?? prices.low ?? 0);
+      : (condAdjusted ?? 0);
     const currentTrend = prices.trend ?? currentEffective;
 
     if (currentEffective > 0) {
@@ -371,6 +548,7 @@ async function loadCardmarketCatalog(forceRefresh = false) {
         categoryName: p.categoryName || 'Pokémon Single',
         expansionName: expName,
         expansionCode: expCode,
+        tcgdexId: expInfo?.tcgdexId || '',
         type: 'single',
         idExpansion: p.idExpansion,
         idMetacard: p.idMetacard,
@@ -406,6 +584,7 @@ async function loadCardmarketCatalog(forceRefresh = false) {
         categoryName: p.categoryName || 'Sealed Produkt',
         expansionName: expName,
         expansionCode: expCode,
+        tcgdexId: expInfo?.tcgdexId || '',
         type: 'sealed',
         idExpansion: p.idExpansion,
         idMetacard: p.idMetacard,
@@ -631,12 +810,17 @@ const server = http.createServer(async (req, res) => {
       const idProduct = body.idProduct ? Number(body.idProduct) : null;
       const productInfo = idProduct ? productMap.get(idProduct) : null;
       const priceEntry = idProduct ? priceMap.get(idProduct) : null;
-      const isHolo = Boolean(body.isHolo);
+      const variant = body.variant || (body.isHolo ? 'holo' : 'normal');
+      const isHolo = variant !== 'normal';
+      const isFirstEdition = Boolean(body.isFirstEdition);
+      const condition = body.condition || 'NM';
       const isSealed = (body.type || (productInfo ? productInfo.type : 'single')) === 'sealed';
       const prices = getEffectivePrices(priceEntry, isHolo, isSealed);
 
       const today = new Date().toISOString().slice(0, 10);
-      const buyPrice = Number(body.buyPrice) || 0;
+      const buyPrice = (body.buyPrice === null || body.buyPrice === undefined || body.buyPrice === '')
+        ? null
+        : Number(body.buyPrice);
       const quantity = Math.max(1, Number(body.quantity) || 1);
       const buyDate = body.buyDate || today;
       const customLowPrice = body.customLowPrice !== '' && body.customLowPrice != null ? Number(body.customLowPrice) : null;
@@ -648,22 +832,25 @@ const server = http.createServer(async (req, res) => {
       const d7 = new Date(now.getTime() - 7 * 86400000).toISOString().slice(0, 10);
       const d1 = new Date(now.getTime() - 1 * 86400000).toISOString().slice(0, 10);
 
-      const effectiveLow = customLowPrice ?? prices.dePrice ?? prices.trend ?? prices.low ?? buyPrice;
-      const p30 = prices.avg30 ?? prices.trend ?? effectiveLow;
-      const p7 = prices.avg7 ?? prices.trend ?? effectiveLow;
-      const p1 = prices.avg1 ?? effectiveLow;
+      const condAdjusted = applyConditionPrice(prices.dePrice ?? prices.trend ?? prices.low, condition, isSealed);
+      const effectiveLow = customLowPrice ?? condAdjusted ?? buyPrice ?? 0;
+      const p30 = applyConditionPrice(prices.avg30 ?? prices.trend, condition, isSealed) ?? effectiveLow;
+      const p7 = applyConditionPrice(prices.avg7 ?? prices.trend, condition, isSealed) ?? effectiveLow;
+      const p1 = applyConditionPrice(prices.avg1, condition, isSealed) ?? effectiveLow;
       const p14 = Number(((p30 + p7) / 2).toFixed(2));
 
       if (p30 > 0) priceHistory.push({ date: d30, low: Number(p30.toFixed(2)), trend: prices.trend ?? p30, label: '30T Ø' });
       if (p14 > 0) priceHistory.push({ date: d14, low: p14, trend: prices.trend ?? p14, label: '14T Ø' });
       if (p7 > 0) priceHistory.push({ date: d7, low: Number(p7.toFixed(2)), trend: prices.trend ?? p7, label: '7T Ø' });
       if (p1 > 0 && d1 !== today) priceHistory.push({ date: d1, low: Number(p1.toFixed(2)), trend: prices.trend ?? p1, label: 'Gestern' });
-      priceHistory.push({
-        date: today,
-        low: Number(effectiveLow.toFixed(2)),
-        trend: Number((prices.trend ?? effectiveLow).toFixed(2)),
-        label: 'Heute'
-      });
+      if (effectiveLow > 0) {
+        priceHistory.push({
+          date: today,
+          low: Number(effectiveLow.toFixed(2)),
+          trend: Number((prices.trend ?? effectiveLow).toFixed(2)),
+          label: 'Heute'
+        });
+      }
 
       const autoImageUrl = productInfo ? buildProductImageUrl(productInfo) : '';
 
@@ -676,8 +863,11 @@ const server = http.createServer(async (req, res) => {
         categoryName: body.categoryName || (productInfo ? productInfo.categoryName : 'Pokémon Single'),
         expansionName: productInfo ? productInfo.expansionName : '',
         expansionCode: productInfo ? productInfo.expansionCode : '',
+        tcgdexId: productInfo ? (productInfo.tcgdexId || '') : '',
+        variant: variant,
         isHolo: isHolo,
-        condition: body.condition || 'NM',
+        isFirstEdition: isFirstEdition,
+        condition: condition,
         language: body.language || 'DE',
         quantity: quantity,
         buyPrice: buyPrice,
@@ -694,6 +884,7 @@ const server = http.createServer(async (req, res) => {
           avg7: prices.avg7,
           avg30: prices.avg30,
           avg: prices.avg,
+          hasHoloPrices: prices.hasHoloPrices,
           updatedAt: catalogState.priceGuideDate || today
         },
         priceHistory: priceHistory,
@@ -701,7 +892,7 @@ const server = http.createServer(async (req, res) => {
       };
 
       portfolio.items.unshift(newItem);
-      savePortfolio(portfolio);
+      savePortfolio(portfolio, true);
       return sendJson(res, 201, newItem);
     }
 
@@ -714,11 +905,20 @@ const server = http.createServer(async (req, res) => {
 
       const item = portfolio.items[idx];
       if (body.name !== undefined) item.name = body.name;
-      if (body.buyPrice !== undefined) item.buyPrice = Number(body.buyPrice);
+      if (body.buyPrice !== undefined) {
+        item.buyPrice = (body.buyPrice === null || body.buyPrice === '') ? null : Number(body.buyPrice);
+      }
       if (body.quantity !== undefined) item.quantity = Math.max(1, Number(body.quantity));
       if (body.condition !== undefined) item.condition = body.condition;
       if (body.language !== undefined) item.language = body.language;
-      if (body.isHolo !== undefined) item.isHolo = Boolean(body.isHolo);
+      if (body.variant !== undefined) {
+        item.variant = body.variant;
+        item.isHolo = body.variant !== 'normal';
+      } else if (body.isHolo !== undefined) {
+        item.isHolo = Boolean(body.isHolo);
+        item.variant = item.isHolo ? (item.variant && item.variant !== 'normal' ? item.variant : 'holo') : 'normal';
+      }
+      if (body.isFirstEdition !== undefined) item.isFirstEdition = Boolean(body.isFirstEdition);
       if (body.imageUrl !== undefined) item.imageUrl = body.imageUrl;
       if (body.cardmarketUrl !== undefined) item.cardmarketUrl = body.cardmarketUrl;
       if (body.notes !== undefined) item.notes = body.notes;
@@ -728,7 +928,7 @@ const server = http.createServer(async (req, res) => {
 
       if (item.idProduct && priceMap.has(Number(item.idProduct))) {
         const pg = priceMap.get(Number(item.idProduct));
-        const prices = getEffectivePrices(pg, item.isHolo, item.type === 'sealed');
+        const prices = getEffectivePrices(pg, Boolean(item.isHolo), item.type === 'sealed');
         item.marketPrices = {
           ...item.marketPrices,
           low: prices.low,
@@ -737,7 +937,8 @@ const server = http.createServer(async (req, res) => {
           avg1: prices.avg1,
           avg7: prices.avg7,
           avg30: prices.avg30,
-          avg: prices.avg
+          avg: prices.avg,
+          hasHoloPrices: prices.hasHoloPrices
         };
       }
 
@@ -760,7 +961,7 @@ const server = http.createServer(async (req, res) => {
         item.customLowPrice = snapPrice;
       }
 
-      savePortfolio(portfolio);
+      savePortfolio(portfolio, true);
       return sendJson(res, 200, item);
     }
 
@@ -768,7 +969,7 @@ const server = http.createServer(async (req, res) => {
       const id = pathname.split('/').pop();
       const portfolio = loadPortfolio();
       portfolio.items = portfolio.items.filter(i => i.id !== id);
-      savePortfolio(portfolio);
+      savePortfolio(portfolio, true);
       return sendJson(res, 200, { deleted: id });
     }
 

@@ -27,6 +27,7 @@
         "avg7": 3.07,
         "avg30": 3.65,
         "avg": 4.51,
+        "hasHoloPrices": false,
         "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
@@ -98,6 +99,7 @@
         "avg7": 2.25,
         "avg30": 2.6,
         "avg": 10.99,
+        "hasHoloPrices": false,
         "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
@@ -169,6 +171,7 @@
         "avg7": 3.16,
         "avg30": 3.31,
         "avg": 5.98,
+        "hasHoloPrices": false,
         "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
@@ -240,6 +243,7 @@
         "avg7": 1.57,
         "avg30": 1.64,
         "avg": 5,
+        "hasHoloPrices": false,
         "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
@@ -311,6 +315,7 @@
         "avg7": 2.81,
         "avg30": 2.97,
         "avg": 4.99,
+        "hasHoloPrices": false,
         "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
@@ -382,6 +387,7 @@
         "avg7": 5.29,
         "avg30": 5.48,
         "avg": 10.5,
+        "hasHoloPrices": false,
         "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
@@ -453,6 +459,7 @@
         "avg7": 3.49,
         "avg30": 3.6,
         "avg": 13,
+        "hasHoloPrices": false,
         "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
@@ -524,6 +531,7 @@
         "avg7": 3.02,
         "avg30": 3.33,
         "avg": 6.99,
+        "hasHoloPrices": false,
         "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
@@ -595,6 +603,7 @@
         "avg7": 2.36,
         "avg30": 2.58,
         "avg": 3.65,
+        "hasHoloPrices": false,
         "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
@@ -666,6 +675,7 @@
         "avg7": 3.56,
         "avg30": 3.89,
         "avg": 8,
+        "hasHoloPrices": false,
         "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
@@ -737,6 +747,7 @@
         "avg7": 2.13,
         "avg30": 2.31,
         "avg": 4.99,
+        "hasHoloPrices": false,
         "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
@@ -808,6 +819,7 @@
         "avg7": 0.5,
         "avg30": 0.59,
         "avg": 2.99,
+        "hasHoloPrices": false,
         "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
@@ -878,6 +890,7 @@
         "avg7": 3.18,
         "avg30": 3.29,
         "avg": 3.45,
+        "hasHoloPrices": false,
         "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
@@ -949,6 +962,7 @@
         "avg7": 29.3,
         "avg30": 31.59,
         "avg": 40.33,
+        "hasHoloPrices": false,
         "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
@@ -1020,6 +1034,7 @@
         "avg7": 3.93,
         "avg30": 4.14,
         "avg": 9.98,
+        "hasHoloPrices": false,
         "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
@@ -1091,6 +1106,7 @@
         "avg7": 18.76,
         "avg30": 19.31,
         "avg": 21,
+        "hasHoloPrices": false,
         "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
@@ -1161,6 +1177,7 @@
         "avg7": 15.8,
         "avg30": 17,
         "avg": 19.83,
+        "hasHoloPrices": false,
         "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
@@ -1232,6 +1249,7 @@
         "avg7": 17.51,
         "avg30": 18.2,
         "avg": 24.99,
+        "hasHoloPrices": false,
         "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
@@ -1303,6 +1321,7 @@
         "avg7": null,
         "avg30": null,
         "avg": 102.66,
+        "hasHoloPrices": false,
         "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
@@ -1374,6 +1393,7 @@
         "avg7": null,
         "avg30": null,
         "avg": 67.82,
+        "hasHoloPrices": false,
         "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
@@ -1445,6 +1465,7 @@
         "avg7": null,
         "avg30": null,
         "avg": 47.33,
+        "hasHoloPrices": false,
         "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
@@ -1516,6 +1537,7 @@
         "avg7": 30.18,
         "avg30": 31.6,
         "avg": 38.68,
+        "hasHoloPrices": false,
         "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
@@ -1587,6 +1609,7 @@
         "avg7": 163.79,
         "avg30": 159.01,
         "avg": 168.39,
+        "hasHoloPrices": false,
         "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
@@ -1658,6 +1681,7 @@
         "avg7": null,
         "avg30": null,
         "avg": 95.37,
+        "hasHoloPrices": false,
         "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
@@ -1729,6 +1753,7 @@
         "avg7": null,
         "avg30": null,
         "avg": 129.1,
+        "hasHoloPrices": false,
         "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
@@ -1800,6 +1825,7 @@
         "avg7": null,
         "avg30": null,
         "avg": 61.95,
+        "hasHoloPrices": false,
         "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
@@ -1871,6 +1897,7 @@
         "avg7": null,
         "avg30": null,
         "avg": 97.76,
+        "hasHoloPrices": false,
         "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
@@ -1942,6 +1969,7 @@
         "avg7": null,
         "avg30": null,
         "avg": 68.13,
+        "hasHoloPrices": false,
         "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
@@ -2013,6 +2041,7 @@
         "avg7": null,
         "avg30": null,
         "avg": 68.41,
+        "hasHoloPrices": false,
         "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
@@ -2084,6 +2113,7 @@
         "avg7": null,
         "avg30": null,
         "avg": 128.21,
+        "hasHoloPrices": false,
         "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
@@ -2155,6 +2185,7 @@
         "avg7": 290.97,
         "avg30": 307.94,
         "avg": 280,
+        "hasHoloPrices": false,
         "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [

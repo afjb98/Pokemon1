@@ -19,7 +19,7 @@ const PROFILE_MODE_KEY = 'pokevault_profile_mode';
 const PROFILE_NAME_KEY = 'pokevault_profile_name';
 const ADMIN_FLAG_KEY = 'pokevault_is_admin';
 const ADMIN_SESSION_KEY = 'pokevault_admin_session_v1';
-const IMG_FALLBACK_CACHE_KEY = 'pokevault_img_cache_v1';
+const IMG_FALLBACK_CACHE_KEY = 'pokevault_img_cache_v2';
 
 // Supabase Cloud Config (for Friends' Portfolios -> protected via Supabase Auth + RLS)
 const SUPABASE_BASE_URL = 'https://gpvttfbvbwgseztpsibb.supabase.co';
@@ -312,20 +312,58 @@ function fmtSignedPct(val) {
   return num >= 0 ? `+${formatted} %` : `-${formatted} %`;
 }
 
+const CONDITION_FACTORS = {
+  M: 1.10,
+  NM: 1.00,
+  EX: 0.80,
+  GD: 0.62,
+  LP: 0.48,
+  PL: 0.35,
+  PO: 0.22
+};
+
+function hasBuyPrice(item) {
+  return Boolean(
+    item &&
+    item.buyPrice !== null &&
+    item.buyPrice !== undefined &&
+    item.buyPrice !== '' &&
+    !Number.isNaN(Number(item.buyPrice))
+  );
+}
+
+function applyConditionPrice(basePrice, condition = 'NM', isSealed = false) {
+  if (basePrice == null || Number.isNaN(Number(basePrice))) return null;
+  const factor = isSealed
+    ? (CONDITION_FACTORS[condition] != null && CONDITION_FACTORS[condition] < 1 ? CONDITION_FACTORS[condition] : 1)
+    : (CONDITION_FACTORS[condition] ?? 1);
+  return Number((Number(basePrice) * factor).toFixed(2));
+}
+
+function getVariantBadgeText(item) {
+  const v = item?.variant || (item?.isHolo ? 'holo' : 'normal');
+  if (v === 'reverse') return 'Reverse Holo';
+  if (v === 'stamped') return 'Stamped';
+  if (v === 'holo') return 'Holo';
+  return '';
+}
+
+function getBaseDePrice(item) {
+  if (item.marketPrices?.dePrice != null) return Number(item.marketPrices.dePrice);
+  if (item.type === 'sealed' && item.marketPrices?.trend != null) return Number(item.marketPrices.trend);
+  if (item.marketPrices?.low != null) return Number(item.marketPrices.low);
+  return null;
+}
+
 function getUnitDePrice(item) {
   if (item.customLowPrice !== null && item.customLowPrice !== undefined && item.customLowPrice !== '') {
     return Number(item.customLowPrice);
   }
-  if (item.marketPrices?.dePrice != null) {
-    return Number(item.marketPrices.dePrice);
+  const baseDe = getBaseDePrice(item);
+  if (baseDe != null) {
+    return applyConditionPrice(baseDe, item.condition || 'NM', item.type === 'sealed');
   }
-  if (item.type === 'sealed' && item.marketPrices?.trend != null) {
-    return Number(item.marketPrices.trend);
-  }
-  if (item.marketPrices?.low != null) {
-    return Number(item.marketPrices.low);
-  }
-  return Number(item.buyPrice) || 0;
+  return hasBuyPrice(item) ? Number(item.buyPrice) : 0;
 }
 
 function getUnitRawEuLow(item) {
@@ -368,13 +406,99 @@ function saveLocalPortfolio() {
   }
 }
 
-function cleanEnglishCardNameForApi(rawName) {
-  let n = String(rawName || '').replace(/\[.*?\]/g, '').trim();
-  // If formatted like "Glurak – Charizard ex" or "Glurak (Charizard)"
+let tcgdexAllSetsPromise = null;
+const tcgdexCardDetailPromises = new Map();
+
+function parseCardmarketHints(rawName) {
+  const raw = String(rawName || '');
+  const bracketBlocks = [];
+  raw.replace(/\[([^\]]+)\]/g, (_, inner) => {
+    bracketBlocks.push(inner);
+    return '';
+  });
+
+  const attackHints = [];
+  for (const blk of bracketBlocks) {
+    for (const part of blk.split('|')) {
+      const cleaned = part.trim().toLowerCase();
+      if (cleaned.length >= 3) attackHints.push(cleaned);
+    }
+  }
+
+  let variantIndex = null;
+  const verMatch = raw.match(/\((?:v|ver|version)\s*\.?\s*(\d+)\)/i);
+  if (verMatch) variantIndex = parseInt(verMatch[1], 10);
+
+  let localIdHint = '';
+  const numMatch = raw.match(/(?:#|\b)(\d{1,3})\s*(?:\/\s*\d+)?\b/);
+  if (numMatch && !/\b(?:gen|lv)\b/i.test(raw)) {
+    localIdHint = String(parseInt(numMatch[1], 10));
+  }
+
+  let n = raw.replace(/\[.*?\]/g, '').trim();
   if (n.includes(' – ')) n = n.split(' – ').slice(1).join(' – ').trim();
-  const parenMatch = n.match(/^[^(]+\(([^)]+)\)$/);
-  if (parenMatch) n = parenMatch[1].trim();
-  return n.trim();
+  const parenDeMatch = n.match(/^[^(]+\(([^)]+)\)$/);
+  if (parenDeMatch && !/^(?:v\s*\d+|version\s*\d+|\d+\/\d+|full art|secret|alt art|promo|holo)$/i.test(parenDeMatch[1].trim())) {
+    n = parenDeMatch[1].trim();
+  }
+  n = n
+    .replace(/\((?:v|ver|version)\s*\.?\s*\d+\)/gi, '')
+    .replace(/\(\s*\d+\s*\/\s*\d+\s*\)/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const nameCandidates = [n];
+  if (/gold\s*star/i.test(n)) {
+    nameCandidates.unshift(n.replace(/\s*gold\s*star/gi, ' ☆').trim());
+    nameCandidates.push(n.replace(/\s*gold\s*star/gi, ' ★').trim());
+    nameCandidates.push(n.replace(/\s*gold\s*star/gi, '').trim());
+  }
+  if (/\bex\b/i.test(n) && !/-ex/i.test(n)) {
+    nameCandidates.push(n.replace(/\s+EX\b/, '-EX').trim());
+  }
+
+  return {
+    cleanName: nameCandidates[0],
+    nameCandidates: [...new Set(nameCandidates.filter(Boolean))],
+    attackHints,
+    variantIndex,
+    localIdHint
+  };
+}
+
+async function fetchAllTcgdexSets() {
+  if (!tcgdexAllSetsPromise) {
+    tcgdexAllSetsPromise = fetch('https://api.tcgdex.net/v2/en/sets')
+      .then(r => (r.ok ? r.json() : []))
+      .catch(() => []);
+  }
+  return tcgdexAllSetsPromise;
+}
+
+async function findTcgdexSetIdByExpansion(expansionName) {
+  if (!expansionName) return '';
+  const allSets = await fetchAllTcgdexSets();
+  if (!Array.isArray(allSets) || allSets.length === 0) return '';
+
+  const cleanExp = String(expansionName)
+    .replace(/^(?:karmesin\s*&\s*purpur|schwert\s*&\s*schild|sonne\s*&\s*mond|scarlet\s*&\s*violet|sword\s*&\s*shield|sun\s*&\s*moon)[:\s-]*/i, '')
+    .trim()
+    .toLowerCase();
+  const normExp = cleanExp.replace(/[^a-z0-9]/g, '');
+
+  for (const s of allSets) {
+    if (s.name && s.name.toLowerCase() === cleanExp) return s.id;
+  }
+  for (const s of allSets) {
+    if (s.name && s.name.toLowerCase().replace(/[^a-z0-9]/g, '') === normExp) return s.id;
+  }
+  if (cleanExp.length >= 4) {
+    for (const s of allSets) {
+      const sn = (s.name || '').toLowerCase();
+      if (sn.includes(cleanExp) || cleanExp.includes(sn)) return s.id;
+    }
+  }
+  return '';
 }
 
 async function fetchTcgdexSet(tcgdexId) {
@@ -387,17 +511,70 @@ async function fetchTcgdexSet(tcgdexId) {
   return p;
 }
 
-async function resolveTcgdexImage(idProduct, rawName, type, tcgdexId) {
+async function fetchTcgdexCardDetail(cardId) {
+  if (!cardId) return null;
+  if (tcgdexCardDetailPromises.has(cardId)) return tcgdexCardDetailPromises.get(cardId);
+  const p = fetch(`https://api.tcgdex.net/v2/en/cards/${encodeURIComponent(cardId)}`)
+    .then(r => (r.ok ? r.json() : null))
+    .catch(() => null);
+  tcgdexCardDetailPromises.set(cardId, p);
+  return p;
+}
+
+async function pickBestCardCandidate(matches, hints) {
+  if (!Array.isArray(matches) || matches.length === 0) return null;
+  if (matches.length === 1) return matches[0];
+
+  if (hints.localIdHint) {
+    const byNum = matches.find(c => String(parseInt(c.localId, 10)) === hints.localIdHint);
+    if (byNum) return byNum;
+  }
+
+  if (hints.attackHints.length > 0) {
+    const slice = matches.slice(0, 8);
+    const details = await Promise.all(slice.map(c => fetchTcgdexCardDetail(c.id)));
+    let bestIdx = -1;
+    let bestScore = 0;
+    for (let i = 0; i < details.length; i++) {
+      const d = details[i];
+      if (!d) continue;
+      const moveNames = [
+        ...(Array.isArray(d.attacks) ? d.attacks.map(a => (a.name || '').toLowerCase()) : []),
+        ...(Array.isArray(d.abilities) ? d.abilities.map(a => (a.name || '').toLowerCase()) : [])
+      ];
+      let score = 0;
+      for (const h of hints.attackHints) {
+        if (moveNames.some(m => m === h || m.includes(h) || h.includes(m))) score += 1;
+      }
+      if (score > bestScore) {
+        bestScore = score;
+        bestIdx = i;
+      }
+    }
+    if (bestIdx !== -1 && bestScore > 0) return slice[bestIdx];
+  }
+
+  if (hints.variantIndex && hints.variantIndex >= 1) {
+    const idx = Math.min(hints.variantIndex - 1, matches.length - 1);
+    return matches[idx];
+  }
+
+  return matches[0];
+}
+
+async function resolveTcgdexImage(idProduct, rawName, type, tcgdexId, expansionName = '') {
   const key = String(idProduct || rawName || '');
   if (tcgdexImgCache[key]) return tcgdexImgCache[key];
   if (tcgdexInflightCard.has(key)) return tcgdexInflightCard.get(key);
 
   const task = (async () => {
     try {
-      const cleanName = cleanEnglishCardNameForApi(rawName);
+      const hints = parseCardmarketHints(rawName);
+      const resolvedSetId = tcgdexId || await findTcgdexSetIdByExpansion(expansionName);
+
       if (type === 'sealed') {
-        if (tcgdexId) {
-          const setObj = await fetchTcgdexSet(tcgdexId);
+        if (resolvedSetId) {
+          const setObj = await fetchTcgdexSet(resolvedSetId);
           if (setObj?.logo) {
             const url = `${setObj.logo}.webp`;
             tcgdexImgCache[key] = url;
@@ -408,21 +585,27 @@ async function resolveTcgdexImage(idProduct, rawName, type, tcgdexId) {
         return null;
       }
 
-      // Single card: first try exact set lookup via tcgdexId
-      if (tcgdexId && cleanName) {
-        const setObj = await fetchTcgdexSet(tcgdexId);
+      // Single card: match inside resolved TCGdex set
+      if (resolvedSetId && hints.nameCandidates.length > 0) {
+        const setObj = await fetchTcgdexSet(resolvedSetId);
         if (setObj && Array.isArray(setObj.cards)) {
-          const lower = cleanName.toLowerCase();
-          const norm = lower.replace(/[^a-z0-9]/g, '');
-          let match = setObj.cards.find(c => c.image && c.name && c.name.toLowerCase() === lower);
-          if (!match) {
-            match = setObj.cards.find(c => c.image && c.name && c.name.toLowerCase().replace(/[^a-z0-9]/g, '') === norm);
+          let matches = [];
+          for (const cand of hints.nameCandidates) {
+            const lower = cand.toLowerCase();
+            const norm = lower.replace(/[^a-z0-9]/g, '');
+            matches = setObj.cards.filter(c => c.image && c.name && c.name.toLowerCase() === lower);
+            if (matches.length === 0) {
+              matches = setObj.cards.filter(c => c.image && c.name && c.name.toLowerCase().replace(/[^a-z0-9]/g, '') === norm);
+            }
+            if (matches.length === 0 && lower.length >= 4) {
+              matches = setObj.cards.filter(c => c.image && c.name && (c.name.toLowerCase().includes(lower) || lower.includes(c.name.toLowerCase())));
+            }
+            if (matches.length > 0) break;
           }
-          if (!match) {
-            match = setObj.cards.find(c => c.image && c.name && (c.name.toLowerCase().includes(lower) || lower.includes(c.name.toLowerCase())));
-          }
-          if (match?.image) {
-            const url = `${match.image}/low.webp`;
+
+          const chosen = await pickBestCardCandidate(matches, hints);
+          if (chosen?.image) {
+            const url = `${chosen.image}/low.webp`;
             tcgdexImgCache[key] = url;
             saveImgFallbackCache();
             return url;
@@ -430,22 +613,37 @@ async function resolveTcgdexImage(idProduct, rawName, type, tcgdexId) {
         }
       }
 
-      // Fallback: global TCGdex card search by name (prefer physical TCG cards over tcgp)
-      if (cleanName && cleanName.length >= 2) {
-        const res = await fetch(`https://api.tcgdex.net/v2/en/cards?name=${encodeURIComponent(cleanName)}`);
-        if (res.ok) {
-          const list = await res.json();
-          if (Array.isArray(list)) {
-            const withImg = list.filter(c => c.image);
-            const physical = withImg.filter(c => !String(c.image).includes('/tcgp/'));
-            const chosen = physical[0] || withImg[0];
-            if (chosen?.image) {
-              const url = `${chosen.image}/low.webp`;
-              tcgdexImgCache[key] = url;
-              saveImgFallbackCache();
-              return url;
-            }
+      // Global TCGdex search by card name with set-filter & attack matching (avoids identical Base Set artwork!)
+      for (const cand of hints.nameCandidates.slice(0, 2)) {
+        if (!cand || cand.length < 2) continue;
+        const res = await fetch(`https://api.tcgdex.net/v2/en/cards?name=${encodeURIComponent(cand)}`);
+        if (!res.ok) continue;
+        const list = await res.json();
+        if (!Array.isArray(list) || list.length === 0) continue;
+
+        const withImg = list.filter(c => c.image);
+        const physical = withImg.filter(c => !String(c.image).includes('/tcgp/'));
+        let pool = physical.length > 0 ? physical : withImg;
+
+        if (resolvedSetId) {
+          const inSet = pool.filter(c => c.id && c.id.startsWith(`${resolvedSetId}-`));
+          if (inSet.length > 0) {
+            pool = inSet;
+          } else {
+            // Do NOT show a random wrong-set card image when we know the set!
+            continue;
           }
+        } else if (pool.length > 1 && hints.attackHints.length === 0 && !hints.localIdHint) {
+          // Without set or attack disambiguation, avoid returning the exact same first hit for unrelated printings
+          continue;
+        }
+
+        const chosen = await pickBestCardCandidate(pool, hints);
+        if (chosen?.image) {
+          const url = `${chosen.image}/low.webp`;
+          tcgdexImgCache[key] = url;
+          saveImgFallbackCache();
+          return url;
         }
       }
     } catch (e) {}
@@ -465,6 +663,7 @@ window.handleCardImageError = async function(imgEl) {
   const rawName = imgEl.dataset.name;
   const type = imgEl.dataset.type || 'single';
   const tcgdexId = imgEl.dataset.tcgdex || '';
+  const expName = imgEl.dataset.exp || '';
   const badge = imgEl.dataset.badge || (type === 'sealed' ? 'BOX' : 'TCG');
   const step = imgEl.dataset.tryStep || '';
 
@@ -483,13 +682,12 @@ window.handleCardImageError = async function(imgEl) {
 
   imgEl.dataset.tryStep = 'tcgdex';
 
-  // On PC localhost, local server handles Cardmarket S3 directly (no TCGdex set-logo override needed)
-  if (!isStaticMode && !tcgdexId) {
+  if (!isStaticMode && !tcgdexId && !expName) {
     if (imgEl.parentElement) imgEl.parentElement.textContent = badge;
     return;
   }
 
-  const url = await resolveTcgdexImage(idProduct, rawName, type, tcgdexId);
+  const url = await resolveTcgdexImage(idProduct, rawName, type, tcgdexId, expName);
   if (url) {
     imgEl.src = url;
   } else {
@@ -557,19 +755,27 @@ async function enrichItemsWithCatalog(items) {
       if (!item.idProduct) continue;
       const row = byId.get(Number(item.idProduct));
       if (!row) continue;
-      const [, , , , , , , dePrice, low, trend, avg30, , tcgdexId] = row;
+      const [, , , , , , , stdDePrice, stdLow, stdTrend, stdAvg30, , tcgdexId, holoRow] = row;
       if (tcgdexId && !item.tcgdexId) item.tcgdexId = tcgdexId;
+      const useHolo = Boolean(item.isHolo) && Array.isArray(holoRow);
+      const dePrice = useHolo ? (holoRow[0] ?? stdDePrice) : stdDePrice;
+      const low = useHolo ? (holoRow[1] ?? stdLow) : stdLow;
+      const trend = useHolo ? (holoRow[2] ?? stdTrend) : stdTrend;
+      const avg30 = useHolo ? (holoRow[3] ?? stdAvg30) : stdAvg30;
+
       item.marketPrices = {
         ...(item.marketPrices || {}),
         dePrice: dePrice ?? item.marketPrices?.dePrice ?? null,
         low: low ?? item.marketPrices?.low ?? null,
         trend: trend ?? item.marketPrices?.trend ?? null,
         avg30: avg30 ?? item.marketPrices?.avg30 ?? null,
+        hasHoloPrices: Array.isArray(holoRow),
         updatedAt: today
       };
+      const condAdjusted = applyConditionPrice(dePrice ?? trend ?? low, item.condition || 'NM', item.type === 'sealed');
       const eff = item.customLowPrice != null
         ? Number(item.customLowPrice)
-        : (dePrice ?? trend ?? low ?? 0);
+        : (condAdjusted ?? 0);
       if (eff > 0) {
         if (!Array.isArray(item.priceHistory)) item.priceHistory = [];
         const ex = item.priceHistory.find(h => h.date === today);
@@ -672,6 +878,8 @@ function renderKpis() {
   let totalValueDe = 0;
   let totalValueEuLow = 0;
   let totalInvested = 0;
+  let totalValueWithCost = 0;
+  let trackedCostCount = 0;
   let totalQty = 0;
 
   let singlesQty = 0;
@@ -683,12 +891,17 @@ function renderKpis() {
     const qty = Number(item.quantity) || 1;
     const unitDe = getUnitDePrice(item);
     const unitEuLow = getUnitRawEuLow(item);
-    const unitBuy = Number(item.buyPrice) || 0;
+    const hasCost = hasBuyPrice(item);
+    const unitBuy = hasCost ? Number(item.buyPrice) : 0;
 
     const itemVal = unitDe * qty;
     totalValueDe += itemVal;
     totalValueEuLow += unitEuLow * qty;
-    totalInvested += unitBuy * qty;
+    if (hasCost) {
+      totalInvested += unitBuy * qty;
+      totalValueWithCost += itemVal;
+      trackedCostCount++;
+    }
     totalQty += qty;
 
     if (item.type === 'sealed') {
@@ -700,20 +913,28 @@ function renderKpis() {
     }
   }
 
-  const totalProfit = totalValueDe - totalInvested;
+  const totalProfit = totalValueWithCost - totalInvested;
   const profitPct = totalInvested > 0 ? (totalProfit / totalInvested) * 100 : 0;
 
   document.getElementById('kpiTotalValue').textContent = fmtEuro(totalValueDe);
   document.getElementById('kpiTrendValue').textContent = `EU-Tiefstpreis (inkl. IT/ES): ${fmtEuro(totalValueEuLow)}`;
-  document.getElementById('kpiTotalInvested').textContent = fmtEuro(totalInvested);
-  document.getElementById('kpiItemCount').textContent = `${portfolioItems.length} Positionen (${totalQty} Stück)`;
+  document.getElementById('kpiTotalInvested').textContent = trackedCostCount > 0 ? fmtEuro(totalInvested) : '—';
+  document.getElementById('kpiItemCount').textContent = trackedCostCount > 0 && trackedCostCount < portfolioItems.length
+    ? `${portfolioItems.length} Positionen (${totalQty} Stück) • EK bei ${trackedCostCount}`
+    : `${portfolioItems.length} Positionen (${totalQty} Stück)`;
 
   const profitEl = document.getElementById('kpiTotalProfit');
   const profitPctEl = document.getElementById('kpiTotalProfitPct');
 
-  profitEl.textContent = fmtSignedEuro(totalProfit);
-  profitPctEl.textContent = `${fmtSignedPct(profitPct)} Rendite zum Einkaufspreis`;
-  profitEl.style.color = totalProfit >= 0 ? 'var(--green)' : 'var(--red)';
+  if (trackedCostCount === 0 && portfolioItems.length > 0) {
+    profitEl.textContent = 'Kein EK';
+    profitPctEl.textContent = 'Einkaufspreis optional (nicht eingetragen)';
+    profitEl.style.color = 'var(--text-muted)';
+  } else {
+    profitEl.textContent = fmtSignedEuro(totalProfit);
+    profitPctEl.textContent = `${fmtSignedPct(profitPct)} Rendite zum Einkaufspreis`;
+    profitEl.style.color = totalProfit >= 0 ? 'var(--green)' : 'var(--red)';
+  }
 
   document.getElementById('kpiSplitValue').textContent = `${singlesQty} Karten / ${sealedQty} Sealed`;
   document.getElementById('kpiSplitSub').textContent = `Karten: ${fmtEuro(singlesVal)} • Sealed: ${fmtEuro(sealedVal)}`;
@@ -772,12 +993,14 @@ function renderTable() {
     const qtyB = Number(b.quantity) || 1;
     const valA = getUnitDePrice(a) * qtyA;
     const valB = getUnitDePrice(b) * qtyB;
-    const buyA = (Number(a.buyPrice) || 0) * qtyA;
-    const buyB = (Number(b.buyPrice) || 0) * qtyB;
-    const profA = valA - buyA;
-    const profB = valB - buyB;
-    const pctA = buyA > 0 ? (profA / buyA) * 100 : 0;
-    const pctB = buyB > 0 ? (profB / buyB) * 100 : 0;
+    const hasCostA = hasBuyPrice(a);
+    const hasCostB = hasBuyPrice(b);
+    const buyA = hasCostA ? Number(a.buyPrice) * qtyA : 0;
+    const buyB = hasCostB ? Number(b.buyPrice) * qtyB : 0;
+    const profA = hasCostA ? (valA - buyA) : -Infinity;
+    const profB = hasCostB ? (valB - buyB) : -Infinity;
+    const pctA = (hasCostA && buyA > 0) ? (profA / buyA) * 100 : -Infinity;
+    const pctB = (hasCostB && buyB > 0) ? (profB / buyB) * 100 : -Infinity;
 
     switch (sortMode) {
       case 'profitDesc': return profB - profA;
@@ -802,32 +1025,37 @@ function renderTable() {
 
   for (const item of filtered) {
     const qty = Number(item.quantity) || 1;
-    const unitBuy = Number(item.buyPrice) || 0;
+    const hasCost = hasBuyPrice(item);
+    const unitBuy = hasCost ? Number(item.buyPrice) : null;
     const unitDe = getUnitDePrice(item);
     const euLow = item.marketPrices?.low;
     const avg30 = item.marketPrices?.avg30 ?? item.marketPrices?.avg;
 
-    const totalBuy = unitBuy * qty;
+    const totalBuy = hasCost ? unitBuy * qty : null;
     const totalVal = unitDe * qty;
-    const profit = totalVal - totalBuy;
-    const profitPct = totalBuy > 0 ? (profit / totalBuy) * 100 : 0;
+    const profit = hasCost ? totalVal - totalBuy : null;
+    const profitPct = (hasCost && totalBuy > 0) ? (profit / totalBuy) * 100 : 0;
 
     const tr = document.createElement('tr');
     if (selectedChartItemId === item.id) {
       tr.classList.add('selected-row');
     }
 
-    const profitClass = profit > 0.001 ? 'pos' : profit < -0.001 ? 'neg' : 'neutral';
+    const profitClass = profit == null ? 'neutral' : profit > 0.001 ? 'pos' : profit < -0.001 ? 'neg' : 'neutral';
     const effectiveImg = resolveItemImageUrl(item);
     const badgeTxt = item.expansionCode || (item.type === 'sealed' ? 'BOX' : 'TCG');
     const thumbContent = effectiveImg
-      ? `<img src="${escapeHtml(effectiveImg)}" alt="" data-id="${escapeHtml(item.idProduct || '')}" data-name="${escapeHtml(item.name)}" data-type="${escapeHtml(item.type)}" data-tcgdex="${escapeHtml(item.tcgdexId || '')}" data-badge="${escapeHtml(badgeTxt)}" onerror="handleCardImageError(this)" />`
+      ? `<img src="${escapeHtml(effectiveImg)}" alt="" data-id="${escapeHtml(item.idProduct || '')}" data-name="${escapeHtml(item.name)}" data-type="${escapeHtml(item.type)}" data-tcgdex="${escapeHtml(item.tcgdexId || '')}" data-exp="${escapeHtml(item.expansionName || '')}" data-badge="${escapeHtml(badgeTxt)}" onerror="handleCardImageError(this)" />`
       : escapeHtml(badgeTxt);
 
     const displayTitle = item.displayNameDe || item.name;
+    const condCode = item.condition || 'NM';
+    const variantTxt = getVariantBadgeText(item);
     const priceSourceLabel = item.customLowPrice != null
       ? 'Eigener DE-Preis'
-      : (item.type === 'sealed' ? 'CM DE-Richtwert' : 'CM DE-Kurs');
+      : (item.type === 'sealed'
+        ? 'CM DE-Richtwert'
+        : (condCode !== 'NM' ? `CM ~${condCode} Schätzwert` : 'CM DE-Kurs'));
 
     const cmUrl = item.cardmarketUrl
       ? (item.cardmarketUrl.includes('language=') ? item.cardmarketUrl : `${item.cardmarketUrl}&language=3`)
@@ -850,13 +1078,14 @@ function renderTable() {
         <span class="badge ${item.type === 'sealed' ? 'badge-sealed' : 'badge-single'}">
           ${item.type === 'sealed' ? 'Sealed' : 'Karte'}
         </span>
-        ${item.isHolo ? '<span class="badge">Holo</span>' : ''}
-        <span class="badge badge-meta">${escapeHtml(item.condition || 'NM')} • ${escapeHtml(item.language || 'DE')}</span>
+        ${variantTxt ? `<span class="badge">${escapeHtml(variantTxt)}</span>` : ''}
+        ${item.isFirstEdition ? '<span class="badge badge-sealed">1st Ed.</span>' : ''}
+        <span class="badge badge-meta">${escapeHtml(condCode)} • ${escapeHtml(item.language || 'DE')}</span>
       </td>
       <td class="num">${qty}x</td>
       <td class="num">
-        <div>${fmtEuro(unitBuy)}</div>
-        ${qty > 1 ? `<div class="product-id">Gesamt: ${fmtEuro(totalBuy)}</div>` : ''}
+        <div>${hasCost ? fmtEuro(unitBuy) : '—'}</div>
+        ${hasCost && qty > 1 ? `<div class="product-id">Gesamt: ${fmtEuro(totalBuy)}</div>` : ''}
       </td>
       <td class="num">
         <div style="font-weight: 600;">${fmtEuro(unitDe)}</div>
@@ -870,10 +1099,12 @@ function renderTable() {
         ${fmtEuro(totalVal)}
       </td>
       <td class="num">
-        <div class="profit-pill ${profitClass}">
-          <span>${fmtSignedEuro(profit)}</span>
-          <span class="profit-pct">${fmtSignedPct(profitPct)}</span>
-        </div>
+        ${profit == null
+          ? `<div class="profit-pill neutral"><span>Kein EK</span></div>`
+          : `<div class="profit-pill ${profitClass}">
+              <span>${fmtSignedEuro(profit)}</span>
+              <span class="profit-pct">${fmtSignedPct(profitPct)}</span>
+            </div>`}
       </td>
       <td>
         <div class="row-actions" onclick="event.stopPropagation();">
@@ -927,6 +1158,8 @@ function renderSetGallery(items, container) {
         items: [],
         totalVal: 0,
         totalBuy: 0,
+        totalValWithCost: 0,
+        trackedCostCount: 0,
         totalQty: 0
       });
     }
@@ -936,10 +1169,15 @@ function renderSetGallery(items, container) {
     }
     const qty = Number(item.quantity) || 1;
     const uDe = getUnitDePrice(item);
-    const uBuy = Number(item.buyPrice) || 0;
+    const hasCost = hasBuyPrice(item);
+    const uBuy = hasCost ? Number(item.buyPrice) : 0;
     g.items.push(item);
     g.totalVal += uDe * qty;
-    g.totalBuy += uBuy * qty;
+    if (hasCost) {
+      g.totalBuy += uBuy * qty;
+      g.totalValWithCost += uDe * qty;
+      g.trackedCostCount++;
+    }
     g.totalQty += qty;
   }
 
@@ -947,7 +1185,7 @@ function renderSetGallery(items, container) {
   const groups = Array.from(groupsMap.values()).sort((a, b) => b.totalVal - a.totalVal);
 
   for (const g of groups) {
-    const setProfit = g.totalVal - g.totalBuy;
+    const setProfit = g.totalValWithCost - g.totalBuy;
     const profitColor = setProfit >= 0 ? 'var(--green)' : 'var(--red)';
     const isCollapsed = collapsedSets.has(g.name);
 
@@ -966,7 +1204,7 @@ function renderSetGallery(items, container) {
       </div>
       <div class="set-group-right">
         <span>${fmtEuro(g.totalVal)}</span>
-        <span style="color:${profitColor}; font-weight:600;">${fmtSignedEuro(setProfit)}</span>
+        ${g.trackedCostCount > 0 ? `<span style="color:${profitColor}; font-weight:600;">${fmtSignedEuro(setProfit)}</span>` : ''}
         <span class="set-group-chevron">⌄</span>
       </div>
     `;
@@ -978,15 +1216,19 @@ function renderSetGallery(items, container) {
     for (const item of g.items) {
       const qty = Number(item.quantity) || 1;
       const uDe = getUnitDePrice(item);
-      const uBuy = Number(item.buyPrice) || 0;
+      const hasCost = hasBuyPrice(item);
+      const uBuy = hasCost ? Number(item.buyPrice) : null;
       const totVal = uDe * qty;
-      const totBuy = uBuy * qty;
-      const prof = totVal - totBuy;
-      const profClass = prof > 0.001 ? 'pos' : prof < -0.001 ? 'neg' : 'neutral';
+      const totBuy = hasCost ? uBuy * qty : null;
+      const prof = hasCost ? totVal - totBuy : null;
+      const profClass = prof == null ? 'neutral' : prof > 0.001 ? 'pos' : prof < -0.001 ? 'neg' : 'neutral';
 
       const effectiveImg = resolveItemImageUrl(item);
       const displayTitle = (item.displayNameDe || item.name).replace(/\[.*?\]/g, '').trim();
       const cardBadgeTxt = item.expansionCode || (item.type === 'sealed' ? 'BOX' : 'TCG');
+      const condBadge = item.condition && item.condition !== 'NM' ? item.condition : '';
+      const variantTxt = getVariantBadgeText(item);
+      const metaTagParts = [variantTxt, item.isFirstEdition ? '1st Ed.' : '', condBadge].filter(Boolean);
 
       const cardEl = document.createElement('div');
       cardEl.className = `gallery-card${selectedChartItemId === item.id ? ' selected-card' : ''}`;
@@ -994,14 +1236,15 @@ function renderSetGallery(items, container) {
       cardEl.innerHTML = `
         <div class="gallery-card-visual">
           ${qty > 1 ? `<span class="gallery-qty-badge">${qty}x</span>` : ''}
-          ${effectiveImg ? `<img src="${escapeHtml(effectiveImg)}" loading="lazy" alt="" data-id="${escapeHtml(item.idProduct || '')}" data-name="${escapeHtml(item.name)}" data-type="${escapeHtml(item.type)}" data-tcgdex="${escapeHtml(item.tcgdexId || '')}" data-badge="${escapeHtml(cardBadgeTxt)}" onerror="handleCardImageError(this)" />` : `<span>${escapeHtml(cardBadgeTxt)}</span>`}
+          ${effectiveImg ? `<img src="${escapeHtml(effectiveImg)}" loading="lazy" alt="" data-id="${escapeHtml(item.idProduct || '')}" data-name="${escapeHtml(item.name)}" data-type="${escapeHtml(item.type)}" data-tcgdex="${escapeHtml(item.tcgdexId || '')}" data-exp="${escapeHtml(item.expansionName || '')}" data-badge="${escapeHtml(cardBadgeTxt)}" onerror="handleCardImageError(this)" />` : `<span>${escapeHtml(cardBadgeTxt)}</span>`}
           <span class="gallery-price-pill">${fmtEuro(uDe)}</span>
         </div>
         <div class="gallery-card-footer">
           <div class="gallery-card-title" title="${escapeHtml(item.displayNameDe || item.name)}">${escapeHtml(displayTitle)}</div>
+          ${metaTagParts.length ? `<div class="product-id" style="font-size:0.68rem;">${escapeHtml(metaTagParts.join(' • '))}</div>` : ''}
           <div class="gallery-card-profit-row">
-            <span class="gallery-buy-txt">EK: ${fmtEuro(uBuy)}</span>
-            <span class="gallery-profit-txt ${profClass}">${fmtSignedEuro(prof)}</span>
+            <span class="gallery-buy-txt">EK: ${hasCost ? fmtEuro(uBuy) : '—'}</span>
+            <span class="gallery-profit-txt ${profClass}">${prof != null ? fmtSignedEuro(prof) : 'Kein EK'}</span>
           </div>
           ${viewingFriend ? '' : `<div class="gallery-card-actions" onclick="event.stopPropagation();">
             <button class="action-btn" onclick="openSnapshotModal('${item.id}')">DE €</button>
@@ -1037,7 +1280,8 @@ function renderChart() {
     if (found) {
       itemsToPlot = [found];
       titleEl.textContent = `${found.displayNameDe || found.name} (${found.quantity}x)`;
-      subtitleEl.textContent = `Aktueller DE-Marktpreis: ${fmtEuro(getUnitDePrice(found))} • Einkaufspreis: ${fmtEuro(found.buyPrice)}`;
+      const ekLabel = hasBuyPrice(found) ? fmtEuro(found.buyPrice) : '— (optional)';
+      subtitleEl.textContent = `Aktueller Richtwert: ${fmtEuro(getUnitDePrice(found))} • Einkaufspreis: ${ekLabel}`;
       resetBtn.classList.remove('hidden');
     } else {
       selectedChartItemId = null;
@@ -1069,7 +1313,7 @@ function renderChart() {
 
     for (const item of itemsToPlot) {
       const qty = Number(item.quantity) || 1;
-      const buyUnit = Number(item.buyPrice) || 0;
+      const buyUnit = hasBuyPrice(item) ? Number(item.buyPrice) : 0;
       sumBuy += buyUnit * qty;
 
       const hist = item.priceHistory || [];
@@ -1196,8 +1440,8 @@ async function searchStaticCatalogClient(q, typeFilter) {
 
   for (let i = 0; i < list.length; i++) {
     const row = list[i];
-    // [idProduct, name, displayNameDe, type('s'|'c'), categoryName, expansionName, expansionCode, dePrice, low, trend, avg30, idCategory, tcgdexId]
-    const [idProduct, name, displayNameDe, shortType, categoryName, expansionName, expansionCode, dePrice, low, trend, avg30, idCategory, tcgdexId] = row;
+    // [idProduct, name, displayNameDe, type('s'|'c'), categoryName, expansionName, expansionCode, dePrice, low, trend, avg30, idCategory, tcgdexId, holoPrices?]
+    const [idProduct, name, displayNameDe, shortType, categoryName, expansionName, expansionCode, dePrice, low, trend, avg30, idCategory, tcgdexId, holoRow] = row;
     const itemType = shortType === 's' ? 'sealed' : 'single';
     if (typeFilter === 'single' && itemType !== 'single') continue;
     if (typeFilter === 'sealed' && itemType !== 'sealed') continue;
@@ -1216,6 +1460,10 @@ async function searchStaticCatalogClient(q, typeFilter) {
     }
     if (!match) continue;
 
+    const holoPrices = Array.isArray(holoRow)
+      ? { dePrice: holoRow[0], low: holoRow[1], trend: holoRow[2], avg30: holoRow[3] }
+      : null;
+
     results.push({
       idProduct,
       name,
@@ -1227,7 +1475,9 @@ async function searchStaticCatalogClient(q, typeFilter) {
       tcgdexId: tcgdexId || '',
       imageUrl: `./images/${idProduct}.jpg`,
       cardmarketUrl: `https://www.cardmarket.com/de/Pokemon/Products/Search?searchString=${encodeURIComponent(name)}&language=3`,
-      prices: { dePrice, low, trend, avg30 }
+      prices: { dePrice, low, trend, avg30 },
+      holoPrices,
+      hasHolo: Boolean(holoPrices)
     });
 
     if (results.length >= 60) break;
@@ -1280,16 +1530,19 @@ async function performCatalogSearch() {
       const showOriginalSub = prod.displayNameDe && prod.displayNameDe !== prod.name;
 
       const setBadgeTxt = prod.expansionCode || (prod.type === 'sealed' ? 'BOX' : 'TCG');
+      const holoTagTxt = prod.hasHolo && prod.holoPrices?.dePrice != null
+        ? ` • Holo/Rev: ${fmtEuro(prod.holoPrices.dePrice)}`
+        : '';
       div.innerHTML = `
         <div class="catalog-thumb">
-          <img src="${escapeHtml(imgUrl)}" loading="lazy" alt="" data-id="${escapeHtml(prod.idProduct)}" data-name="${escapeHtml(prod.name)}" data-type="${escapeHtml(prod.type)}" data-tcgdex="${escapeHtml(prod.tcgdexId || '')}" data-badge="${escapeHtml(setBadgeTxt)}" onerror="handleCardImageError(this)" />
+          <img src="${escapeHtml(imgUrl)}" loading="lazy" alt="" data-id="${escapeHtml(prod.idProduct)}" data-name="${escapeHtml(prod.name)}" data-type="${escapeHtml(prod.type)}" data-tcgdex="${escapeHtml(prod.tcgdexId || '')}" data-exp="${escapeHtml(prod.expansionName || '')}" data-badge="${escapeHtml(setBadgeTxt)}" onerror="handleCardImageError(this)" />
         </div>
         <div class="catalog-item-info">
           <div class="catalog-item-name">${escapeHtml(mainTitle)}</div>
           ${showOriginalSub ? `<div class="catalog-item-subname">${escapeHtml(prod.name)}</div>` : ''}
           <div class="catalog-item-meta">${setLabel}${escapeHtml(prod.categoryName)} (#${prod.idProduct})</div>
           <div class="catalog-item-price-row">
-            <span class="cm-de-tag">DE: ${dePriceTxt}</span>
+            <span class="cm-de-tag">DE: ${dePriceTxt}${holoTagTxt}</span>
             <span class="cm-eu-tag">(EU-Low: ${euLowTxt})</span>
           </div>
         </div>
@@ -1308,9 +1561,63 @@ async function performCatalogSearch() {
 }
 
 let lastSelectedCatalogProd = null;
+let currentModalPriceData = null;
+
+function getSelectedPricesForVariant(priceData, isHolo) {
+  if (!priceData) return {};
+  if (isHolo && priceData.holoPrices && (priceData.holoPrices.dePrice != null || priceData.holoPrices.trend != null || priceData.holoPrices.low != null)) {
+    return priceData.holoPrices;
+  }
+  return priceData.prices || {};
+}
+
+function updateModalLivePricePreview() {
+  const pricesEl = document.getElementById('selectedCmPrices');
+  if (!pricesEl) return;
+  if (!currentModalPriceData) return;
+
+  const variant = document.getElementById('formIsHolo').value;
+  const isHolo = variant !== 'normal';
+  const cond = document.getElementById('formCondition').value || 'NM';
+  const isFirstEd = document.getElementById('formIsFirstEdition').value === 'true';
+  const isSealed = document.getElementById('formType').value === 'sealed';
+  const customRaw = document.getElementById('formCustomLowPrice').value;
+
+  const activePrices = getSelectedPricesForVariant(currentModalPriceData, isHolo);
+  const baseDe = activePrices.dePrice ?? activePrices.trend ?? activePrices.low ?? null;
+  const euLow = activePrices.low ?? null;
+  const condPrice = applyConditionPrice(baseDe, cond, isSealed);
+  const hasSeparateHolo = Boolean(
+    currentModalPriceData.hasHolo &&
+    currentModalPriceData.holoPrices &&
+    (currentModalPriceData.holoPrices.dePrice != null || currentModalPriceData.holoPrices.trend != null || currentModalPriceData.holoPrices.low != null)
+  );
+
+  const parts = [];
+  if (customRaw !== '' && !Number.isNaN(Number(customRaw))) {
+    parts.push(`Eigener Preis: <strong style="color:var(--text-main)">${fmtEuro(Number(customRaw))}</strong>`);
+  } else if (condPrice != null) {
+    const label = (!isSealed && cond !== 'NM') ? `Schätzwert (${cond})` : 'DE-Richtwert';
+    parts.push(`${label}: <strong style="color:var(--text-main)">${fmtEuro(condPrice)}</strong>`);
+  }
+  if (baseDe != null && (!isSealed && cond !== 'NM')) {
+    parts.push(`Basis (NM/Trend): ${fmtEuro(baseDe)}`);
+  }
+  if (euLow != null) {
+    parts.push(`EU-Low: ${fmtEuro(euLow)}`);
+  }
+  if (isHolo) {
+    parts.push(hasSeparateHolo ? '✓ Cardmarket Holo/Reverse-Kurs' : 'ℹ️ Kein separater Holo-Kurs in CM (Standard-Kurs)');
+  }
+  if (isFirstEd) {
+    parts.push('1st Ed. (CM-Basis meist Unlimited)');
+  }
+  pricesEl.innerHTML = parts.join(' • ');
+}
 
 function selectCatalogProduct(prod) {
   lastSelectedCatalogProd = prod;
+  currentModalPriceData = prod;
   const imgUrl = prod.imageUrl || (isStaticMode ? `./images/${prod.idProduct}.jpg` : `/api/cm-image/${prod.idProduct}`);
   const mainTitle = prod.displayNameDe || prod.name;
 
@@ -1322,15 +1629,14 @@ function selectCatalogProduct(prod) {
 
   const badge = document.getElementById('selectedCategoryBadge');
   const nameEl = document.getElementById('selectedProductName');
-  const pricesEl = document.getElementById('selectedCmPrices');
   const thumbEl = document.getElementById('selectedBannerThumb');
   const cmLink = document.getElementById('selectedDirectCmLink');
   const setBadgeTxt = prod.expansionCode || (prod.type === 'sealed' ? 'BOX' : 'TCG');
 
-  thumbEl.innerHTML = `<img src="${escapeHtml(imgUrl)}" alt="" data-id="${escapeHtml(prod.idProduct)}" data-name="${escapeHtml(prod.name)}" data-type="${escapeHtml(prod.type)}" data-tcgdex="${escapeHtml(prod.tcgdexId || '')}" data-badge="${escapeHtml(setBadgeTxt)}" onerror="handleCardImageError(this)" />`;
+  thumbEl.innerHTML = `<img src="${escapeHtml(imgUrl)}" alt="" data-id="${escapeHtml(prod.idProduct)}" data-name="${escapeHtml(prod.name)}" data-type="${escapeHtml(prod.type)}" data-tcgdex="${escapeHtml(prod.tcgdexId || '')}" data-exp="${escapeHtml(prod.expansionName || '')}" data-badge="${escapeHtml(setBadgeTxt)}" onerror="handleCardImageError(this)" />`;
   badge.textContent = `${prod.type === 'sealed' ? 'Sealed' : 'Einzelkarte'} #${prod.idProduct}${prod.expansionName ? ' • ' + prod.expansionName : ''}`;
   nameEl.textContent = mainTitle;
-  pricesEl.innerHTML = `DE-Richtwert: <strong style="color:var(--text-main)">${fmtEuro(prod.prices?.dePrice)}</strong> • EU-Low (inkl. IT/ES): ${fmtEuro(prod.prices?.low)}`;
+  updateModalLivePricePreview();
 
   if (prod.cardmarketUrl) {
     cmLink.href = prod.cardmarketUrl;
@@ -1347,6 +1653,7 @@ function selectCatalogProduct(prod) {
 
 function openAddModal() {
   lastSelectedCatalogProd = null;
+  currentModalPriceData = null;
   if (isStaticMode) {
     ensureStaticCatalogLoaded().catch(() => {});
   }
@@ -1360,7 +1667,8 @@ function openAddModal() {
   document.getElementById('formIdProduct').value = '';
   document.getElementById('formName').value = '';
   document.getElementById('formType').value = 'single';
-  document.getElementById('formIsHolo').value = 'false';
+  document.getElementById('formIsHolo').value = 'normal';
+  document.getElementById('formIsFirstEdition').value = 'false';
   document.getElementById('formBuyPrice').value = '';
   document.getElementById('formQuantity').value = '1';
   document.getElementById('formCondition').value = 'NM';
@@ -1381,9 +1689,18 @@ function openAddModal() {
   document.getElementById('catalogSearchInput').focus();
 }
 
-function openEditModal(itemId) {
+async function openEditModal(itemId) {
   const item = portfolioItems.find(i => i.id === itemId);
   if (!item) return;
+
+  lastSelectedCatalogProd = null;
+  currentModalPriceData = {
+    idProduct: item.idProduct || null,
+    type: item.type || 'single',
+    prices: item.marketPrices || {},
+    holoPrices: null,
+    hasHolo: Boolean(item.marketPrices?.hasHoloPrices)
+  };
 
   document.getElementById('modalTitle').textContent = 'Eintrag bearbeiten';
   document.getElementById('btnSaveItem').textContent = 'Änderungen speichern';
@@ -1391,12 +1708,14 @@ function openEditModal(itemId) {
   document.querySelector('.modal-split-body').classList.add('edit-only');
   document.querySelector('.modal').classList.remove('modal-wide');
 
+  const initVariant = item.variant || (item.isHolo ? 'holo' : 'normal');
   document.getElementById('formEditId').value = item.id;
   document.getElementById('formIdProduct').value = item.idProduct || '';
   document.getElementById('formName').value = item.displayNameDe || item.name || '';
   document.getElementById('formType').value = item.type || 'single';
-  document.getElementById('formIsHolo').value = item.isHolo ? 'true' : 'false';
-  document.getElementById('formBuyPrice').value = item.buyPrice ?? 0;
+  document.getElementById('formIsHolo').value = initVariant;
+  document.getElementById('formIsFirstEdition').value = item.isFirstEdition ? 'true' : 'false';
+  document.getElementById('formBuyPrice').value = hasBuyPrice(item) ? item.buyPrice : '';
   document.getElementById('formQuantity').value = item.quantity ?? 1;
   document.getElementById('formCondition').value = item.condition || 'NM';
   document.getElementById('formLanguage').value = item.language || 'DE';
@@ -1406,12 +1725,13 @@ function openEditModal(itemId) {
   document.getElementById('formCardmarketUrl').value = item.cardmarketUrl || '';
 
   const editImg = resolveItemImageUrl(item);
+  const editBadgeTxt = item.expansionCode || (item.type === 'sealed' ? 'BOX' : 'TCG');
   document.getElementById('selectedBannerThumb').innerHTML = editImg
-    ? `<img src="${escapeHtml(editImg)}" alt="" onerror="this.parentElement.textContent='${item.type === 'sealed' ? 'BOX' : 'TCG'}'" />`
-    : (item.type === 'sealed' ? 'BOX' : 'TCG');
+    ? `<img src="${escapeHtml(editImg)}" alt="" data-id="${escapeHtml(item.idProduct || '')}" data-name="${escapeHtml(item.name)}" data-type="${escapeHtml(item.type)}" data-tcgdex="${escapeHtml(item.tcgdexId || '')}" data-exp="${escapeHtml(item.expansionName || '')}" data-badge="${escapeHtml(editBadgeTxt)}" onerror="handleCardImageError(this)" />`
+    : editBadgeTxt;
   document.getElementById('selectedCategoryBadge').textContent = item.idProduct ? `Cardmarket #${item.idProduct}` : 'Manuell';
   document.getElementById('selectedProductName').textContent = item.displayNameDe || item.name;
-  document.getElementById('selectedCmPrices').textContent = `DE-Richtwert: ${fmtEuro(item.marketPrices?.dePrice ?? item.marketPrices?.trend)} • EU-Low: ${fmtEuro(item.marketPrices?.low)}`;
+  updateModalLivePricePreview();
 
   const cmLink = document.getElementById('selectedDirectCmLink');
   if (item.cardmarketUrl) {
@@ -1429,6 +1749,35 @@ function openEditModal(itemId) {
   };
 
   document.getElementById('addModal').classList.remove('hidden');
+
+  // Load full catalog entry (both standard + holo prices) so live variant switching works during Edit too
+  if (item.idProduct) {
+    try {
+      if (isStaticMode) {
+        const list = await ensureStaticCatalogLoaded();
+        const row = list.find(r => Number(r[0]) === Number(item.idProduct));
+        if (row) {
+          const [, , , , , , , dePrice, low, trend, avg30, , , holoRow] = row;
+          currentModalPriceData = {
+            idProduct: item.idProduct,
+            type: item.type || 'single',
+            prices: { dePrice, low, trend, avg30 },
+            holoPrices: Array.isArray(holoRow) ? { dePrice: holoRow[0], low: holoRow[1], trend: holoRow[2], avg30: holoRow[3] } : null,
+            hasHolo: Array.isArray(holoRow)
+          };
+          updateModalLivePricePreview();
+        }
+      } else {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(item.idProduct)}&type=all`);
+        const data = await res.json();
+        const found = (data.results || []).find(r => Number(r.idProduct) === Number(item.idProduct));
+        if (found) {
+          currentModalPriceData = found;
+          updateModalLivePricePreview();
+        }
+      }
+    } catch (e) {}
+  }
 }
 
 function closeAddModal() {
@@ -1566,15 +1915,20 @@ async function openFriendsModal() {
     for (const f of friends) {
       const fItems = Array.isArray(f.items) ? f.items : [];
       let totalVal = 0;
+      let totalValWithCost = 0;
       let totalBuy = 0;
       let totalQty = 0;
       for (const it of fItems) {
         const qty = Number(it.quantity) || 1;
-        totalVal += getUnitDePrice(it) * qty;
-        totalBuy += (Number(it.buyPrice) || 0) * qty;
+        const val = getUnitDePrice(it) * qty;
+        totalVal += val;
+        if (hasBuyPrice(it)) {
+          totalBuy += Number(it.buyPrice) * qty;
+          totalValWithCost += val;
+        }
         totalQty += qty;
       }
-      const profit = totalVal - totalBuy;
+      const profit = totalValWithCost - totalBuy;
       const profColor = profit >= 0 ? 'var(--green)' : 'var(--red)';
       const upd = f.updated_at ? new Date(f.updated_at).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
 
@@ -1913,15 +2267,28 @@ document.addEventListener('DOMContentLoaded', () => {
     searchDebounceTimer = setTimeout(performCatalogSearch, 200);
   });
 
+  document.getElementById('formIsHolo').addEventListener('change', updateModalLivePricePreview);
+  document.getElementById('formCondition').addEventListener('change', updateModalLivePricePreview);
+  document.getElementById('formIsFirstEdition').addEventListener('change', updateModalLivePricePreview);
+  document.getElementById('formType').addEventListener('change', updateModalLivePricePreview);
+  document.getElementById('formCustomLowPrice').addEventListener('input', updateModalLivePricePreview);
+
   document.getElementById('portfolioForm').addEventListener('submit', async e => {
     e.preventDefault();
     const editId = document.getElementById('formEditId').value;
+    const rawBuyStr = document.getElementById('formBuyPrice').value.trim();
+    const variantVal = document.getElementById('formIsHolo').value || 'normal';
+    const isHoloBool = variantVal !== 'normal';
+    const isFirstEdBool = document.getElementById('formIsFirstEdition').value === 'true';
+
     const payload = {
       idProduct: document.getElementById('formIdProduct').value || null,
       name: document.getElementById('formName').value.trim(),
       type: document.getElementById('formType').value,
-      isHolo: document.getElementById('formIsHolo').value === 'true',
-      buyPrice: Number(document.getElementById('formBuyPrice').value) || 0,
+      variant: variantVal,
+      isHolo: isHoloBool,
+      isFirstEdition: isFirstEdBool,
+      buyPrice: rawBuyStr === '' ? null : Number(rawBuyStr),
       quantity: Number(document.getElementById('formQuantity').value) || 1,
       condition: document.getElementById('formCondition').value,
       language: document.getElementById('formLanguage').value,
@@ -1958,23 +2325,54 @@ document.addEventListener('DOMContentLoaded', () => {
           const it = portfolioItems[idx];
           it.name = payload.name;
           it.displayNameDe = payload.name;
+          it.type = payload.type;
+          it.variant = payload.variant;
+          it.isHolo = payload.isHolo;
+          it.isFirstEdition = payload.isFirstEdition;
           it.buyPrice = payload.buyPrice;
           it.quantity = payload.quantity;
           it.condition = payload.condition;
           it.language = payload.language;
           it.buyDate = payload.buyDate;
           it.customLowPrice = customLow;
+
+          if (currentModalPriceData) {
+            const activePr = getSelectedPricesForVariant(currentModalPriceData, payload.isHolo);
+            if (activePr && (activePr.dePrice != null || activePr.trend != null || activePr.low != null)) {
+              it.marketPrices = {
+                ...(it.marketPrices || {}),
+                dePrice: activePr.dePrice ?? it.marketPrices?.dePrice ?? null,
+                low: activePr.low ?? it.marketPrices?.low ?? null,
+                trend: activePr.trend ?? it.marketPrices?.trend ?? null,
+                avg30: activePr.avg30 ?? it.marketPrices?.avg30 ?? null,
+                hasHoloPrices: Boolean(currentModalPriceData.hasHolo),
+                updatedAt: today
+              };
+            }
+          }
+          const newEff = getUnitDePrice(it);
+          if (newEff > 0) {
+            if (!Array.isArray(it.priceHistory)) it.priceHistory = [];
+            const exToday = it.priceHistory.find(h => h.date === today);
+            if (exToday) {
+              exToday.low = newEff;
+            } else {
+              it.priceHistory.push({ date: today, low: newEff, trend: it.marketPrices?.trend ?? newEff, label: 'Heute' });
+            }
+          }
         }
       } else {
-        const pr = lastSelectedCatalogProd?.prices || {};
-        const eff = customLow ?? pr.dePrice ?? pr.trend ?? pr.low ?? payload.buyPrice;
+        const pr = getSelectedPricesForVariant(lastSelectedCatalogProd, payload.isHolo);
+        const condAdj = applyConditionPrice(pr.dePrice ?? pr.trend ?? pr.low, payload.condition, payload.type === 'sealed');
+        const eff = customLow ?? condAdj ?? payload.buyPrice ?? 0;
         const hist = [];
         const d30 = new Date(now.getTime() - 30 * 86400000).toISOString().slice(0, 10);
         const d7 = new Date(now.getTime() - 7 * 86400000).toISOString().slice(0, 10);
-        const p30 = pr.avg30 ?? pr.trend ?? eff;
+        const p30 = applyConditionPrice(pr.avg30 ?? pr.trend, payload.condition, payload.type === 'sealed') ?? eff;
+        const p7 = applyConditionPrice(pr.trend, payload.condition, payload.type === 'sealed') ?? eff;
         if (p30 > 0) hist.push({ date: d30, low: Number(p30.toFixed(2)), trend: Number((pr.trend ?? p30).toFixed(2)), label: '30T Ø' });
-        if ((pr.trend ?? eff) > 0) hist.push({ date: d7, low: Number((pr.trend ?? eff).toFixed(2)), trend: Number((pr.trend ?? eff).toFixed(2)), label: '7T Ø' });
-        hist.push({ date: today, low: Number(eff.toFixed(2)), trend: Number((pr.trend ?? eff).toFixed(2)), label: 'Heute' });
+        if (p7 > 0) hist.push({ date: d7, low: Number(p7.toFixed(2)), trend: Number((pr.trend ?? p7).toFixed(2)), label: '7T Ø' });
+        if (eff > 0) hist.push({ date: today, low: Number(eff.toFixed(2)), trend: Number((pr.trend ?? eff).toFixed(2)), label: 'Heute' });
 
         const cachedFallback = payload.idProduct ? tcgdexImgCache[String(payload.idProduct)] : '';
         portfolioItems.unshift({
@@ -1987,7 +2385,9 @@ document.addEventListener('DOMContentLoaded', () => {
           expansionName: lastSelectedCatalogProd?.expansionName || '',
           expansionCode: lastSelectedCatalogProd?.expansionCode || '',
           tcgdexId: lastSelectedCatalogProd?.tcgdexId || '',
+          variant: payload.variant,
           isHolo: payload.isHolo,
+          isFirstEdition: payload.isFirstEdition,
           condition: payload.condition,
           language: payload.language,
           quantity: payload.quantity,
@@ -2002,6 +2402,7 @@ document.addEventListener('DOMContentLoaded', () => {
             low: pr.low ?? eff,
             trend: pr.trend ?? eff,
             avg30: pr.avg30 ?? eff,
+            hasHoloPrices: Boolean(lastSelectedCatalogProd?.hasHolo),
             updatedAt: today
           },
           priceHistory: hist,

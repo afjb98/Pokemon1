@@ -85,18 +85,54 @@ function buildGermanDisplayName(enName, expInfo, isSealed) {
   return deDisplay;
 }
 
+const CONDITION_FACTORS = {
+  M: 1.10,
+  NM: 1.00,
+  EX: 0.80,
+  GD: 0.62,
+  LP: 0.48,
+  PL: 0.35,
+  PO: 0.22
+};
+
+function applyConditionPrice(basePrice, condition = 'NM', isSealed = false) {
+  if (basePrice == null) return null;
+  const factor = isSealed
+    ? (CONDITION_FACTORS[condition] != null && CONDITION_FACTORS[condition] < 1 ? CONDITION_FACTORS[condition] : 1)
+    : (CONDITION_FACTORS[condition] ?? 1);
+  return Number((Number(basePrice) * factor).toFixed(2));
+}
+
+function hasHoloFields(priceEntry) {
+  if (!priceEntry) return false;
+  return (
+    (priceEntry['low-holo'] != null && Number(priceEntry['low-holo']) > 0) ||
+    (priceEntry['trend-holo'] != null && Number(priceEntry['trend-holo']) > 0) ||
+    (priceEntry['avg1-holo'] != null && Number(priceEntry['avg1-holo']) > 0) ||
+    (priceEntry['avg7-holo'] != null && Number(priceEntry['avg7-holo']) > 0) ||
+    (priceEntry['avg30-holo'] != null && Number(priceEntry['avg30-holo']) > 0)
+  );
+}
+
+function posNum(v) {
+  return (v != null && Number(v) > 0) ? Number(v) : null;
+}
+
 function getEffectivePrices(priceEntry, isHolo = false, isSealed = false) {
   if (!priceEntry) {
-    return { low: null, trend: null, dePrice: null, avg1: null, avg7: null, avg30: null, avg: null };
+    return { low: null, trend: null, dePrice: null, avg1: null, avg7: null, avg30: null, avg: null, hasHoloPrices: false };
   }
-  let low = isHolo ? (priceEntry['low-holo'] ?? priceEntry.low ?? null) : (priceEntry.low ?? priceEntry['low-holo'] ?? null);
-  let trend = isHolo ? (priceEntry['trend-holo'] ?? priceEntry.trend ?? null) : (priceEntry.trend ?? priceEntry['trend-holo'] ?? null);
-  let avg1 = isHolo ? (priceEntry['avg1-holo'] ?? priceEntry.avg1 ?? null) : (priceEntry.avg1 ?? priceEntry['avg1-holo'] ?? null);
-  let avg7 = isHolo ? (priceEntry['avg7-holo'] ?? priceEntry.avg7 ?? null) : (priceEntry.avg7 ?? priceEntry['avg7-holo'] ?? null);
-  let avg30 = isHolo ? (priceEntry['avg30-holo'] ?? priceEntry.avg30 ?? null) : (priceEntry.avg30 ?? priceEntry['avg30-holo'] ?? null);
-  let avg = isHolo ? (priceEntry['avg-holo'] ?? priceEntry.avg ?? null) : (priceEntry.avg ?? priceEntry['avg-holo'] ?? null);
+  const hasHolo = hasHoloFields(priceEntry);
+  const useHolo = Boolean(isHolo) && hasHolo;
 
-  let dePrice = trend ?? low;
+  let low = useHolo ? posNum(priceEntry['low-holo']) : (posNum(priceEntry.low) ?? posNum(priceEntry['low-holo']));
+  let trend = useHolo ? posNum(priceEntry['trend-holo']) : (posNum(priceEntry.trend) ?? posNum(priceEntry['trend-holo']));
+  let avg1 = useHolo ? posNum(priceEntry['avg1-holo']) : (posNum(priceEntry.avg1) ?? posNum(priceEntry['avg1-holo']));
+  let avg7 = useHolo ? posNum(priceEntry['avg7-holo']) : (posNum(priceEntry.avg7) ?? posNum(priceEntry['avg7-holo']));
+  let avg30 = useHolo ? posNum(priceEntry['avg30-holo']) : (posNum(priceEntry.avg30) ?? posNum(priceEntry['avg30-holo']));
+  let avg = useHolo ? posNum(priceEntry['avg-holo']) : (posNum(priceEntry.avg) ?? posNum(priceEntry['avg-holo']));
+
+  let dePrice = trend ?? avg7 ?? avg1 ?? avg30 ?? low;
   if (!isSealed && low != null && trend != null) {
     if (low >= trend * 0.78) {
       dePrice = low;
@@ -115,7 +151,8 @@ function getEffectivePrices(priceEntry, isHolo = false, isSealed = false) {
     avg1,
     avg7,
     avg30,
-    avg
+    avg,
+    hasHoloPrices: hasHolo
   };
 }
 
@@ -281,9 +318,13 @@ async function run() {
     };
     productMap.set(id, item);
 
-    const hasValue = (prices.dePrice != null && prices.dePrice >= 1.0) || (prices.trend != null && prices.trend >= 1.0);
-    if (hasValue || (expCode && (prices.dePrice != null || prices.low != null))) {
-      compactCatalog.push([
+    const hasHolo = hasHoloFields(pg);
+    const holoPrices = hasHolo ? getEffectivePrices(pg, true, false) : null;
+    const holoDe = holoPrices?.dePrice ?? holoPrices?.trend ?? holoPrices?.low;
+    const stdHasVal = (prices.dePrice != null && prices.dePrice >= 1.0) || (prices.trend != null && prices.trend >= 1.0);
+    const holoHasVal = (holoDe != null && holoDe >= 1.0);
+    if (stdHasVal || holoHasVal || (expCode && (prices.dePrice != null || prices.low != null || holoDe != null))) {
+      const row = [
         id,
         p.name || '',
         displayNameDe !== p.name ? displayNameDe : '',
@@ -297,7 +338,11 @@ async function run() {
         prices.avg30,
         51,
         expInfo?.tcgdexId || ''
-      ]);
+      ];
+      if (holoPrices) {
+        row.push([holoPrices.dePrice, holoPrices.low, holoPrices.trend, holoPrices.avg30]);
+      }
+      compactCatalog.push(row);
     }
   }
 
@@ -337,12 +382,14 @@ async function run() {
           avg7: prices.avg7,
           avg30: prices.avg30,
           avg: prices.avg,
+          hasHoloPrices: prices.hasHoloPrices,
           updatedAt: priceGuideData.createdAt || today
         };
         if (!Array.isArray(item.priceHistory)) item.priceHistory = [];
+        const condAdjusted = applyConditionPrice(prices.dePrice ?? prices.trend ?? prices.low, item.condition || 'NM', isSealed);
         const currentEffective = item.customLowPrice != null
           ? Number(item.customLowPrice)
-          : (prices.dePrice ?? prices.trend ?? prices.low ?? 0);
+          : (condAdjusted ?? 0);
         const currentTrend = prices.trend ?? currentEffective;
         if (currentEffective > 0) {
           const existingToday = item.priceHistory.find(h => h.date === today);
