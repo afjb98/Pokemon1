@@ -358,7 +358,7 @@ async function run() {
   if (fs.existsSync(PORTFOLIO_FILE)) {
     const portfolio = JSON.parse(fs.readFileSync(PORTFOLIO_FILE, 'utf8'));
     for (const item of (portfolio.items || [])) {
-      if (!item.idProduct) continue;
+      if (!item.idProduct || item.type === 'expense') continue;
       const prod = productMap.get(Number(item.idProduct));
       const pg = priceMap.get(Number(item.idProduct));
       if (prod) {

@@ -427,7 +427,7 @@ function syncPortfolioPrices() {
   let changed = false;
 
   for (const item of portfolio.items) {
-    if (!item.idProduct) continue;
+    if (!item.idProduct || item.type === 'expense') continue;
     const prod = productMap.get(Number(item.idProduct));
     if (prod) {
       if (!item.imageUrl) {
@@ -873,21 +873,25 @@ const server = http.createServer(async (req, res) => {
         buyPrice: buyPrice,
         buyDate: buyDate,
         customLowPrice: customLowPrice,
+        packsCount: body.packsCount ? Math.max(1, Number(body.packsCount)) : null,
+        expensePreset: body.expensePreset || '',
         imageUrl: body.imageUrl || autoImageUrl,
         cardmarketUrl: body.cardmarketUrl || (productInfo ? buildCardmarketUrl(productInfo) : ''),
         notes: body.notes || '',
-        marketPrices: {
-          low: prices.low,
-          trend: prices.trend,
-          dePrice: prices.dePrice,
-          avg1: prices.avg1,
-          avg7: prices.avg7,
-          avg30: prices.avg30,
-          avg: prices.avg,
-          hasHoloPrices: prices.hasHoloPrices,
-          updatedAt: catalogState.priceGuideDate || today
-        },
-        priceHistory: priceHistory,
+        marketPrices: body.type === 'expense'
+          ? { low: 0, trend: 0, dePrice: 0, avg30: 0, updatedAt: today }
+          : {
+              low: prices.low,
+              trend: prices.trend,
+              dePrice: prices.dePrice,
+              avg1: prices.avg1,
+              avg7: prices.avg7,
+              avg30: prices.avg30,
+              avg: prices.avg,
+              hasHoloPrices: prices.hasHoloPrices,
+              updatedAt: catalogState.priceGuideDate || today
+            },
+        priceHistory: body.type === 'expense' ? [] : priceHistory,
         createdAt: new Date().toISOString()
       };
 
@@ -905,6 +909,9 @@ const server = http.createServer(async (req, res) => {
 
       const item = portfolio.items[idx];
       if (body.name !== undefined) item.name = body.name;
+      if (body.buyDate !== undefined) item.buyDate = body.buyDate;
+      if (body.packsCount !== undefined) item.packsCount = body.packsCount ? Math.max(1, Number(body.packsCount)) : null;
+      if (body.expensePreset !== undefined) item.expensePreset = body.expensePreset;
       if (body.buyPrice !== undefined) {
         item.buyPrice = (body.buyPrice === null || body.buyPrice === '') ? null : Number(body.buyPrice);
       }

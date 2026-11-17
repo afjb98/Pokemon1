@@ -244,6 +244,7 @@ function updateProfileHeader() {
   const friendsBtn = document.getElementById('btnOpenFriendsModal');
   const shareBtn = document.getElementById('btnShareFriendLink');
   const addBtn = document.getElementById('btnOpenAddModal');
+  const expBtn = document.getElementById('btnOpenExpenseModal');
   const viewBanner = document.getElementById('viewingFriendBanner');
 
   // Show "Freunde" button ONLY for you (PC or unlocked iPhone ?admin=1)
@@ -266,6 +267,7 @@ function updateProfileHeader() {
     badgeEl.textContent = 'Freunde-Ansicht';
     subtitleEl.textContent = 'Live-Stand aus der Cloud (nur Leseansicht)';
     if (addBtn) addBtn.classList.add('hidden');
+    if (expBtn) expBtn.classList.add('hidden');
     if (viewBanner) {
       viewBanner.classList.remove('hidden');
       document.getElementById('viewingFriendLabel').textContent = `Du siehst gerade: Portfolio von ${fName}`;
@@ -277,6 +279,7 @@ function updateProfileHeader() {
 
   if (viewBanner) viewBanner.classList.add('hidden');
   if (addBtn) addBtn.classList.remove('hidden');
+  if (expBtn) expBtn.classList.remove('hidden');
 
   if (profileMode === 'personal' && profileName) {
     titleEl.textContent = `Portfolio von ${profileName}`;
@@ -356,6 +359,7 @@ function getBaseDePrice(item) {
 }
 
 function getUnitDePrice(item) {
+  if (!item || item.type === 'expense') return 0;
   if (item.customLowPrice !== null && item.customLowPrice !== undefined && item.customLowPrice !== '') {
     return Number(item.customLowPrice);
   }
@@ -367,6 +371,7 @@ function getUnitDePrice(item) {
 }
 
 function getUnitRawEuLow(item) {
+  if (!item || item.type === 'expense') return 0;
   if (item.marketPrices?.low != null) {
     return Number(item.marketPrices.low);
   }
@@ -778,7 +783,7 @@ async function enrichItemsWithCatalog(items) {
     const today = new Date().toISOString().slice(0, 10);
     let updated = false;
     for (const item of items) {
-      if (!item.idProduct) continue;
+      if (!item.idProduct || item.type === 'expense') continue;
       const row = byId.get(Number(item.idProduct));
       if (!row) continue;
       const [, , , , , , , stdDePrice, stdLow, stdTrend, stdAvg30, , tcgdexId, holoRow] = row;
@@ -904,8 +909,10 @@ function renderKpis() {
   let totalValueDe = 0;
   let totalValueEuLow = 0;
   let totalInvested = 0;
-  let totalValueWithCost = 0;
+  let totalExpenseCost = 0;
+  let expenseCount = 0;
   let trackedCostCount = 0;
+  let activePosCount = 0;
   let totalQty = 0;
 
   let singlesQty = 0;
@@ -915,20 +922,29 @@ function renderKpis() {
 
   for (const item of portfolioItems) {
     const qty = Number(item.quantity) || 1;
-    const unitDe = getUnitDePrice(item);
-    const unitEuLow = getUnitRawEuLow(item);
     const hasCost = hasBuyPrice(item);
     const unitBuy = hasCost ? Number(item.buyPrice) : 0;
 
+    if (item.type === 'expense') {
+      const expCost = unitBuy * qty;
+      totalInvested += expCost;
+      totalExpenseCost += expCost;
+      expenseCount++;
+      continue;
+    }
+
+    const unitDe = getUnitDePrice(item);
+    const unitEuLow = getUnitRawEuLow(item);
     const itemVal = unitDe * qty;
     totalValueDe += itemVal;
     totalValueEuLow += unitEuLow * qty;
+    activePosCount++;
+    totalQty += qty;
+
     if (hasCost) {
       totalInvested += unitBuy * qty;
-      totalValueWithCost += itemVal;
       trackedCostCount++;
     }
-    totalQty += qty;
 
     if (item.type === 'sealed') {
       sealedQty += qty;
@@ -939,35 +955,45 @@ function renderKpis() {
     }
   }
 
-  const totalProfit = totalValueWithCost - totalInvested;
+  const totalProfit = totalValueDe - totalInvested;
   const profitPct = totalInvested > 0 ? (totalProfit / totalInvested) * 100 : 0;
 
   document.getElementById('kpiTotalValue').textContent = fmtEuro(totalValueDe);
   document.getElementById('kpiTrendValue').textContent = `EU-Tiefstpreis (inkl. IT/ES): ${fmtEuro(totalValueEuLow)}`;
-  document.getElementById('kpiTotalInvested').textContent = trackedCostCount > 0 ? fmtEuro(totalInvested) : '—';
-  document.getElementById('kpiItemCount').textContent = trackedCostCount > 0 && trackedCostCount < portfolioItems.length
-    ? `${portfolioItems.length} Positionen (${totalQty} Stück) • EK bei ${trackedCostCount}`
-    : `${portfolioItems.length} Positionen (${totalQty} Stück)`;
+  document.getElementById('kpiTotalInvested').textContent = (trackedCostCount > 0 || expenseCount > 0) ? fmtEuro(totalInvested) : '—';
+
+  const countParts = [`${activePosCount} Positionen (${totalQty} Stück)`];
+  if (expenseCount > 0) {
+    countParts.push(`Geöffnet: ${fmtEuro(totalExpenseCost)} (${expenseCount}x)`);
+  } else if (trackedCostCount > 0 && trackedCostCount < activePosCount) {
+    countParts.push(`EK bei ${trackedCostCount}`);
+  }
+  document.getElementById('kpiItemCount').textContent = countParts.join(' • ');
 
   const profitEl = document.getElementById('kpiTotalProfit');
   const profitPctEl = document.getElementById('kpiTotalProfitPct');
 
-  if (trackedCostCount === 0 && portfolioItems.length > 0) {
+  if (totalInvested === 0 && activePosCount > 0 && expenseCount === 0) {
     profitEl.textContent = 'Kein EK';
     profitPctEl.textContent = 'Einkaufspreis optional (nicht eingetragen)';
     profitEl.style.color = 'var(--text-muted)';
   } else {
     profitEl.textContent = fmtSignedEuro(totalProfit);
-    profitPctEl.textContent = `${fmtSignedPct(profitPct)} Rendite zum Einkaufspreis`;
+    profitPctEl.textContent = totalInvested > 0
+      ? `${fmtSignedPct(profitPct)} Rendite auf alle Ausgaben`
+      : 'Noch keine Ausgaben eingetragen';
     profitEl.style.color = totalProfit >= 0 ? 'var(--green)' : 'var(--red)';
   }
 
   document.getElementById('kpiSplitValue').textContent = `${singlesQty} Karten / ${sealedQty} Sealed`;
   document.getElementById('kpiSplitSub').textContent = `Karten: ${fmtEuro(singlesVal)} • Sealed: ${fmtEuro(sealedVal)}`;
 
-  document.getElementById('countAll').textContent = portfolioItems.length;
-  document.getElementById('countSingles').textContent = portfolioItems.filter(i => i.type !== 'sealed').length;
-  document.getElementById('countSealed').textContent = portfolioItems.filter(i => i.type === 'sealed').length;
+  const activeItems = portfolioItems.filter(i => i.type !== 'expense');
+  document.getElementById('countAll').textContent = activeItems.length;
+  document.getElementById('countSingles').textContent = activeItems.filter(i => i.type !== 'sealed').length;
+  document.getElementById('countSealed').textContent = activeItems.filter(i => i.type === 'sealed').length;
+  const expCountEl = document.getElementById('countExpense');
+  if (expCountEl) expCountEl.textContent = expenseCount;
 }
 
 function renderTable() {
@@ -998,6 +1024,9 @@ function renderTable() {
   }
 
   let filtered = portfolioItems.filter(item => {
+    const isExp = item.type === 'expense';
+    if (activeFilter === 'expense' && !isExp) return false;
+    if (activeFilter !== 'expense' && isExp) return false;
     if (activeFilter === 'single' && item.type === 'sealed') return false;
     if (activeFilter === 'sealed' && item.type !== 'sealed') return false;
     if (searchQuery) {
@@ -1008,7 +1037,8 @@ function renderTable() {
         String(item.idProduct || '').includes(q) ||
         (item.expansionName || '').toLowerCase().includes(q) ||
         (item.expansionCode || '').toLowerCase().includes(q) ||
-        (item.categoryName || '').toLowerCase().includes(q)
+        (item.categoryName || '').toLowerCase().includes(q) ||
+        (item.notes || '').toLowerCase().includes(q)
       );
     }
     return true;
@@ -1101,12 +1131,14 @@ function renderTable() {
         </div>
       </td>
       <td>
-        <span class="badge ${item.type === 'sealed' ? 'badge-sealed' : 'badge-single'}">
-          ${item.type === 'sealed' ? 'Sealed' : 'Karte'}
+        <span class="badge ${item.type === 'sealed' ? 'badge-sealed' : item.type === 'expense' ? 'badge-meta' : 'badge-single'}">
+          ${item.type === 'sealed' ? 'Sealed' : item.type === 'expense' ? 'Geöffnet' : 'Karte'}
         </span>
         ${variantTxt ? `<span class="badge">${escapeHtml(variantTxt)}</span>` : ''}
         ${item.isFirstEdition ? '<span class="badge badge-sealed">1st Ed.</span>' : ''}
-        <span class="badge badge-meta">${escapeHtml(condCode)} • ${escapeHtml(item.language || 'DE')}</span>
+        ${item.type === 'expense'
+          ? `<span class="badge badge-meta">${item.packsCount ? `${item.packsCount} Packs` : 'Ausgabe'}${item.buyDate ? ` • ${escapeHtml(item.buyDate)}` : ''}</span>`
+          : `<span class="badge badge-meta">${escapeHtml(condCode)} • ${escapeHtml(item.language || 'DE')}</span>`}
       </td>
       <td class="num">${qty}x</td>
       <td class="num">
@@ -1134,9 +1166,9 @@ function renderTable() {
       </td>
       <td>
         <div class="row-actions" onclick="event.stopPropagation();">
-          ${viewingFriend ? '' : `<button class="action-btn" title="DE-Preis direkt anpassen" onclick="openSnapshotModal('${item.id}')">DE €</button>`}
+          ${viewingFriend ? '' : (item.type === 'expense' ? '' : `<button class="action-btn" title="DE-Preis direkt anpassen" onclick="openSnapshotModal('${item.id}')">DE €</button>`)}
           ${cmUrl ? `<a class="action-btn" href="${escapeHtml(cmUrl)}" target="_blank" rel="noopener" title="Auf Cardmarket (Deutsch) öffnen">CM ↗</a>` : ''}
-          ${viewingFriend ? '' : `<button class="action-btn" title="Bearbeiten" onclick="openEditModal('${item.id}')">Bearbeiten</button>`}
+          ${viewingFriend ? '' : `<button class="action-btn" title="Bearbeiten" onclick="${item.type === 'expense' ? `openExpenseModal('${item.id}')` : `openEditModal('${item.id}')`}">Bearbeiten</button>`}
           ${viewingFriend ? '' : `<button class="action-btn delete" title="Aus Portfolio löschen" onclick="deleteItem('${item.id}')">Löschen</button>`}
         </div>
       </td>
@@ -1176,7 +1208,48 @@ function toggleSetCollapse(setKey) {
 function renderSetGallery(items, container) {
   container.innerHTML = '';
   if (items.length === 0) {
-    container.innerHTML = `<div class="search-hint">Keine passenden Einträge gefunden.</div>`;
+    container.innerHTML = activeFilter === 'expense'
+      ? `<div class="search-hint">Noch keine geöffneten Displays oder TTBs eingetragen. Klicke oben auf „+ Display/TTB geöffnet“, um Pack-Ausgaben zu erfassen.</div>`
+      : `<div class="search-hint">Keine passenden Einträge gefunden.</div>`;
+    return;
+  }
+
+  if (activeFilter === 'expense') {
+    const listEl = document.createElement('div');
+    listEl.className = 'expense-list';
+    for (const item of items) {
+      const qty = Number(item.quantity) || 1;
+      const costUnit = Number(item.buyPrice) || 0;
+      const totCost = costUnit * qty;
+      const totalPacks = (Number(item.packsCount) || 0) * qty;
+      const perPack = totalPacks > 0 && totCost > 0 ? totCost / totalPacks : null;
+
+      const card = document.createElement('div');
+      card.className = 'expense-card';
+      const metaBits = [
+        qty > 1 ? `${qty}x` : '',
+        totalPacks > 0 ? `${totalPacks} Packs` : '',
+        perPack != null ? `${fmtEuro(perPack)} / Pack` : '',
+        item.buyDate || '',
+        item.notes || ''
+      ].filter(Boolean);
+
+      card.innerHTML = `
+        <div class="expense-card-left">
+          <div class="expense-card-title">${escapeHtml(item.displayNameDe || item.name || 'Geöffnetes Produkt')}</div>
+          <div class="expense-card-meta">${escapeHtml(metaBits.join(' • '))}</div>
+        </div>
+        <div class="expense-card-right">
+          <div class="expense-card-amount">-${fmtEuro(totCost)}</div>
+          ${viewingFriend ? '' : `<div class="row-actions">
+            <button type="button" class="action-btn" onclick="openExpenseModal('${item.id}')">Bearbeiten</button>
+            <button type="button" class="action-btn delete" onclick="deleteItem('${item.id}')">✕</button>
+          </div>`}
+        </div>
+      `;
+      listEl.appendChild(card);
+    }
+    container.appendChild(listEl);
     return;
   }
 
@@ -1351,6 +1424,12 @@ function renderChart() {
     for (const item of itemsToPlot) {
       const qty = Number(item.quantity) || 1;
       const buyUnit = hasBuyPrice(item) ? Number(item.buyPrice) : 0;
+      if (item.type === 'expense') {
+        if (!item.buyDate || item.buyDate <= d || d === today) {
+          sumBuy += buyUnit * qty;
+        }
+        continue;
+      }
       sumBuy += buyUnit * qty;
 
       const hist = item.priceHistory || [];
@@ -1968,20 +2047,19 @@ async function openFriendsModal() {
     for (const f of friends) {
       const fItems = Array.isArray(f.items) ? f.items : [];
       let totalVal = 0;
-      let totalValWithCost = 0;
       let totalBuy = 0;
       let totalQty = 0;
       for (const it of fItems) {
         const qty = Number(it.quantity) || 1;
-        const val = getUnitDePrice(it) * qty;
-        totalVal += val;
         if (hasBuyPrice(it)) {
           totalBuy += Number(it.buyPrice) * qty;
-          totalValWithCost += val;
         }
-        totalQty += qty;
+        if (it.type !== 'expense') {
+          totalVal += getUnitDePrice(it) * qty;
+          totalQty += qty;
+        }
       }
-      const profit = totalValWithCost - totalBuy;
+      const profit = totalBuy > 0 ? totalVal - totalBuy : 0;
       const profColor = profit >= 0 ? 'var(--green)' : 'var(--red)';
       const upd = f.updated_at ? new Date(f.updated_at).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
 
@@ -2204,6 +2282,72 @@ function closeCardZoomModal() {
   if (modal) modal.classList.add('hidden');
 }
 
+function updateExpensePerPackHelp() {
+  const helpEl = document.getElementById('expensePerPackHelp');
+  if (!helpEl) return;
+  const cost = Number(document.getElementById('expenseCost').value) || 0;
+  const packs = Math.max(1, Number(document.getElementById('expensePacksCount').value) || 1);
+  if (cost > 0) {
+    helpEl.textContent = `Ø Preis/Pack: ${fmtEuro(cost / packs)}`;
+  } else {
+    helpEl.textContent = 'Ø Preis/Pack: —';
+  }
+}
+
+function openExpenseModal(editItemId = null) {
+  const modal = document.getElementById('expenseModal');
+  const delBtn = document.getElementById('btnDeleteExpense');
+  const titleEl = document.getElementById('expenseModalTitle');
+  const saveBtn = document.getElementById('btnSaveExpense');
+  const today = new Date().toISOString().slice(0, 10);
+
+  let item = null;
+  if (editItemId) {
+    item = portfolioItems.find(i => i.id === editItemId);
+  }
+
+  document.querySelectorAll('#expenseModal .expense-preset-pills .pill').forEach(p => p.classList.remove('active'));
+
+  if (item) {
+    titleEl.textContent = 'Geöffnetes Produkt bearbeiten';
+    saveBtn.textContent = 'Änderungen speichern';
+    document.getElementById('expenseEditId').value = item.id;
+    document.getElementById('expenseName').value = item.displayNameDe || item.name || '';
+    document.getElementById('expenseCost').value = item.buyPrice ?? '';
+    document.getElementById('expensePacksCount').value = item.packsCount || 36;
+    document.getElementById('expenseQuantity').value = item.quantity || 1;
+    document.getElementById('expenseDate').value = item.buyDate || today;
+    document.getElementById('expenseNotes').value = item.notes || '';
+    const presetKey = item.expensePreset || 'display';
+    document.querySelector(`#expenseModal .expense-preset-pills .pill[data-preset="${presetKey}"]`)?.classList.add('active');
+    delBtn.classList.remove('hidden');
+    delBtn.onclick = async () => {
+      closeExpenseModal();
+      await deleteItem(item.id);
+    };
+  } else {
+    titleEl.textContent = 'Geöffnetes Display / TTB eintragen';
+    saveBtn.textContent = 'Ausgabe speichern';
+    document.getElementById('expenseEditId').value = '';
+    document.getElementById('expenseName').value = '';
+    document.getElementById('expenseCost').value = '';
+    document.getElementById('expensePacksCount').value = '36';
+    document.getElementById('expenseQuantity').value = '1';
+    document.getElementById('expenseDate').value = today;
+    document.getElementById('expenseNotes').value = '';
+    document.querySelector('#expenseModal .expense-preset-pills .pill[data-preset="display"]')?.classList.add('active');
+    delBtn.classList.add('hidden');
+  }
+
+  updateExpensePerPackHelp();
+  modal.classList.remove('hidden');
+  setTimeout(() => document.getElementById('expenseName').focus(), 50);
+}
+
+function closeExpenseModal() {
+  document.getElementById('expenseModal')?.classList.add('hidden');
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   initProfileState();
   pollCatalogStatus();
@@ -2236,6 +2380,102 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('btnCloseSnapshotModal').addEventListener('click', closeSnapshotModal);
   document.getElementById('btnCancelSnapshot').addEventListener('click', closeSnapshotModal);
+
+  document.getElementById('btnOpenExpenseModal').addEventListener('click', () => openExpenseModal(null));
+  document.getElementById('btnCloseExpenseModal').addEventListener('click', closeExpenseModal);
+  document.getElementById('btnCancelExpense').addEventListener('click', closeExpenseModal);
+  document.getElementById('expenseCost').addEventListener('input', updateExpensePerPackHelp);
+  document.getElementById('expensePacksCount').addEventListener('input', updateExpensePerPackHelp);
+
+  document.querySelectorAll('#expenseModal .expense-preset-pills .pill').forEach(pill => {
+    pill.addEventListener('click', () => {
+      document.querySelectorAll('#expenseModal .expense-preset-pills .pill').forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      document.getElementById('expensePacksCount').value = pill.dataset.packs || '36';
+      updateExpensePerPackHelp();
+    });
+  });
+
+  document.getElementById('expenseForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const editId = document.getElementById('expenseEditId').value;
+    const activePreset = document.querySelector('#expenseModal .expense-preset-pills .pill.active')?.dataset.preset || 'display';
+    const today = new Date().toISOString().slice(0, 10);
+    const payload = {
+      name: document.getElementById('expenseName').value.trim(),
+      type: 'expense',
+      categoryName: 'Geöffnet / Packs',
+      buyPrice: Number(document.getElementById('expenseCost').value) || 0,
+      packsCount: Math.max(1, Number(document.getElementById('expensePacksCount').value) || 1),
+      quantity: Math.max(1, Number(document.getElementById('expenseQuantity').value) || 1),
+      buyDate: document.getElementById('expenseDate').value || today,
+      notes: document.getElementById('expenseNotes').value.trim(),
+      expensePreset: activePreset,
+      condition: 'M',
+      language: 'DE'
+    };
+
+    if (!isStaticMode && profileMode === 'owner') {
+      if (editId) {
+        await fetch(`/api/portfolio/${editId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      } else {
+        await fetch('/api/portfolio', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      }
+      closeExpenseModal();
+      await fetchPortfolio();
+    } else {
+      if (editId) {
+        const idx = portfolioItems.findIndex(i => i.id === editId);
+        if (idx !== -1) {
+          const it = portfolioItems[idx];
+          it.name = payload.name;
+          it.displayNameDe = payload.name;
+          it.buyPrice = payload.buyPrice;
+          it.packsCount = payload.packsCount;
+          it.quantity = payload.quantity;
+          it.buyDate = payload.buyDate;
+          it.notes = payload.notes;
+          it.expensePreset = payload.expensePreset;
+        }
+      } else {
+        portfolioItems.unshift({
+          id: 'mobile_exp_' + Date.now(),
+          idProduct: null,
+          name: payload.name,
+          displayNameDe: payload.name,
+          type: 'expense',
+          categoryName: 'Geöffnet / Packs',
+          expansionName: '',
+          expansionCode: '',
+          packsCount: payload.packsCount,
+          expensePreset: payload.expensePreset,
+          quantity: payload.quantity,
+          buyPrice: payload.buyPrice,
+          buyDate: payload.buyDate,
+          notes: payload.notes,
+          marketPrices: { dePrice: 0, low: 0, trend: 0, avg30: 0, updatedAt: today },
+          priceHistory: [],
+          createdAt: new Date().toISOString()
+        });
+      }
+      saveLocalPortfolio();
+      closeExpenseModal();
+      renderAll();
+    }
+
+    // Switch straight to Geöffnet tab if not already viewing it so user sees the entry right away
+    if (activeFilter !== 'expense') {
+      showToast(`Ausgabe gespeichert (-${fmtEuro(payload.buyPrice * payload.quantity)})`);
+    }
+  });
 
   document.getElementById('btnCloseCardZoom').addEventListener('click', closeCardZoomModal);
   document.getElementById('cardZoomModal').addEventListener('click', e => {

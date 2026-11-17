@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <link rel="stylesheet" href="./style.css?v=15" />
+  <link rel="stylesheet" href="./style.css?v=16" />
 </head>
 <body>
   <div class="app-shell">
@@ -56,6 +56,9 @@
         <button id="btnRefreshCatalog" class="btn btn-secondary" title="Cardmarket-Daten neu abrufen">
           Preise aktualisieren
         </button>
+        <button id="btnOpenExpenseModal" class="btn btn-secondary" title="Geöffnetes Display, TTB oder Booster-Ausgaben eintragen">
+          + Display/TTB geöffnet
+        </button>
         <button id="btnOpenAddModal" class="btn btn-primary">
           + Produkt hinzufügen
         </button>
@@ -83,7 +86,7 @@
       </div>
 
       <div class="kpi-card">
-        <div class="kpi-label">Einkaufswert (Investiert)</div>
+        <div class="kpi-label">Ausgaben (EK &amp; Geöffnet)</div>
         <div class="kpi-value" id="kpiTotalInvested">0,00 €</div>
         <div class="kpi-sub" id="kpiItemCount">0 Positionen</div>
       </div>
@@ -133,6 +136,7 @@
             <button class="tab active" data-filter="all">Alle (<span id="countAll">0</span>)</button>
             <button class="tab" data-filter="single">Einzelkarten (<span id="countSingles">0</span>)</button>
             <button class="tab" data-filter="sealed">Sealed / Boxen (<span id="countSealed">0</span>)</button>
+            <button class="tab" data-filter="expense">Geöffnet (<span id="countExpense">0</span>)</button>
           </div>
 
           <div class="view-switcher" title="Ansicht wechseln">
@@ -472,9 +476,71 @@
     </div>
   </div>
 
+  <!-- Modal: Opened Display / TTB / Pack Expense -->
+  <div id="expenseModal" class="modal-backdrop hidden">
+    <div class="modal modal-sm">
+      <div class="modal-header">
+        <div>
+          <h2 id="expenseModalTitle">Geöffnetes Display / TTB eintragen</h2>
+          <p class="modal-sub">Zählt als Ausgabe ins Gesamt-Ergebnis, ohne dass noch Sealed-Wert dazugerechnet wird</p>
+        </div>
+        <button id="btnCloseExpenseModal" class="btn-icon">✕</button>
+      </div>
+      <form id="expenseForm" class="modal-body">
+        <input type="hidden" id="expenseEditId" value="" />
+
+        <div class="expense-preset-pills">
+          <button type="button" class="pill active" data-preset="display" data-packs="36">Display (36 Packs)</button>
+          <button type="button" class="pill" data-preset="ttb" data-packs="9">TTB (9 Packs)</button>
+          <button type="button" class="pill" data-preset="bundle" data-packs="6">Bundle (6 Packs)</button>
+          <button type="button" class="pill" data-preset="booster" data-packs="1">Einzel-Booster</button>
+        </div>
+
+        <div class="form-group" style="margin-top: 12px;">
+          <label for="expenseName">Produkt / Set *</label>
+          <input type="text" id="expenseName" required placeholder="z.B. Stürmische Funken Display (36 Packs)" />
+        </div>
+
+        <div class="form-grid" style="margin-top: 12px;">
+          <div class="form-group">
+            <label for="expenseCost">Ausgabe / Kaufpreis (€) *</label>
+            <input type="number" id="expenseCost" step="0.01" min="0" required placeholder="z.B. 149.90" />
+            <small class="field-help" id="expensePerPackHelp">Ø Preis/Pack: —</small>
+          </div>
+
+          <div class="form-group">
+            <label for="expensePacksCount">Anzahl Booster Packs</label>
+            <input type="number" id="expensePacksCount" step="1" min="1" value="36" />
+          </div>
+
+          <div class="form-group">
+            <label for="expenseQuantity">Anzahl Boxen</label>
+            <input type="number" id="expenseQuantity" step="1" min="1" value="1" />
+          </div>
+
+          <div class="form-group">
+            <label for="expenseDate">Datum</label>
+            <input type="date" id="expenseDate" />
+          </div>
+
+          <div class="form-group span-2">
+            <label for="expenseNotes">Notiz (optional)</label>
+            <input type="text" id="expenseNotes" placeholder="z.B. Hits separat als Einzelkarten ohne EK eingetragen" />
+          </div>
+        </div>
+
+        <div class="modal-footer" style="margin-top: 16px;">
+          <button type="button" id="btnDeleteExpense" class="btn btn-danger hidden" style="margin-right: auto;">Löschen</button>
+          <button type="button" id="btnCancelExpense" class="btn btn-secondary">Abbrechen</button>
+          <button type="submit" id="btnSaveExpense" class="btn btn-primary">Ausgabe speichern</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Toast Notification -->
   <div id="toastBanner" class="toast-banner hidden"></div>
 
-  <script src="./app.js?v=15"></script>
+  <script src="./app.js?v=16"></script>
 </body>
 </html>

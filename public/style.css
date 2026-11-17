@@ -1446,3 +1446,59 @@ body {
   justify-content: center;
   flex-wrap: wrap;
 }
+
+/* Opened Display / TTB Expense Modal & Cards */
+.expense-preset-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.expense-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.expense-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--bg-main);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.expense-card-left {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.expense-card-title {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text-main);
+}
+
+.expense-card-meta {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.expense-card-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.expense-card-amount {
+  text-align: right;
+  font-weight: 700;
+  color: var(--red);
+  font-size: 0.92rem;
+}
