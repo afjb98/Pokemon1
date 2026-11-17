@@ -13,6 +13,7 @@ let searchDebounceTimer = null;
 let isStaticMode = false;
 let staticCatalogItems = null; // loaded lazily from ./data/catalog_compact.json when in static mode
 const LOCAL_STORAGE_KEY = 'pokevault_portfolio_v1';
+const DELETED_OWNER_IDS_KEY = 'pokevault_deleted_owner_ids_v1';
 const PERSONAL_PORTFOLIO_KEY = 'pokevault_personal_portfolio_v1';
 const PERSONAL_ID_KEY = 'pokevault_personal_profile_id';
 const PROFILE_MODE_KEY = 'pokevault_profile_mode';
@@ -868,6 +869,24 @@ async function fetchPortfolio() {
     isStaticMode = true;
   }
 
+function getDeletedOwnerIds() {
+  try {
+    const arr = JSON.parse(localStorage.getItem(DELETED_OWNER_IDS_KEY) || '[]');
+    return new Set(Array.isArray(arr) ? arr : []);
+  } catch (e) {
+    return new Set();
+  }
+}
+
+function addDeletedOwnerId(id) {
+  if (!id) return;
+  try {
+    const set = getDeletedOwnerIds();
+    set.add(id);
+    localStorage.setItem(DELETED_OWNER_IDS_KEY, JSON.stringify([...set]));
+  } catch (e) {}
+}
+
   // Static Mode (GitHub Pages / iPhone): Fetch latest daily-updated `./data/portfolio.json` from repo
   let remoteItems = [];
   try {
@@ -887,16 +906,53 @@ async function fetchPortfolio() {
   if (localData && Array.isArray(localData.items) && localData.items.length > 0 && remoteItems.length === 0) {
     portfolioItems = localData.items;
   } else if (remoteItems.length > 0) {
-    // Always include all items synced from PC (remoteItems) + any mobile-only items created on iPhone
+    // Merge remote items from PC/GitHub with mobile-only items & preserve mobile edits / deletions
+    const deletedIds = getDeletedOwnerIds();
+    const localById = new Map((localData?.items || []).map(i => [i.id, i]));
     const remoteIds = new Set(remoteItems.map(i => i.id));
+
+    const mergedRemote = [];
+    for (const rItem of remoteItems) {
+      if (deletedIds.has(rItem.id)) continue;
+      const localEd = localById.get(rItem.id);
+      if (localEd && localEd.mobileEditedAt) {
+        mergedRemote.push({
+          ...rItem,
+          name: localEd.name,
+          displayNameDe: localEd.displayNameDe,
+          type: localEd.type,
+          variant: localEd.variant,
+          isHolo: localEd.isHolo,
+          isFirstEdition: localEd.isFirstEdition,
+          buyPrice: localEd.buyPrice,
+          quantity: localEd.quantity,
+          condition: localEd.condition,
+          language: localEd.language,
+          buyDate: localEd.buyDate,
+          customLowPrice: localEd.customLowPrice,
+          packsCount: localEd.packsCount,
+          expensePreset: localEd.expensePreset,
+          notes: localEd.notes,
+          mobileEditedAt: localEd.mobileEditedAt
+        });
+      } else {
+        mergedRemote.push(rItem);
+      }
+    }
+
     const mobileOnlyItems = (localData?.items || []).filter(i => !remoteIds.has(i.id) && String(i.id).startsWith('mobile_'));
-    portfolioItems = [...mobileOnlyItems, ...remoteItems];
+    portfolioItems = [...mobileOnlyItems, ...mergedRemote];
     saveLocalPortfolio();
   } else {
     portfolioItems = [];
   }
 
   renderAll();
+  const enriched = await enrichItemsWithCatalog(portfolioItems);
+  if (enriched) {
+    saveLocalPortfolio();
+    renderAll();
+  }
 }
 
 function renderAll() {
@@ -1941,6 +1997,9 @@ async function deleteItem(itemId) {
     if (selectedChartItemId === itemId) selectedChartItemId = null;
     await fetchPortfolio();
   } else {
+    if (isStaticMode && profileMode === 'owner' && !String(itemId).startsWith('mobile_')) {
+      addDeletedOwnerId(itemId);
+    }
     portfolioItems = portfolioItems.filter(i => i.id !== itemId);
     if (selectedChartItemId === itemId) selectedChartItemId = null;
     saveLocalPortfolio();
@@ -2444,6 +2503,7 @@ document.addEventListener('DOMContentLoaded', () => {
           it.buyDate = payload.buyDate;
           it.notes = payload.notes;
           it.expensePreset = payload.expensePreset;
+          it.mobileEditedAt = new Date().toISOString();
         }
       } else {
         portfolioItems.unshift({
@@ -2735,6 +2795,7 @@ document.addEventListener('DOMContentLoaded', () => {
           it.language = payload.language;
           it.buyDate = payload.buyDate;
           it.customLowPrice = customLow;
+          it.mobileEditedAt = now.toISOString();
 
           if (currentModalPriceData) {
             const activePr = getSelectedPricesForVariant(currentModalPriceData, payload.isHolo);
@@ -2836,6 +2897,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const item = portfolioItems.find(i => i.id === id);
       if (item) {
         item.customLowPrice = price;
+        item.mobileEditedAt = new Date().toISOString();
         if (!Array.isArray(item.priceHistory)) item.priceHistory = [];
         const ex = item.priceHistory.find(h => h.date === date);
         if (ex) ex.low = price;
