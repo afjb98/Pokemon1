@@ -1767,40 +1767,46 @@ body {
 }
 
 .checklist-card:not(.is-owned) .checklist-card-visual img {
-  opacity: 0.72;
-  filter: saturate(0.75);
+  opacity: 0.85;
+  filter: saturate(0.8);
 }
 
-.checklist-num-pill {
-  position: absolute;
-  top: 6px;
-  left: 6px;
-  background: rgba(9, 9, 11, 0.82);
-  color: #e4e4e7;
-  font-size: 0.68rem;
-  font-weight: 600;
-  padding: 2px 6px;
+.checklist-card-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.checklist-num-badge {
+  display: inline-block;
+  background: #18181b;
+  border: 1px solid #3f3f46;
+  color: #f4f4f5;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 2px 7px;
   border-radius: 5px;
   font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.02em;
 }
 
-.checklist-secret-pill {
-  position: absolute;
-  bottom: 6px;
-  left: 6px;
-  background: rgba(245, 158, 11, 0.88);
-  color: #09090b;
-  font-size: 0.62rem;
+.checklist-secret-badge {
+  background: rgba(245, 158, 11, 0.18);
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  color: #fbbf24;
+  font-size: 0.65rem;
   font-weight: 700;
   padding: 2px 6px;
   border-radius: 4px;
+  white-space: nowrap;
 }
 
 .checklist-card-footer {
-  padding: 8px 10px 10px;
+  padding: 9px 10px 10px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .checklist-card-name {

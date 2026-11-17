@@ -2527,16 +2527,47 @@ function populateSetPickerSelect(filterText = '') {
   }
 }
 
-function isChecklistCardMatchedInPortfolio(card, setInfo) {
-  const cardEn = String(card.enName || card.name || '').trim().toLowerCase();
-  const cardDe = String(card.deName || '').trim().toLowerCase();
-  const normCardEn = cardEn.replace(/[^a-z0-9]/g, '');
+function normalizeCardMatchName(str) {
+  return String(str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function getSetScopedCatalogSiblings(idProduct, rawCatalogName, setInfo) {
+  if (!idProduct || !rawCatalogName || !Array.isArray(staticCatalogItems)) return [];
+  const normRaw = String(rawCatalogName).trim().toLowerCase();
+  const targetCode = String(setInfo?.code || '').trim().toUpperCase();
+  const targetEn = String(setInfo?.en || '').trim().toLowerCase();
+  const targetDe = String(setInfo?.de || '').trim().toLowerCase();
+  const ids = [];
+
+  for (let i = 0; i < staticCatalogItems.length; i++) {
+    const row = staticCatalogItems[i];
+    if (String(row[1] || '').trim().toLowerCase() !== normRaw) continue;
+    const rowCode = String(row[6] || '').trim().toUpperCase();
+    const rowExp = String(row[5] || '').trim().toLowerCase();
+    const setOk =
+      (targetCode && rowCode === targetCode) ||
+      (targetEn && rowExp === targetEn) ||
+      (targetDe && rowExp === targetDe);
+    if (!setOk) continue;
+    ids.push(Number(row[0]));
+  }
+  ids.sort((a, b) => a - b);
+  return ids;
+}
+
+function buildPortfolioMatchedCardKeysForSet(cards, setInfo) {
+  const matchedKeys = new Set();
+  if (!Array.isArray(cards) || cards.length === 0) return matchedKeys;
+
+  const catalogById = new Map();
+  if (Array.isArray(staticCatalogItems)) {
+    for (let i = 0; i < staticCatalogItems.length; i++) {
+      catalogById.set(Number(staticCatalogItems[i][0]), staticCatalogItems[i]);
+    }
+  }
 
   for (const item of portfolioItems) {
     if (!item || item.type === 'expense' || item.type === 'sealed') continue;
-    if (card.idProduct && item.idProduct && Number(item.idProduct) === Number(card.idProduct)) {
-      return true;
-    }
     const itemExpMatch =
       (item.tcgdexId && setInfo?.tcgdexId && item.tcgdexId === setInfo.tcgdexId) ||
       (item.expansionCode && setInfo?.code && item.expansionCode.toUpperCase() === setInfo.code.toUpperCase()) ||
@@ -2545,32 +2576,73 @@ function isChecklistCardMatchedInPortfolio(card, setInfo) {
          item.expansionName.toLowerCase() === (setInfo.en || '').toLowerCase()));
     if (!itemExpMatch) continue;
 
-    const itemClean = String(item.name || '').replace(/\[.*?\]/g, '').trim().toLowerCase();
-    const itemDeClean = String(item.displayNameDe || '').replace(/\[.*?\]/g, '').trim().toLowerCase();
-    if (cardEn && (itemClean === cardEn || itemClean.replace(/[^a-z0-9]/g, '') === normCardEn)) {
-      return true;
+    // 1. Direct idProduct match (for fallback catalog-built checklists)
+    const directCard = item.idProduct ? cards.find(c => c.idProduct && Number(c.idProduct) === Number(item.idProduct)) : null;
+    if (directCard) {
+      matchedKeys.add(directCard.key);
+      continue;
     }
-    if (cardDe && itemDeClean.includes(cardDe)) {
-      return true;
+
+    // 2. Resolve true Cardmarket raw EN name via staticCatalogItems so "DE – EN" prefix never breaks matching
+    const catRow = item.idProduct ? catalogById.get(Number(item.idProduct)) : null;
+    const rawEnSource = catRow ? catRow[1] : item.name;
+    const itemEnHints = parseCardmarketHints(rawEnSource);
+    const itemEnCands = itemEnHints.nameCandidates.map(normalizeCardMatchName).filter(Boolean);
+
+    const rawDeFirst = String(item.displayNameDe || '').split(' – ')[0].replace(/\(.*?\)/g, '').replace(/\[.*?\]/g, '').trim();
+    const itemDeNorm = normalizeCardMatchName(rawDeFirst);
+
+    const matchingCards = cards.filter(c => {
+      const cEnNorm = normalizeCardMatchName(c.enName || c.name);
+      const cDeNorm = normalizeCardMatchName(c.deName || '');
+      if (cEnNorm && itemEnCands.includes(cEnNorm)) return true;
+      if (cDeNorm && itemDeNorm && cDeNorm === itemDeNorm) return true;
+      return false;
+    });
+
+    if (matchingCards.length === 0) continue;
+    if (matchingCards.length === 1) {
+      matchedKeys.add(matchingCards[0].key);
+      continue;
     }
+
+    // 3. Disambiguate multiple rarities/artworks of the same card in the set using Cardmarket idProduct sibling order
+    let chosenIdx = 0;
+    if (item.idProduct && catRow) {
+      const sibIds = getSetScopedCatalogSiblings(item.idProduct, catRow[1], setInfo);
+      const sibIdx = sibIds.indexOf(Number(item.idProduct));
+      if (sibIdx >= 0 && sibIds.length > 1) {
+        if (sibIds.length === matchingCards.length) {
+          chosenIdx = sibIdx;
+        } else {
+          chosenIdx = Math.round((sibIdx / (sibIds.length - 1)) * (matchingCards.length - 1));
+        }
+      }
+    } else if (itemEnHints.variantIndex && itemEnHints.variantIndex >= 1) {
+      chosenIdx = Math.min(itemEnHints.variantIndex - 1, matchingCards.length - 1);
+    }
+
+    const picked = matchingCards[Math.min(Math.max(0, chosenIdx), matchingCards.length - 1)];
+    if (picked) matchedKeys.add(picked.key);
   }
-  return false;
+
+  return matchedKeys;
 }
 
-function getChecklistCardOwnedState(tcgdexId, card, ownedMap, setInfo) {
+function getChecklistCardOwnedState(tcgdexId, card, ownedMap, portfolioMatchedKeys) {
   const setBucket = ownedMap[tcgdexId] || {};
   if (Object.prototype.hasOwnProperty.call(setBucket, card.key)) {
     return Boolean(setBucket[card.key]);
   }
-  return isChecklistCardMatchedInPortfolio(card, setInfo);
+  return portfolioMatchedKeys.has(card.key);
 }
 
-function toggleChecklistCardOwned(tcgdexId, cardKey, card, setInfo) {
+function toggleChecklistCardOwned(tcgdexId, cardKey, card, portfolioMatchedKeys) {
   const ownedMap = loadChecklistOwnedMap();
   if (!ownedMap[tcgdexId] || typeof ownedMap[tcgdexId] !== 'object') {
     ownedMap[tcgdexId] = {};
   }
-  const currentlyOwned = getChecklistCardOwnedState(tcgdexId, card, ownedMap, setInfo);
+  const currentlyOwned = getChecklistCardOwnedState(tcgdexId, card, ownedMap, portfolioMatchedKeys);
   ownedMap[tcgdexId][cardKey] = !currentlyOwned;
   saveChecklistOwnedMap(ownedMap);
   renderChecklistView();
@@ -2609,7 +2681,8 @@ async function loadChecklistSet(tcgdexId) {
 
   const [enSet, deSet] = await Promise.all([
     fetchTcgdexSet(tcgdexId),
-    fetchTcgdexSetDe(tcgdexId)
+    fetchTcgdexSetDe(tcgdexId),
+    ensureStaticCatalogLoaded().catch(() => null)
   ]);
 
   let cards = [];
@@ -2713,11 +2786,13 @@ function renderChecklistView() {
     logoWrap.textContent = setInfo.code || 'SET';
   }
 
+  const portfolioMatchedKeys = buildPortfolioMatchedCardKeysForSet(cards, setInfo);
+
   let ownedCount = 0;
   let secretCount = 0;
   const enriched = cards.map(c => {
-    const owned = getChecklistCardOwnedState(tcgdexId, c, ownedMap, setInfo);
-    const inPortfolio = isChecklistCardMatchedInPortfolio(c, setInfo);
+    const owned = getChecklistCardOwnedState(tcgdexId, c, ownedMap, portfolioMatchedKeys);
+    const inPortfolio = portfolioMatchedKeys.has(c.key);
     if (owned) ownedCount++;
     if (c.isSecret) secretCount++;
     return { ...c, owned, inPortfolio };
@@ -2773,13 +2848,15 @@ function renderChecklistView() {
 
     el.innerHTML = `
       <div class="checklist-card-visual">
-        <span class="checklist-num-pill">${escapeHtml(numDisplay)}</span>
-        ${card.isSecret ? '<span class="checklist-secret-pill">SIR / Hit</span>' : ''}
         ${card.imageLow
           ? `<img src="${escapeHtml(card.imageLow)}" loading="lazy" alt="${escapeHtml(card.name)}" onerror="this.parentElement.textContent='${badgeFallback}'" />`
           : badgeFallback}
       </div>
       <div class="checklist-card-footer">
+        <div class="checklist-card-meta-row">
+          <span class="checklist-num-badge">${escapeHtml(numDisplay)}</span>
+          ${card.isSecret ? '<span class="checklist-secret-badge">SIR / Hit</span>' : ''}
+        </div>
         <div class="checklist-card-name" title="${escapeHtml(card.name)}">${escapeHtml(card.name)}</div>
         <button type="button" class="checklist-toggle-btn">
           ${card.owned ? (card.inPortfolio ? '✓ Im Portfolio' : '✓ Im Besitz') : '+ Abhaken'}
@@ -2807,7 +2884,7 @@ function renderChecklistView() {
     });
 
     el.querySelector('.checklist-toggle-btn').addEventListener('click', () => {
-      toggleChecklistCardOwned(tcgdexId, card.key, card, setInfo);
+      toggleChecklistCardOwned(tcgdexId, card.key, card, portfolioMatchedKeys);
     });
 
     grid.appendChild(el);
