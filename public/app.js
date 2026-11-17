@@ -22,6 +22,26 @@ const PROFILE_NAME_KEY = 'pokevault_profile_name';
 const ADMIN_FLAG_KEY = 'pokevault_is_admin';
 const ADMIN_SESSION_KEY = 'pokevault_admin_session_v1';
 const IMG_FALLBACK_CACHE_KEY = 'pokevault_img_cache_v3';
+const CHECKLIST_STORAGE_PREFIX = 'pokevault_checklist_v1_';
+const CHECKLIST_LAST_SET_KEY = 'pokevault_checklist_last_set_v1';
+
+let activeMainPage = 'portfolio'; // 'portfolio' | 'sets'
+let setsIndexList = null;
+let setsIndexPromise = null;
+let selectedChecklistSetId = '';
+let checklistFilter = 'all'; // 'all' | 'owned' | 'missing' | 'secrets'
+let checklistSearch = '';
+let currentChecklistData = null;
+const FEATURED_CHECKLIST_SETS = [
+  { id: 'me06', label: 'Delta-Herrschaft (DLR)' },
+  { id: 'me05', label: 'Dunkelnacht (PBL)' },
+  { id: 'me01', label: 'Mega-Entwicklung (MEG)' },
+  { id: 'sv08.5', label: 'Prismatische Entwicklungen (PRE)' },
+  { id: 'sv08', label: 'Stürmische Funken (SSP)' },
+  { id: 'sv09', label: 'Reisegefährten (JTG)' },
+  { id: 'sv03.5', label: 'Karmesin & Purpur 151 (MEW)' },
+  { id: 'ex11', label: 'EX Delta Species (DS)' }
+];
 
 // Supabase Cloud Config (for Friends' Portfolios -> protected via Supabase Auth + RLS)
 const SUPABASE_BASE_URL = 'https://gpvttfbvbwgseztpsibb.supabase.co';
@@ -960,6 +980,9 @@ function renderAll() {
   renderKpis();
   renderTable();
   renderChart();
+  if (activeMainPage === 'sets' && currentChecklistData) {
+    renderChecklistView();
+  }
 }
 
 function renderKpis() {
@@ -2429,6 +2452,398 @@ function closeExpenseModal() {
   document.getElementById('expenseModal')?.classList.add('hidden');
 }
 
+function getChecklistStorageKey() {
+  if (viewingFriend?.id) return `${CHECKLIST_STORAGE_PREFIX}friend_${viewingFriend.id}`;
+  if (profileMode === 'personal') return `${CHECKLIST_STORAGE_PREFIX}personal_${personalProfileId || 'default'}`;
+  return `${CHECKLIST_STORAGE_PREFIX}owner`;
+}
+
+function loadChecklistOwnedMap() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(getChecklistStorageKey()) || '{}');
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch (e) {
+    return {};
+  }
+}
+
+function saveChecklistOwnedMap(mapObj) {
+  try {
+    localStorage.setItem(getChecklistStorageKey(), JSON.stringify(mapObj));
+  } catch (e) {}
+}
+
+async function ensureSetsIndexLoaded() {
+  if (setsIndexList) return setsIndexList;
+  if (setsIndexPromise) return setsIndexPromise;
+  setsIndexPromise = fetch('./data/sets_index.json')
+    .then(r => (r.ok ? r.json() : []))
+    .then(arr => {
+      setsIndexList = Array.isArray(arr) ? arr : [];
+      return setsIndexList;
+    })
+    .catch(() => []);
+  return setsIndexPromise;
+}
+
+function renderFeaturedSetsStrip() {
+  const strip = document.getElementById('featuredSetsStrip');
+  if (!strip) return;
+  strip.innerHTML = '';
+  for (const fsItem of FEATURED_CHECKLIST_SETS) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = `featured-set-chip${selectedChecklistSetId === fsItem.id ? ' active' : ''}`;
+    btn.textContent = fsItem.label;
+    btn.addEventListener('click', () => loadChecklistSet(fsItem.id));
+    strip.appendChild(btn);
+  }
+}
+
+function populateSetPickerSelect(filterText = '') {
+  const selectEl = document.getElementById('setPickerSelect');
+  if (!selectEl || !Array.isArray(setsIndexList)) return;
+  const q = filterText.trim().toLowerCase();
+  const filtered = q
+    ? setsIndexList.filter(s => `${s.de} ${s.en} ${s.code} ${s.tcgdexId}`.toLowerCase().includes(q))
+    : setsIndexList;
+
+  selectEl.innerHTML = '';
+  if (filtered.length === 0) {
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = 'Kein Set gefunden';
+    selectEl.appendChild(opt);
+    return;
+  }
+
+  for (const s of filtered) {
+    const opt = document.createElement('option');
+    opt.value = s.tcgdexId;
+    const label = s.de && s.de !== s.en ? `${s.de} (${s.en})` : (s.de || s.en);
+    opt.textContent = s.code ? `${s.code} • ${label}` : label;
+    if (s.tcgdexId === selectedChecklistSetId) opt.selected = true;
+    selectEl.appendChild(opt);
+  }
+}
+
+function isChecklistCardMatchedInPortfolio(card, setInfo) {
+  const cardEn = String(card.enName || card.name || '').trim().toLowerCase();
+  const cardDe = String(card.deName || '').trim().toLowerCase();
+  const normCardEn = cardEn.replace(/[^a-z0-9]/g, '');
+
+  for (const item of portfolioItems) {
+    if (!item || item.type === 'expense' || item.type === 'sealed') continue;
+    if (card.idProduct && item.idProduct && Number(item.idProduct) === Number(card.idProduct)) {
+      return true;
+    }
+    const itemExpMatch =
+      (item.tcgdexId && setInfo?.tcgdexId && item.tcgdexId === setInfo.tcgdexId) ||
+      (item.expansionCode && setInfo?.code && item.expansionCode.toUpperCase() === setInfo.code.toUpperCase()) ||
+      (item.expansionName && setInfo &&
+        (item.expansionName.toLowerCase() === (setInfo.de || '').toLowerCase() ||
+         item.expansionName.toLowerCase() === (setInfo.en || '').toLowerCase()));
+    if (!itemExpMatch) continue;
+
+    const itemClean = String(item.name || '').replace(/\[.*?\]/g, '').trim().toLowerCase();
+    const itemDeClean = String(item.displayNameDe || '').replace(/\[.*?\]/g, '').trim().toLowerCase();
+    if (cardEn && (itemClean === cardEn || itemClean.replace(/[^a-z0-9]/g, '') === normCardEn)) {
+      return true;
+    }
+    if (cardDe && itemDeClean.includes(cardDe)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function getChecklistCardOwnedState(tcgdexId, card, ownedMap, setInfo) {
+  const setBucket = ownedMap[tcgdexId] || {};
+  if (Object.prototype.hasOwnProperty.call(setBucket, card.key)) {
+    return Boolean(setBucket[card.key]);
+  }
+  return isChecklistCardMatchedInPortfolio(card, setInfo);
+}
+
+function toggleChecklistCardOwned(tcgdexId, cardKey, card, setInfo) {
+  const ownedMap = loadChecklistOwnedMap();
+  if (!ownedMap[tcgdexId] || typeof ownedMap[tcgdexId] !== 'object') {
+    ownedMap[tcgdexId] = {};
+  }
+  const currentlyOwned = getChecklistCardOwnedState(tcgdexId, card, ownedMap, setInfo);
+  ownedMap[tcgdexId][cardKey] = !currentlyOwned;
+  saveChecklistOwnedMap(ownedMap);
+  renderChecklistView();
+}
+
+async function fetchTcgdexSetDe(tcgdexId) {
+  if (!tcgdexId) return null;
+  try {
+    const r = await fetch(`https://api.tcgdex.net/v2/de/sets/${encodeURIComponent(tcgdexId)}`);
+    return r.ok ? await r.json() : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+async function loadChecklistSet(tcgdexId) {
+  if (!tcgdexId) return;
+  selectedChecklistSetId = tcgdexId;
+  try { localStorage.setItem(CHECKLIST_LAST_SET_KEY, tcgdexId); } catch (e) {}
+
+  renderFeaturedSetsStrip();
+  const selectEl = document.getElementById('setPickerSelect');
+  if (selectEl && selectEl.value !== tcgdexId) {
+    const hasOpt = Array.from(selectEl.options).some(o => o.value === tcgdexId);
+    if (hasOpt) selectEl.value = tcgdexId;
+  }
+
+  const list = await ensureSetsIndexLoaded();
+  const setInfo = list.find(s => s.tcgdexId === tcgdexId) || { tcgdexId, en: tcgdexId, de: tcgdexId, code: '' };
+
+  document.getElementById('checklistSetTitle').textContent = setInfo.de || setInfo.en || tcgdexId;
+  document.getElementById('checklistSetCode').textContent = setInfo.code || tcgdexId.toUpperCase();
+  document.getElementById('checklistSetSubtitle').textContent = 'Lade Kartenliste...';
+  document.getElementById('checklistSetLogo').innerHTML = escapeHtml(setInfo.code || 'SET');
+  document.getElementById('checklistGrid').innerHTML = `<div class="search-hint">Lade Karten für „${escapeHtml(setInfo.de || setInfo.en)}“...</div>`;
+
+  const [enSet, deSet] = await Promise.all([
+    fetchTcgdexSet(tcgdexId),
+    fetchTcgdexSetDe(tcgdexId)
+  ]);
+
+  let cards = [];
+  let logoUrl = enSet?.logo ? `${enSet.logo}.webp` : (deSet?.logo ? `${deSet.logo}.webp` : '');
+  const officialCount = Number(enSet?.cardCount?.official || deSet?.cardCount?.official || 0);
+
+  if (enSet && Array.isArray(enSet.cards) && enSet.cards.length > 0) {
+    const deByLocal = new Map();
+    if (deSet && Array.isArray(deSet.cards)) {
+      for (const dc of deSet.cards) {
+        if (dc.localId) deByLocal.set(String(dc.localId), dc);
+      }
+    }
+
+    const sortedEn = [...enSet.cards].sort((a, b) => {
+      const na = parseInt(a.localId, 10);
+      const nb = parseInt(b.localId, 10);
+      if (!Number.isNaN(na) && !Number.isNaN(nb) && na !== nb) return na - nb;
+      return String(a.localId || '').localeCompare(String(b.localId || ''));
+    });
+
+    cards = sortedEn.map(c => {
+      const loc = String(c.localId || '');
+      const deCard = deByLocal.get(loc);
+      const numVal = parseInt(loc, 10);
+      const isSecret = officialCount > 0 && !Number.isNaN(numVal) && numVal > officialCount;
+      const baseImg = c.image || deCard?.image || '';
+      return {
+        key: String(c.id || loc),
+        id: c.id || `${tcgdexId}-${loc}`,
+        localId: loc,
+        enName: c.name || '',
+        deName: deCard?.name || '',
+        name: deCard?.name && deCard.name !== c.name ? deCard.name : (c.name || ''),
+        imageLow: baseImg ? `${baseImg}/low.webp` : '',
+        imageHigh: baseImg ? `${baseImg}/high.webp` : '',
+        isSecret,
+        idProduct: null
+      };
+    });
+  } else {
+    // Fallback for brand-new sets not yet on TCGdex: pull set singles directly from Cardmarket catalog
+    try {
+      let catalogRows = [];
+      if (isStaticMode) {
+        catalogRows = await ensureStaticCatalogLoaded();
+        cards = catalogRows
+          .filter(r => r[3] === 'c' && (r[12] === tcgdexId || (setInfo.code && r[6] === setInfo.code) || (setInfo.en && r[5] === setInfo.en)))
+          .map(r => ({
+            key: String(r[0]),
+            id: String(r[0]),
+            localId: `#${r[0]}`,
+            enName: r[1] || '',
+            deName: r[2] || '',
+            name: (r[2] || r[1] || '').replace(/\[.*?\]/g, '').trim(),
+            imageLow: `./images/${r[0]}.jpg`,
+            imageHigh: `./images/${r[0]}.jpg`,
+            isSecret: false,
+            idProduct: r[0]
+          }));
+      } else {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(setInfo.en || setInfo.de)}&type=single`);
+        const data = await res.json();
+        cards = (data.results || [])
+          .filter(p => (setInfo.code && p.expansionCode === setInfo.code) || p.expansionName === setInfo.de || p.expansionName === setInfo.en)
+          .map(p => ({
+            key: String(p.idProduct),
+            id: String(p.idProduct),
+            localId: `#${p.idProduct}`,
+            enName: p.name || '',
+            deName: p.displayNameDe || '',
+            name: (p.displayNameDe || p.name || '').replace(/\[.*?\]/g, '').trim(),
+            imageLow: `/api/cm-image/${p.idProduct}`,
+            imageHigh: `/api/cm-image/${p.idProduct}`,
+            isSecret: false,
+            idProduct: p.idProduct
+          }));
+      }
+    } catch (e) {}
+  }
+
+  currentChecklistData = {
+    tcgdexId,
+    setInfo,
+    logoUrl,
+    officialCount,
+    cards
+  };
+  renderChecklistView();
+}
+
+function renderChecklistView() {
+  if (!currentChecklistData) return;
+  const { tcgdexId, setInfo, logoUrl, officialCount, cards } = currentChecklistData;
+  const ownedMap = loadChecklistOwnedMap();
+
+  const logoWrap = document.getElementById('checklistSetLogo');
+  if (logoUrl) {
+    logoWrap.innerHTML = `<img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(setInfo.code)}" onerror="this.parentElement.textContent='${escapeHtml(setInfo.code || 'SET')}'" />`;
+  } else {
+    logoWrap.textContent = setInfo.code || 'SET';
+  }
+
+  let ownedCount = 0;
+  let secretCount = 0;
+  const enriched = cards.map(c => {
+    const owned = getChecklistCardOwnedState(tcgdexId, c, ownedMap, setInfo);
+    const inPortfolio = isChecklistCardMatchedInPortfolio(c, setInfo);
+    if (owned) ownedCount++;
+    if (c.isSecret) secretCount++;
+    return { ...c, owned, inPortfolio };
+  });
+
+  const total = enriched.length;
+  const missingCount = Math.max(0, total - ownedCount);
+  const pct = total > 0 ? (ownedCount / total) * 100 : 0;
+  const pctTxt = total > 0 ? `${pct.toFixed(pct > 0 && pct < 10 ? 1 : 0).replace('.', ',')} %` : '0 %';
+
+  document.getElementById('checklistSetTitle').textContent = setInfo.de && setInfo.de !== setInfo.en
+    ? `${setInfo.de} • ${setInfo.en}`
+    : (setInfo.de || setInfo.en);
+  document.getElementById('checklistSetSubtitle').textContent = total > 0
+    ? `${total} Karten erfasst${officialCount ? ` (Basis-Set: ${officialCount} • Secret Rares: ${secretCount})` : ''}`
+    : 'Für dieses Set liegen aktuell noch keine Kartendaten vor (wird nach Release automatisch geladen)';
+  document.getElementById('checklistPctLabel').textContent = pctTxt;
+  document.getElementById('checklistOwnedCount').textContent = String(ownedCount);
+  document.getElementById('checklistMissingCount').textContent = String(missingCount);
+  document.getElementById('checklistProgressFill').style.width = `${Math.min(100, pct)}%`;
+
+  document.getElementById('cCountAll').textContent = String(total);
+  document.getElementById('cCountOwned').textContent = String(ownedCount);
+  document.getElementById('cCountMissing').textContent = String(missingCount);
+  document.getElementById('cCountSecrets').textContent = String(secretCount);
+
+  const q = checklistSearch.trim().toLowerCase();
+  const filtered = enriched.filter(c => {
+    if (checklistFilter === 'owned' && !c.owned) return false;
+    if (checklistFilter === 'missing' && c.owned) return false;
+    if (checklistFilter === 'secrets' && !c.isSecret) return false;
+    if (q) {
+      const hay = `${c.name} ${c.enName} ${c.deName} ${c.localId}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  const grid = document.getElementById('checklistGrid');
+  grid.innerHTML = '';
+  if (filtered.length === 0) {
+    grid.innerHTML = `<div class="search-hint">${total === 0 ? 'Noch keine Kartendaten für dieses Set verfügbar.' : 'Keine passenden Karten gefunden.'}</div>`;
+    return;
+  }
+
+  for (const card of filtered) {
+    const el = document.createElement('div');
+    el.className = `checklist-card${card.owned ? ' is-owned' : ''}`;
+    const numDisplay = String(card.localId || '').startsWith('#')
+      ? card.localId
+      : (officialCount ? `${String(card.localId).padStart(3, '0')}/${officialCount}` : `#${card.localId}`);
+    const badgeFallback = escapeHtml(setInfo.code || 'TCG');
+
+    el.innerHTML = `
+      <div class="checklist-card-visual">
+        <span class="checklist-num-pill">${escapeHtml(numDisplay)}</span>
+        ${card.isSecret ? '<span class="checklist-secret-pill">SIR / Hit</span>' : ''}
+        ${card.imageLow
+          ? `<img src="${escapeHtml(card.imageLow)}" loading="lazy" alt="${escapeHtml(card.name)}" onerror="this.parentElement.textContent='${badgeFallback}'" />`
+          : badgeFallback}
+      </div>
+      <div class="checklist-card-footer">
+        <div class="checklist-card-name" title="${escapeHtml(card.name)}">${escapeHtml(card.name)}</div>
+        <button type="button" class="checklist-toggle-btn">
+          ${card.owned ? (card.inPortfolio ? '✓ Im Portfolio' : '✓ Im Besitz') : '+ Abhaken'}
+        </button>
+      </div>
+    `;
+
+    el.querySelector('.checklist-card-visual').addEventListener('click', () => {
+      openCardZoomModal({
+        id: card.key,
+        idProduct: card.idProduct,
+        name: card.enName || card.name,
+        displayNameDe: card.deName || card.name,
+        type: 'single',
+        expansionName: setInfo.de || setInfo.en,
+        expansionCode: setInfo.code || '',
+        tcgdexId,
+        condition: 'NM',
+        language: card.deName ? 'DE' : 'EN',
+        quantity: 1,
+        buyPrice: null,
+        marketPrices: {},
+        imageUrl: card.imageHigh || card.imageLow
+      }, el.querySelector('.checklist-card-visual img'));
+    });
+
+    el.querySelector('.checklist-toggle-btn').addEventListener('click', () => {
+      toggleChecklistCardOwned(tcgdexId, card.key, card, setInfo);
+    });
+
+    grid.appendChild(el);
+  }
+}
+
+async function switchMainPage(page) {
+  activeMainPage = page === 'sets' ? 'sets' : 'portfolio';
+  const portEl = document.getElementById('portfolioPage');
+  const setsEl = document.getElementById('setsPage');
+  document.querySelectorAll('#pageSwitcher .page-tab').forEach(b => {
+    b.classList.toggle('active', b.dataset.page === activeMainPage);
+  });
+
+  if (activeMainPage === 'sets') {
+    portEl?.classList.add('hidden');
+    setsEl?.classList.remove('hidden');
+    await ensureSetsIndexLoaded();
+    if (!selectedChecklistSetId) {
+      let savedSet = '';
+      try { savedSet = localStorage.getItem(CHECKLIST_LAST_SET_KEY) || ''; } catch (e) {}
+      selectedChecklistSetId = savedSet || 'me06';
+    }
+    populateSetPickerSelect(document.getElementById('setPickerSearch')?.value || '');
+    renderFeaturedSetsStrip();
+    if (!currentChecklistData || currentChecklistData.tcgdexId !== selectedChecklistSetId) {
+      await loadChecklistSet(selectedChecklistSetId);
+    } else {
+      renderChecklistView();
+    }
+  } else {
+    setsEl?.classList.add('hidden');
+    portEl?.classList.remove('hidden');
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   initProfileState();
   pollCatalogStatus();
@@ -2458,6 +2873,40 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btnEmptyAdd').addEventListener('click', openAddModal);
   document.getElementById('btnCloseModal').addEventListener('click', closeAddModal);
   document.getElementById('btnCancelModal').addEventListener('click', closeAddModal);
+
+  // Page Switcher & Set-Checkliste listeners
+  document.querySelectorAll('#pageSwitcher .page-tab').forEach(btn => {
+    btn.addEventListener('click', () => switchMainPage(btn.dataset.page));
+  });
+  document.getElementById('setPickerSearch')?.addEventListener('input', e => {
+    populateSetPickerSelect(e.target.value);
+    const sel = document.getElementById('setPickerSelect');
+    if (sel && sel.options.length === 1 && sel.value) {
+      loadChecklistSet(sel.value);
+    }
+  });
+  document.getElementById('setPickerSearch')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const sel = document.getElementById('setPickerSelect');
+      if (sel && sel.value) loadChecklistSet(sel.value);
+    }
+  });
+  document.getElementById('setPickerSelect')?.addEventListener('change', e => {
+    if (e.target.value) loadChecklistSet(e.target.value);
+  });
+  document.querySelectorAll('#checklistFilterTabs .tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#checklistFilterTabs .tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      checklistFilter = btn.dataset.cfilter || 'all';
+      renderChecklistView();
+    });
+  });
+  document.getElementById('checklistCardSearch')?.addEventListener('input', e => {
+    checklistSearch = e.target.value;
+    renderChecklistView();
+  });
 
   document.getElementById('btnCloseSnapshotModal').addEventListener('click', closeSnapshotModal);
   document.getElementById('btnCancelSnapshot').addEventListener('click', closeSnapshotModal);

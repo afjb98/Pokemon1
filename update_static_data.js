@@ -419,6 +419,23 @@ async function run() {
   fs.writeFileSync(path.join(PUBLIC_DATA_DIR, 'catalog_compact.json'), JSON.stringify(catalogPayload), 'utf8');
   console.log(`Static data built: ${compactCatalog.length} items in public/data/catalog_compact.json`);
 
+  // Build sets_index.json for the Set-Checkliste / Master-Set view
+  const DE_SET_ALIASES = {
+    me06: 'Delta-Herrschaft (Delta Reign)'
+  };
+  const setsIndex = Object.entries(expansionMap)
+    .filter(([, info]) => info && info.tcgdexId && !/^tk-/i.test(info.tcgdexId))
+    .map(([idExp, info]) => ({
+      idExpansion: Number(idExp),
+      code: info.code || '',
+      tcgdexId: info.tcgdexId,
+      en: info.en || '',
+      de: DE_SET_ALIASES[info.tcgdexId] || info.de || info.en || ''
+    }))
+    .sort((a, b) => b.idExpansion - a.idExpansion);
+  fs.writeFileSync(path.join(PUBLIC_DATA_DIR, 'sets_index.json'), JSON.stringify(setsIndex), 'utf8');
+  console.log(`Sets index built: ${setsIndex.length} collections in public/data/sets_index.json`);
+
   // Ensure real Cardmarket images for all friends' items in Supabase
   try {
     const sbRes = await fetch('https://gpvttfbvbwgseztpsibb.supabase.co/rest/v1/portfolios?select=items', {

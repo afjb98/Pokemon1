@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <link rel="stylesheet" href="./style.css?v=18" />
+  <link rel="stylesheet" href="./style.css?v=19" />
 </head>
 <body>
   <div class="app-shell">
@@ -76,6 +76,15 @@
         <button type="button" id="btnExitFriendView" class="btn btn-sm btn-primary">← Zurück zu meinem Portfolio</button>
       </div>
     </div>
+
+    <!-- Main Page Switcher: Portfolio vs. Set Checklist -->
+    <nav class="page-switcher" id="pageSwitcher" aria-label="Hauptbereiche">
+      <button type="button" class="page-tab active" data-page="portfolio">💼 Mein Portfolio</button>
+      <button type="button" class="page-tab" data-page="sets">📖 Set-Checkliste &amp; Fortschritt</button>
+    </nav>
+
+    <!-- Page 1: Portfolio -->
+    <div id="portfolioPage">
 
     <!-- Summary Strip -->
     <section class="kpi-grid">
@@ -198,6 +207,76 @@
         </table>
       </div>
     </section>
+    </div>
+
+    <!-- Page 2: Set-Checkliste / Master-Set Binder -->
+    <div id="setsPage" class="hidden">
+      <section class="card sets-browser-card">
+        <div class="sets-selector-top">
+          <div>
+            <h2>Kollektion / Set auswählen</h2>
+            <p class="card-subtitle">Hake deine gezogenen Karten ab und verfolge deinen Master-Set-Fortschritt (%)</p>
+          </div>
+          <div class="sets-picker-controls">
+            <input type="text" id="setPickerSearch" class="sets-search-input" placeholder="Set suchen... (z.B. Delta Herrschaft, 151, Dunkelnacht)" autocomplete="off" />
+            <select id="setPickerSelect" class="select-control sets-select"></select>
+          </div>
+        </div>
+        <div class="featured-sets-strip" id="featuredSetsStrip"></div>
+      </section>
+
+      <section class="card sets-progress-card" id="setProgressCard">
+        <div class="set-progress-top">
+          <div class="set-progress-identity">
+            <div class="set-progress-logo-wrap" id="checklistSetLogo">SET</div>
+            <div>
+              <div class="set-progress-title-row">
+                <h2 id="checklistSetTitle">Kollektion wählen</h2>
+                <span class="set-code-badge" id="checklistSetCode">—</span>
+              </div>
+              <p class="card-subtitle" id="checklistSetSubtitle">Wähle oben ein Set aus, um alle Karten anzuzeigen</p>
+            </div>
+          </div>
+          <div class="set-progress-stats">
+            <div class="set-stat-box">
+              <span class="set-stat-num" id="checklistPctLabel">0 %</span>
+              <span class="set-stat-lbl">Fortschritt</span>
+            </div>
+            <div class="set-stat-box">
+              <span class="set-stat-num" id="checklistOwnedCount">0</span>
+              <span class="set-stat-lbl">Im Besitz</span>
+            </div>
+            <div class="set-stat-box">
+              <span class="set-stat-num" id="checklistMissingCount">0</span>
+              <span class="set-stat-lbl">Fehlend</span>
+            </div>
+          </div>
+        </div>
+        <div class="set-progress-track">
+          <div class="set-progress-fill" id="checklistProgressFill" style="width: 0%;"></div>
+        </div>
+      </section>
+
+      <section class="card collection-section">
+        <div class="collection-toolbar">
+          <div class="tabs" id="checklistFilterTabs">
+            <button type="button" class="tab active" data-cfilter="all">Alle (<span id="cCountAll">0</span>)</button>
+            <button type="button" class="tab" data-cfilter="owned">Im Besitz (<span id="cCountOwned">0</span>)</button>
+            <button type="button" class="tab" data-cfilter="missing">Fehlend (<span id="cCountMissing">0</span>)</button>
+            <button type="button" class="tab" data-cfilter="secrets">Secret Rares / Hits (<span id="cCountSecrets">0</span>)</button>
+          </div>
+          <div class="toolbar-right">
+            <div class="search-input-wrap">
+              <input type="text" id="checklistCardSearch" placeholder="Karte oder Nr. suchen (z.B. 045, Glurak)..." />
+            </div>
+          </div>
+        </div>
+
+        <div id="checklistGrid" class="checklist-grid">
+          <div class="search-hint">Wähle oben eine Kollektion aus...</div>
+        </div>
+      </section>
+    </div>
   </div>
 
   <!-- Full-Screen / Wide Two-Column Modal for Searching & Adding -->
@@ -549,6 +628,6 @@
   <!-- Toast Notification -->
   <div id="toastBanner" class="toast-banner hidden"></div>
 
-  <script src="./app.js?v=18"></script>
+  <script src="./app.js?v=19"></script>
 </body>
 </html>

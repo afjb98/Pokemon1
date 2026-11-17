@@ -1533,3 +1533,317 @@ body {
   color: var(--red);
   font-size: 0.92rem;
 }
+
+/* Main Page Switcher & Set-Checkliste (Master-Set Progress) */
+.page-switcher {
+  display: inline-flex;
+  gap: 6px;
+  padding: 4px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 16px;
+}
+
+.page-tab {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.page-tab:hover {
+  color: var(--text-main);
+}
+
+.page-tab.active {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.sets-browser-card,
+.sets-progress-card {
+  padding: 18px 20px;
+  margin-bottom: 16px;
+}
+
+.sets-selector-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.sets-picker-controls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex: 1;
+  max-width: 560px;
+}
+
+.sets-search-input {
+  flex: 1;
+  min-width: 180px;
+  background: var(--bg-main);
+  border: 1px solid var(--border);
+  color: var(--text-main);
+  padding: 8px 12px;
+  border-radius: 7px;
+  font-size: 0.84rem;
+  font-family: inherit;
+}
+
+.sets-select {
+  flex: 1;
+  min-width: 210px;
+}
+
+.featured-sets-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.featured-set-chip {
+  background: var(--bg-main);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  font-weight: 500;
+  padding: 5px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.featured-set-chip:hover {
+  border-color: #52525b;
+  color: var(--text-main);
+}
+
+.featured-set-chip.active {
+  background: rgba(59, 130, 246, 0.16);
+  border-color: #3b82f6;
+  color: #93c5fd;
+  font-weight: 600;
+}
+
+.set-progress-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.set-progress-identity {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.set-progress-logo-wrap {
+  width: 68px;
+  height: 44px;
+  border-radius: 8px;
+  background: var(--bg-main);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  padding: 4px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.set-progress-logo-wrap img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.set-progress-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.set-progress-stats {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.set-stat-box {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.set-stat-num {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-main);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.set-stat-lbl {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.set-progress-track {
+  width: 100%;
+  height: 10px;
+  background: var(--bg-main);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 14px;
+}
+
+.set-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #2563eb, #22c55e);
+  border-radius: 999px;
+  transition: width 0.25s ease;
+}
+
+.checklist-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(158px, 1fr));
+  gap: 12px;
+  padding-top: 8px;
+}
+
+.checklist-card {
+  background: var(--bg-main);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+
+.checklist-card.is-owned {
+  border-color: rgba(34, 197, 94, 0.75);
+  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.2);
+}
+
+.checklist-card-visual {
+  position: relative;
+  aspect-ratio: 63 / 88;
+  background: #0c0c0f;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: zoom-in;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.checklist-card-visual img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.checklist-card:not(.is-owned) .checklist-card-visual img {
+  opacity: 0.72;
+  filter: saturate(0.75);
+}
+
+.checklist-num-pill {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  background: rgba(9, 9, 11, 0.82);
+  color: #e4e4e7;
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 5px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.checklist-secret-pill {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  background: rgba(245, 158, 11, 0.88);
+  color: #09090b;
+  font-size: 0.62rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.checklist-card-footer {
+  padding: 8px 10px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.checklist-card-name {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.checklist-toggle-btn {
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.checklist-card.is-owned .checklist-toggle-btn {
+  background: rgba(34, 197, 94, 0.16);
+  border-color: rgba(34, 197, 94, 0.5);
+  color: #4ade80;
+}
+
+@media (max-width: 640px) {
+  .page-switcher {
+    width: 100%;
+  }
+  .page-tab {
+    flex: 1;
+    text-align: center;
+    padding: 8px 10px;
+    font-size: 0.8rem;
+  }
+  .checklist-grid {
+    grid-template-columns: repeat(auto-fill, minmax(136px, 1fr));
+    gap: 10px;
+  }
+}
