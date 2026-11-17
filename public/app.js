@@ -2888,7 +2888,7 @@ async function loadChecklistSet(tcgdexId) {
 
   let cards = [];
   let logoUrl = enSet?.logo ? `${enSet.logo}.webp` : (deSet?.logo ? `${deSet.logo}.webp` : '');
-  const officialCount = Number(enSet?.cardCount?.official || deSet?.cardCount?.official || 0);
+  let officialCount = Number(enSet?.cardCount?.official || deSet?.cardCount?.official || 0);
 
   // Build quick lookup from staticCatalogItems for this set so cards know their Cardmarket idProduct
   const catalogSetSingles = [];
@@ -2913,7 +2913,15 @@ async function loadChecklistSet(tcgdexId) {
     catalogSetSingles.sort((a, b) => Number(a[0]) - Number(b[0]));
   }
 
-  if (enSet && Array.isArray(enSet.cards) && enSet.cards.length > 0) {
+  const tcgdexHasImages = Array.isArray(enSet?.cards) && enSet.cards.some(c => Boolean(c.image));
+  const useTcgdexList = Boolean(
+    enSet &&
+    Array.isArray(enSet.cards) &&
+    enSet.cards.length > 0 &&
+    (tcgdexHasImages || catalogSetSingles.length <= enSet.cards.length)
+  );
+
+  if (useTcgdexList) {
     const deByLocal = new Map();
     if (deSet && Array.isArray(deSet.cards)) {
       for (const dc of deSet.cards) {
@@ -2966,7 +2974,8 @@ async function loadChecklistSet(tcgdexId) {
       };
     });
   } else {
-    // Fallback for brand-new sets not yet on TCGdex: pull set singles directly from Cardmarket catalog
+    // Fallback for brand-new sets or incomplete TCGdex stubs (e.g. 30th-c): pull full card list from Cardmarket catalog
+    officialCount = 0;
     try {
       if (catalogSetSingles.length > 0) {
         cards = catalogSetSingles.map(r => ({
