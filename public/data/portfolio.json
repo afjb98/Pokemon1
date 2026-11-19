@@ -21,14 +21,14 @@
       "notes": "",
       "marketPrices": {
         "low": 0.95,
-        "trend": 2.87,
-        "dePrice": 2.73,
-        "avg1": 2.73,
-        "avg7": 2.95,
-        "avg30": 3.57,
+        "trend": 3.05,
+        "dePrice": 2.63,
+        "avg1": 2.63,
+        "avg7": 3.07,
+        "avg30": 3.65,
         "avg": 4.51,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-19T02:48:38+0100"
+        "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
         {
@@ -66,18 +66,6 @@
           "low": 2.63,
           "trend": 3.05,
           "label": "Heute"
-        },
-        {
-          "date": "2026-11-18",
-          "low": 2.63,
-          "trend": 3.05,
-          "label": "Heute"
-        },
-        {
-          "date": "2026-11-19",
-          "low": 2.73,
-          "trend": 2.87,
-          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T20:03:59.514Z",
@@ -105,14 +93,14 @@
       "notes": "",
       "marketPrices": {
         "low": 1,
-        "trend": 0.34,
+        "trend": 0.55,
         "dePrice": 1,
-        "avg1": 1.8,
-        "avg7": 1.96,
-        "avg30": 2.42,
+        "avg1": 1.77,
+        "avg7": 2.25,
+        "avg30": 2.6,
         "avg": 10.99,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-19T02:48:38+0100"
+        "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
         {
@@ -150,18 +138,6 @@
           "low": 1,
           "trend": 0.55,
           "label": "Heute"
-        },
-        {
-          "date": "2026-11-18",
-          "low": 1,
-          "trend": 0.55,
-          "label": "Heute"
-        },
-        {
-          "date": "2026-11-19",
-          "low": 1,
-          "trend": 0.34,
-          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T20:00:45.618Z",
@@ -189,14 +165,14 @@
       "notes": "",
       "marketPrices": {
         "low": 1.8,
-        "trend": 2.24,
+        "trend": 2.25,
         "dePrice": 1.8,
-        "avg1": 2.96,
-        "avg7": 3.08,
-        "avg30": 3.21,
+        "avg1": 3.2,
+        "avg7": 3.16,
+        "avg30": 3.31,
         "avg": 5.98,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-19T02:48:38+0100"
+        "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
         {
@@ -234,18 +210,6 @@
           "low": 1.8,
           "trend": 2.25,
           "label": "Heute"
-        },
-        {
-          "date": "2026-11-18",
-          "low": 1.8,
-          "trend": 2.25,
-          "label": "Heute"
-        },
-        {
-          "date": "2026-11-19",
-          "low": 1.8,
-          "trend": 2.24,
-          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T20:00:15.524Z",
@@ -273,14 +237,14 @@
       "notes": "",
       "marketPrices": {
         "low": 0.5,
-        "trend": 0.57,
+        "trend": 0.6,
         "dePrice": 0.5,
-        "avg1": 1.5,
-        "avg7": 1.52,
-        "avg30": 1.61,
+        "avg1": 1.27,
+        "avg7": 1.57,
+        "avg30": 1.64,
         "avg": 5,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-19T02:48:38+0100"
+        "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
         {
@@ -318,18 +282,6 @@
           "low": 0.5,
           "trend": 0.6,
           "label": "Heute"
-        },
-        {
-          "date": "2026-11-18",
-          "low": 0.5,
-          "trend": 0.6,
-          "label": "Heute"
-        },
-        {
-          "date": "2026-11-19",
-          "low": 0.5,
-          "trend": 0.57,
-          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T19:59:58.677Z",
@@ -357,14 +309,14 @@
       "notes": "",
       "marketPrices": {
         "low": 1.79,
-        "trend": 2.09,
+        "trend": 2.15,
         "dePrice": 1.79,
-        "avg1": 2.77,
-        "avg7": 2.84,
-        "avg30": 2.95,
+        "avg1": 2.89,
+        "avg7": 2.81,
+        "avg30": 2.97,
         "avg": 4.99,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-19T02:48:38+0100"
+        "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
         {
@@ -402,18 +354,6 @@
           "low": 1.79,
           "trend": 2.15,
           "label": "Heute"
-        },
-        {
-          "date": "2026-11-18",
-          "low": 1.79,
-          "trend": 2.15,
-          "label": "Heute"
-        },
-        {
-          "date": "2026-11-19",
-          "low": 1.79,
-          "trend": 2.09,
-          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T19:59:23.638Z",
@@ -441,14 +381,14 @@
       "notes": "",
       "marketPrices": {
         "low": 3.5,
-        "trend": 3.68,
+        "trend": 3.73,
         "dePrice": 3.5,
-        "avg1": 4.89,
-        "avg7": 5.24,
-        "avg30": 5.41,
+        "avg1": 4.86,
+        "avg7": 5.29,
+        "avg30": 5.48,
         "avg": 10.5,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-19T02:48:38+0100"
+        "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
         {
@@ -486,18 +426,6 @@
           "low": 3.5,
           "trend": 3.73,
           "label": "Heute"
-        },
-        {
-          "date": "2026-11-18",
-          "low": 3.5,
-          "trend": 3.73,
-          "label": "Heute"
-        },
-        {
-          "date": "2026-11-19",
-          "low": 3.5,
-          "trend": 3.68,
-          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T19:59:04.887Z",
@@ -525,14 +453,14 @@
       "notes": "",
       "marketPrices": {
         "low": 2.6,
-        "trend": 2.23,
+        "trend": 2.24,
         "dePrice": 2.6,
-        "avg1": 3.05,
-        "avg7": 3.32,
-        "avg30": 3.5,
+        "avg1": 3.34,
+        "avg7": 3.49,
+        "avg30": 3.6,
         "avg": 13,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-19T02:48:38+0100"
+        "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
         {
@@ -570,18 +498,6 @@
           "low": 2.6,
           "trend": 2.24,
           "label": "Heute"
-        },
-        {
-          "date": "2026-11-18",
-          "low": 2.6,
-          "trend": 2.24,
-          "label": "Heute"
-        },
-        {
-          "date": "2026-11-19",
-          "low": 2.6,
-          "trend": 2.23,
-          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T19:58:50.594Z",
@@ -609,14 +525,14 @@
       "notes": "",
       "marketPrices": {
         "low": 1.65,
-        "trend": 1.72,
+        "trend": 1.88,
         "dePrice": 1.65,
-        "avg1": 2.47,
-        "avg7": 2.71,
-        "avg30": 3.13,
+        "avg1": 2.55,
+        "avg7": 3.02,
+        "avg30": 3.33,
         "avg": 6.99,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-19T02:48:38+0100"
+        "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
         {
@@ -654,18 +570,6 @@
           "low": 1.65,
           "trend": 1.88,
           "label": "Heute"
-        },
-        {
-          "date": "2026-11-18",
-          "low": 1.65,
-          "trend": 1.88,
-          "label": "Heute"
-        },
-        {
-          "date": "2026-11-19",
-          "low": 1.65,
-          "trend": 1.72,
-          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T19:58:32.419Z",
@@ -693,14 +597,14 @@
       "notes": "",
       "marketPrices": {
         "low": 1.11,
-        "trend": 1.62,
-        "dePrice": 1.62,
-        "avg1": 2.14,
-        "avg7": 2.26,
-        "avg30": 2.49,
+        "trend": 1.7,
+        "dePrice": 1.7,
+        "avg1": 2.32,
+        "avg7": 2.36,
+        "avg30": 2.58,
         "avg": 3.65,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-19T02:48:38+0100"
+        "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
         {
@@ -738,18 +642,6 @@
           "low": 1.7,
           "trend": 1.7,
           "label": "Heute"
-        },
-        {
-          "date": "2026-11-18",
-          "low": 1.7,
-          "trend": 1.7,
-          "label": "Heute"
-        },
-        {
-          "date": "2026-11-19",
-          "low": 1.62,
-          "trend": 1.62,
-          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T19:58:13.848Z",
@@ -777,14 +669,14 @@
       "notes": "",
       "marketPrices": {
         "low": 1.95,
-        "trend": 2.22,
+        "trend": 2.34,
         "dePrice": 1.95,
-        "avg1": 3.22,
-        "avg7": 3.37,
-        "avg30": 3.78,
+        "avg1": 3.33,
+        "avg7": 3.56,
+        "avg30": 3.89,
         "avg": 8,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-19T02:48:38+0100"
+        "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
         {
@@ -822,18 +714,6 @@
           "low": 1.95,
           "trend": 2.34,
           "label": "Heute"
-        },
-        {
-          "date": "2026-11-18",
-          "low": 1.95,
-          "trend": 2.34,
-          "label": "Heute"
-        },
-        {
-          "date": "2026-11-19",
-          "low": 1.95,
-          "trend": 2.22,
-          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T19:58:01.279Z",
@@ -861,14 +741,14 @@
       "notes": "",
       "marketPrices": {
         "low": 1.1,
-        "trend": 1.04,
+        "trend": 1.17,
         "dePrice": 1.1,
-        "avg1": 1.75,
-        "avg7": 1.91,
-        "avg30": 2.18,
+        "avg1": 1.83,
+        "avg7": 2.13,
+        "avg30": 2.31,
         "avg": 4.99,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-19T02:48:38+0100"
+        "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
         {
@@ -906,18 +786,6 @@
           "low": 1.1,
           "trend": 1.17,
           "label": "Heute"
-        },
-        {
-          "date": "2026-11-18",
-          "low": 1.1,
-          "trend": 1.17,
-          "label": "Heute"
-        },
-        {
-          "date": "2026-11-19",
-          "low": 1.1,
-          "trend": 1.04,
-          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T19:57:47.288Z",
@@ -945,14 +813,14 @@
       "notes": "",
       "marketPrices": {
         "low": 0.02,
-        "trend": 0.19,
-        "dePrice": 0.19,
+        "trend": 0.23,
+        "dePrice": 0.23,
         "avg1": 0.43,
-        "avg7": 0.45,
-        "avg30": 0.56,
-        "avg": 0.55,
+        "avg7": 0.5,
+        "avg30": 0.59,
+        "avg": 2.99,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-19T02:48:38+0100"
+        "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
         {
@@ -990,18 +858,6 @@
           "low": 0.23,
           "trend": 0.23,
           "label": "Heute"
-        },
-        {
-          "date": "2026-11-18",
-          "low": 0.23,
-          "trend": 0.23,
-          "label": "Heute"
-        },
-        {
-          "date": "2026-11-19",
-          "low": 0.19,
-          "trend": 0.19,
-          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T19:57:24.441Z",
@@ -1028,14 +884,14 @@
       "notes": "",
       "marketPrices": {
         "low": 1.2,
-        "trend": 3.02,
-        "dePrice": 2.82,
-        "avg1": 2.82,
-        "avg7": 3.03,
-        "avg30": 3.26,
+        "trend": 3.07,
+        "dePrice": 2.66,
+        "avg1": 2.66,
+        "avg7": 3.18,
+        "avg30": 3.29,
         "avg": 3.45,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-19T02:48:38+0100"
+        "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
         {
@@ -1073,18 +929,6 @@
           "low": 2.66,
           "trend": 3.07,
           "label": "Heute"
-        },
-        {
-          "date": "2026-11-18",
-          "low": 2.66,
-          "trend": 3.07,
-          "label": "Heute"
-        },
-        {
-          "date": "2026-11-19",
-          "low": 2.82,
-          "trend": 3.02,
-          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T18:34:07.460Z",
@@ -1112,14 +956,14 @@
       "notes": "",
       "marketPrices": {
         "low": 24,
-        "trend": 29.76,
+        "trend": 30.12,
         "dePrice": 24,
-        "avg1": 27.36,
-        "avg7": 29.29,
-        "avg30": 31.13,
-        "avg": 31.73,
+        "avg1": 28.91,
+        "avg7": 29.3,
+        "avg30": 31.59,
+        "avg": 40.33,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-19T02:48:38+0100"
+        "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
         {
@@ -1157,18 +1001,6 @@
           "low": 24,
           "trend": 30.12,
           "label": "Heute"
-        },
-        {
-          "date": "2026-11-18",
-          "low": 24,
-          "trend": 30.12,
-          "label": "Heute"
-        },
-        {
-          "date": "2026-11-19",
-          "low": 24,
-          "trend": 29.76,
-          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T18:33:52.492Z",
@@ -1196,14 +1028,14 @@
       "notes": "",
       "marketPrices": {
         "low": 2.5,
-        "trend": 2.28,
+        "trend": 2.37,
         "dePrice": 2.5,
-        "avg1": 3.39,
-        "avg7": 3.6,
-        "avg30": 3.97,
+        "avg1": 3.78,
+        "avg7": 3.93,
+        "avg30": 4.14,
         "avg": 9.98,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-19T02:48:38+0100"
+        "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
         {
@@ -1241,18 +1073,6 @@
           "low": 2.5,
           "trend": 2.37,
           "label": "Heute"
-        },
-        {
-          "date": "2026-11-18",
-          "low": 2.5,
-          "trend": 2.37,
-          "label": "Heute"
-        },
-        {
-          "date": "2026-11-19",
-          "low": 2.5,
-          "trend": 2.28,
-          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T18:33:18.180Z",
@@ -1280,14 +1100,14 @@
       "notes": "",
       "marketPrices": {
         "low": 15,
-        "trend": 17.47,
+        "trend": 18.49,
         "dePrice": 15,
-        "avg1": 17.03,
-        "avg7": 17.67,
-        "avg30": 18.7,
+        "avg1": 18.32,
+        "avg7": 18.76,
+        "avg30": 19.31,
         "avg": 21,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-19T02:48:38+0100"
+        "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
         {
@@ -1325,18 +1145,6 @@
           "low": 15,
           "trend": 18.49,
           "label": "Heute"
-        },
-        {
-          "date": "2026-11-18",
-          "low": 15,
-          "trend": 18.49,
-          "label": "Heute"
-        },
-        {
-          "date": "2026-11-19",
-          "low": 15,
-          "trend": 17.47,
-          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T18:32:31.140Z",
@@ -1363,14 +1171,14 @@
       "notes": "",
       "marketPrices": {
         "low": 11,
-        "trend": 15.42,
-        "dePrice": 15.27,
-        "avg1": 15.27,
-        "avg7": 15.66,
-        "avg30": 16.79,
+        "trend": 15.52,
+        "dePrice": 15.52,
+        "avg1": 15.55,
+        "avg7": 15.8,
+        "avg30": 17,
         "avg": 19.83,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-19T02:48:38+0100"
+        "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
         {
@@ -1408,18 +1216,6 @@
           "low": 15.52,
           "trend": 15.52,
           "label": "Heute"
-        },
-        {
-          "date": "2026-11-18",
-          "low": 15.52,
-          "trend": 15.52,
-          "label": "Heute"
-        },
-        {
-          "date": "2026-11-19",
-          "low": 15.27,
-          "trend": 15.42,
-          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T18:14:33.945Z",
@@ -1447,14 +1243,14 @@
       "notes": "",
       "marketPrices": {
         "low": 12.5,
-        "trend": 16.78,
-        "dePrice": 16.78,
-        "avg1": 16.93,
-        "avg7": 17.49,
-        "avg30": 18.09,
-        "avg": 18.06,
+        "trend": 16.93,
+        "dePrice": 15.86,
+        "avg1": 15.86,
+        "avg7": 17.51,
+        "avg30": 18.2,
+        "avg": 24.99,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-19T02:48:38+0100"
+        "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
         {
@@ -1492,18 +1288,6 @@
           "low": 15.86,
           "trend": 16.93,
           "label": "Heute"
-        },
-        {
-          "date": "2026-11-18",
-          "low": 15.86,
-          "trend": 16.93,
-          "label": "Heute"
-        },
-        {
-          "date": "2026-11-19",
-          "low": 16.78,
-          "trend": 16.78,
-          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T18:14:07.384Z",
@@ -1531,14 +1315,14 @@
       "notes": "",
       "marketPrices": {
         "low": 45,
-        "trend": 53.43,
-        "dePrice": 53.43,
+        "trend": 56.59,
+        "dePrice": 56.59,
         "avg1": null,
         "avg7": null,
         "avg30": null,
         "avg": 102.66,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-19T02:48:38+0100"
+        "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
         {
@@ -1575,18 +1359,6 @@
           "date": "2026-11-17",
           "low": 56.59,
           "trend": 56.59,
-          "label": "Heute"
-        },
-        {
-          "date": "2026-11-18",
-          "low": 56.59,
-          "trend": 56.59,
-          "label": "Heute"
-        },
-        {
-          "date": "2026-11-19",
-          "low": 53.43,
-          "trend": 53.43,
           "label": "Heute"
         }
       ],
@@ -1615,14 +1387,14 @@
       "notes": "",
       "marketPrices": {
         "low": 46.44,
-        "trend": 64,
-        "dePrice": 64,
+        "trend": 64.44,
+        "dePrice": 64.44,
         "avg1": null,
         "avg7": null,
         "avg30": null,
         "avg": 67.82,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-19T02:48:38+0100"
+        "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
         {
@@ -1660,18 +1432,6 @@
           "low": 64.44,
           "trend": 64.44,
           "label": "Heute"
-        },
-        {
-          "date": "2026-11-18",
-          "low": 64.44,
-          "trend": 64.44,
-          "label": "Heute"
-        },
-        {
-          "date": "2026-11-19",
-          "low": 64,
-          "trend": 64,
-          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T18:13:06.695Z",
@@ -1699,14 +1459,14 @@
       "notes": "",
       "marketPrices": {
         "low": 30,
-        "trend": 39.14,
-        "dePrice": 39.14,
+        "trend": 40.56,
+        "dePrice": 40.56,
         "avg1": null,
         "avg7": null,
         "avg30": null,
         "avg": 47.33,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-19T02:48:38+0100"
+        "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
         {
@@ -1744,18 +1504,6 @@
           "low": 40.56,
           "trend": 40.56,
           "label": "Heute"
-        },
-        {
-          "date": "2026-11-18",
-          "low": 40.56,
-          "trend": 40.56,
-          "label": "Heute"
-        },
-        {
-          "date": "2026-11-19",
-          "low": 39.14,
-          "trend": 39.14,
-          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T18:12:50.380Z",
@@ -1783,14 +1531,14 @@
       "notes": "",
       "marketPrices": {
         "low": 22.99,
-        "trend": 31.03,
-        "dePrice": 26.58,
-        "avg1": 26.58,
-        "avg7": 28.96,
-        "avg30": 31,
+        "trend": 31.48,
+        "dePrice": 30.18,
+        "avg1": 30.23,
+        "avg7": 30.18,
+        "avg30": 31.6,
         "avg": 38.68,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-19T02:48:38+0100"
+        "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
         {
@@ -1828,18 +1576,6 @@
           "low": 30.18,
           "trend": 31.48,
           "label": "Heute"
-        },
-        {
-          "date": "2026-11-18",
-          "low": 30.18,
-          "trend": 31.48,
-          "label": "Heute"
-        },
-        {
-          "date": "2026-11-19",
-          "low": 26.58,
-          "trend": 31.03,
-          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T18:10:59.172Z",
@@ -1867,14 +1603,14 @@
       "notes": "",
       "marketPrices": {
         "low": 119.99,
-        "trend": 164.29,
-        "dePrice": 164.29,
-        "avg1": 164.86,
-        "avg7": 166.84,
-        "avg30": 159.52,
+        "trend": 163.09,
+        "dePrice": 146.7,
+        "avg1": 146.7,
+        "avg7": 163.79,
+        "avg30": 159.01,
         "avg": 168.39,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-19T02:48:38+0100"
+        "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
         {
@@ -1912,18 +1648,6 @@
           "low": 146.7,
           "trend": 163.09,
           "label": "Heute"
-        },
-        {
-          "date": "2026-11-18",
-          "low": 146.7,
-          "trend": 163.09,
-          "label": "Heute"
-        },
-        {
-          "date": "2026-11-19",
-          "low": 164.29,
-          "trend": 164.29,
-          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T18:10:41.867Z",
@@ -1951,14 +1675,14 @@
       "notes": "",
       "marketPrices": {
         "low": 53,
-        "trend": 67.49,
-        "dePrice": 67.49,
+        "trend": 68.44,
+        "dePrice": 68.44,
         "avg1": null,
         "avg7": null,
         "avg30": null,
         "avg": 95.37,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-19T02:48:38+0100"
+        "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
         {
@@ -1996,18 +1720,6 @@
           "low": 68.44,
           "trend": 68.44,
           "label": "Heute"
-        },
-        {
-          "date": "2026-11-18",
-          "low": 68.44,
-          "trend": 68.44,
-          "label": "Heute"
-        },
-        {
-          "date": "2026-11-19",
-          "low": 67.49,
-          "trend": 67.49,
-          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T18:10:02.520Z",
@@ -2035,14 +1747,14 @@
       "notes": "",
       "marketPrices": {
         "low": 93,
-        "trend": 101.78,
-        "dePrice": 101.78,
+        "trend": 101.1,
+        "dePrice": 101.1,
         "avg1": null,
         "avg7": null,
         "avg30": null,
         "avg": 129.1,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-19T02:48:38+0100"
+        "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
         {
@@ -2080,18 +1792,6 @@
           "low": 101.1,
           "trend": 101.1,
           "label": "Heute"
-        },
-        {
-          "date": "2026-11-18",
-          "low": 101.1,
-          "trend": 101.1,
-          "label": "Heute"
-        },
-        {
-          "date": "2026-11-19",
-          "low": 101.78,
-          "trend": 101.78,
-          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T18:09:52.652Z",
@@ -2119,14 +1819,14 @@
       "notes": "",
       "marketPrices": {
         "low": 40,
-        "trend": 62.47,
-        "dePrice": 62.47,
+        "trend": 62.95,
+        "dePrice": 62.95,
         "avg1": null,
         "avg7": null,
         "avg30": null,
         "avg": 61.95,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-19T02:48:38+0100"
+        "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
         {
@@ -2164,18 +1864,6 @@
           "low": 62.95,
           "trend": 62.95,
           "label": "Heute"
-        },
-        {
-          "date": "2026-11-18",
-          "low": 62.95,
-          "trend": 62.95,
-          "label": "Heute"
-        },
-        {
-          "date": "2026-11-19",
-          "low": 62.47,
-          "trend": 62.47,
-          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T18:09:32.383Z",
@@ -2203,14 +1891,14 @@
       "notes": "",
       "marketPrices": {
         "low": 84,
-        "trend": 128.44,
-        "dePrice": 128.44,
+        "trend": 133.86,
+        "dePrice": 133.86,
         "avg1": null,
         "avg7": null,
         "avg30": null,
         "avg": 97.76,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-19T02:48:38+0100"
+        "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
         {
@@ -2248,18 +1936,6 @@
           "low": 133.86,
           "trend": 133.86,
           "label": "Heute"
-        },
-        {
-          "date": "2026-11-18",
-          "low": 133.86,
-          "trend": 133.86,
-          "label": "Heute"
-        },
-        {
-          "date": "2026-11-19",
-          "low": 128.44,
-          "trend": 128.44,
-          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T18:08:57.040Z",
@@ -2287,14 +1963,14 @@
       "notes": "",
       "marketPrices": {
         "low": 45,
-        "trend": 69.6,
-        "dePrice": 69.6,
+        "trend": 72.47,
+        "dePrice": 72.47,
         "avg1": null,
         "avg7": null,
         "avg30": null,
-        "avg": 71.22,
+        "avg": 68.13,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-19T02:48:38+0100"
+        "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
         {
@@ -2332,18 +2008,6 @@
           "low": 72.47,
           "trend": 72.47,
           "label": "Heute"
-        },
-        {
-          "date": "2026-11-18",
-          "low": 72.47,
-          "trend": 72.47,
-          "label": "Heute"
-        },
-        {
-          "date": "2026-11-19",
-          "low": 69.6,
-          "trend": 69.6,
-          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T18:08:25.015Z",
@@ -2371,14 +2035,14 @@
       "notes": "",
       "marketPrices": {
         "low": 44.9,
-        "trend": 66.47,
-        "dePrice": 66.47,
+        "trend": 66.59,
+        "dePrice": 66.59,
         "avg1": null,
         "avg7": null,
         "avg30": null,
         "avg": 68.41,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-19T02:48:38+0100"
+        "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
         {
@@ -2416,18 +2080,6 @@
           "low": 66.59,
           "trend": 66.59,
           "label": "Heute"
-        },
-        {
-          "date": "2026-11-18",
-          "low": 66.59,
-          "trend": 66.59,
-          "label": "Heute"
-        },
-        {
-          "date": "2026-11-19",
-          "low": 66.47,
-          "trend": 66.47,
-          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T18:07:57.705Z",
@@ -2455,14 +2107,14 @@
       "notes": "",
       "marketPrices": {
         "low": 90,
-        "trend": 117.05,
-        "dePrice": 117.05,
+        "trend": 117.62,
+        "dePrice": 117.62,
         "avg1": null,
         "avg7": null,
         "avg30": null,
         "avg": 128.21,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-19T02:48:38+0100"
+        "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
         {
@@ -2500,18 +2152,6 @@
           "low": 117.62,
           "trend": 117.62,
           "label": "Heute"
-        },
-        {
-          "date": "2026-11-18",
-          "low": 117.62,
-          "trend": 117.62,
-          "label": "Heute"
-        },
-        {
-          "date": "2026-11-19",
-          "low": 117.05,
-          "trend": 117.05,
-          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T18:07:39.451Z",
@@ -2539,14 +2179,14 @@
       "notes": "",
       "marketPrices": {
         "low": 170,
-        "trend": 285.45,
-        "dePrice": 255.84,
-        "avg1": 255.84,
-        "avg7": 277.34,
-        "avg30": 301.58,
-        "avg": 301.59,
+        "trend": 294.6,
+        "dePrice": 248.31,
+        "avg1": 248.31,
+        "avg7": 290.97,
+        "avg30": 307.94,
+        "avg": 280,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-19T02:48:38+0100"
+        "updatedAt": "2026-11-17T02:51:10+0100"
       },
       "priceHistory": [
         {
@@ -2583,18 +2223,6 @@
           "date": "2026-11-17",
           "low": 248.31,
           "trend": 294.6,
-          "label": "Heute"
-        },
-        {
-          "date": "2026-11-18",
-          "low": 248.31,
-          "trend": 294.6,
-          "label": "Heute"
-        },
-        {
-          "date": "2026-11-19",
-          "low": 255.84,
-          "trend": 285.45,
           "label": "Heute"
         }
       ],

@@ -935,7 +935,7 @@ async function ensureStaticCatalogLoaded() {
   if (staticCatalogItems) return staticCatalogItems;
   if (staticCatalogLoadingPromise) return staticCatalogLoadingPromise;
   staticCatalogLoadingPromise = (async () => {
-    const res = await fetch(`./data/catalog_compact.json`);
+    const res = await fetch(`./data/catalog_compact.json?t=${Date.now()}`);
     const data = await res.json();
     staticCatalogItems = data.items || [];
     return staticCatalogItems;
@@ -1154,6 +1154,7 @@ async function fetchPortfolio() {
   if (enriched) {
     saveLocalPortfolio(true);
     renderAll();
+    if (adminToken && !ownerCloudVaultSetupMissing) needsCloudPush = true;
   }
   if (needsCloudPush && adminToken && !ownerCloudVaultSetupMissing) {
     await pushOwnerCloudVaultNow();
@@ -2633,6 +2634,25 @@ function openExpenseModal(editItemId = null) {
   updateExpensePerPackHelp();
   modal.classList.remove('hidden');
   setTimeout(() => document.getElementById('expenseName').focus(), 50);
+
+  // Lazy-populate set suggestions for opened Display / TTB autocomplete
+  const dl = document.getElementById('expenseSetSuggestions');
+  if (dl && dl.options.length === 0) {
+    ensureSetsIndexLoaded().then(list => {
+      if (!Array.isArray(list) || dl.options.length > 0) return;
+      const frag = document.createDocumentFragment();
+      for (const s of list.slice(0, 60)) {
+        const label = s.de || s.en || '';
+        if (!label) continue;
+        for (const suffix of ['Display (36 Packs)', 'Top-Trainer-Box (TTB)']) {
+          const opt = document.createElement('option');
+          opt.value = `${label} ${suffix}`;
+          frag.appendChild(opt);
+        }
+      }
+      dl.appendChild(frag);
+    }).catch(() => {});
+  }
 }
 
 function closeExpenseModal() {
@@ -2777,7 +2797,11 @@ function populateSetPickerSelect(filterText = '') {
 }
 
 function normalizeCardMatchName(str) {
-  return String(str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  return String(str || '')
+    .toLowerCase()
+    .replace(/δ/g, '')
+    .replace(/\bdelta\s*species\b/g, '')
+    .replace(/[^a-z0-9]/g, '');
 }
 
 function getSetScopedCatalogSiblings(idProduct, rawCatalogName, setInfo) {
@@ -2884,6 +2908,126 @@ function getChecklistCardOwnedState(tcgdexId, card, ownedMap, portfolioMatchedKe
     return Boolean(setBucket[card.key]);
   }
   return portfolioMatchedKeys.has(card.key);
+}
+
+async function addChecklistCardToPortfolio(card, setInfo, tcgdexId) {
+  if (viewingFriend || !card) return;
+  const now = new Date();
+  const today = now.toISOString().slice(0, 10);
+
+  // Resolve matching catalog item (with live Cardmarket DE price) if available
+  let matchedRow = null;
+  try {
+    const list = await ensureStaticCatalogLoaded();
+    if (card.idProduct) {
+      matchedRow = list.find(r => Number(r[0]) === Number(card.idProduct)) || null;
+    }
+    if (!matchedRow) {
+      const targetCode = String(setInfo?.code || '').trim().toUpperCase();
+      const targetEn = String(setInfo?.en || '').trim().toLowerCase();
+      const targetDe = String(setInfo?.de || '').trim().toLowerCase();
+      const cardEnNorm = normalizeCardMatchName(card.enName || card.name);
+      const matches = list.filter(r => {
+        if (r[3] !== 'c') return false;
+        const setOk =
+          r[12] === tcgdexId ||
+          (targetCode && String(r[6] || '').toUpperCase() === targetCode) ||
+          (targetEn && String(r[5] || '').toLowerCase() === targetEn) ||
+          (targetDe && String(r[5] || '').toLowerCase() === targetDe);
+        if (!setOk) return false;
+        const clean = parseCardmarketHints(r[1]).cleanName;
+        return normalizeCardMatchName(clean) === cardEnNorm;
+      }).sort((a, b) => Number(a[0]) - Number(b[0]));
+      if (matches.length > 0) {
+        matchedRow = matches[Math.min(card.siblingIdx || 0, matches.length - 1)];
+      }
+    }
+  } catch (e) {}
+
+  const idProduct = matchedRow ? Number(matchedRow[0]) : (card.idProduct || null);
+  const rawName = matchedRow ? matchedRow[1] : (card.enName || card.name);
+  const displayNameDe = (matchedRow && matchedRow[2]) ? matchedRow[2] : (card.deName || card.name);
+  const dePrice = matchedRow ? (matchedRow[7] ?? matchedRow[9] ?? matchedRow[8] ?? null) : null;
+  const low = matchedRow ? (matchedRow[8] ?? null) : null;
+  const trend = matchedRow ? (matchedRow[9] ?? dePrice ?? null) : null;
+  const avg30 = matchedRow ? (matchedRow[10] ?? trend ?? null) : null;
+  const holoRow = matchedRow && Array.isArray(matchedRow[13]) ? matchedRow[13] : null;
+
+  if (!isStaticMode && profileMode === 'owner') {
+    await fetch('/api/portfolio', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        idProduct,
+        name: displayNameDe,
+        type: 'single',
+        variant: 'normal',
+        isHolo: false,
+        isFirstEdition: false,
+        buyPrice: null,
+        quantity: 1,
+        condition: 'NM',
+        language: card.deName ? 'DE' : 'EN',
+        buyDate: today,
+        imageUrl: idProduct ? `/api/cm-image/${idProduct}` : (card.imageHigh || card.imageLow || ''),
+        cardmarketUrl: `https://www.cardmarket.com/de/Pokemon/Products/Search?searchString=${encodeURIComponent(rawName)}&language=3`
+      })
+    });
+    await fetchPortfolio();
+  } else {
+    const eff = dePrice ?? trend ?? low ?? 0;
+    const hist = [];
+    const d30 = new Date(now.getTime() - 30 * 86400000).toISOString().slice(0, 10);
+    const d7 = new Date(now.getTime() - 7 * 86400000).toISOString().slice(0, 10);
+    if ((avg30 ?? eff) > 0) hist.push({ date: d30, low: Number((avg30 ?? eff).toFixed(2)), trend: Number((trend ?? eff).toFixed(2)), label: '30T Ø' });
+    if ((trend ?? eff) > 0) hist.push({ date: d7, low: Number((trend ?? eff).toFixed(2)), trend: Number((trend ?? eff).toFixed(2)), label: '7T Ø' });
+    if (eff > 0) hist.push({ date: today, low: Number(eff.toFixed(2)), trend: Number((trend ?? eff).toFixed(2)), label: 'Heute' });
+
+    portfolioItems.unshift({
+      id: 'mobile_' + Date.now() + '_' + Math.random().toString(36).slice(2, 5),
+      idProduct,
+      name: rawName,
+      displayNameDe,
+      type: 'single',
+      categoryName: 'Pokémon Single',
+      expansionName: setInfo?.de || setInfo?.en || '',
+      expansionCode: setInfo?.code || '',
+      tcgdexId: tcgdexId || '',
+      variant: 'normal',
+      isHolo: false,
+      isFirstEdition: false,
+      condition: 'NM',
+      language: card.deName ? 'DE' : 'EN',
+      quantity: 1,
+      buyPrice: null,
+      buyDate: today,
+      customLowPrice: null,
+      imageUrl: idProduct ? `./images/${idProduct}.jpg` : (card.imageLow || ''),
+      fallbackImageUrl: card.imageLow || '',
+      cardmarketUrl: `https://www.cardmarket.com/de/Pokemon/Products/Search?searchString=${encodeURIComponent(rawName)}&language=3`,
+      marketPrices: {
+        dePrice,
+        low,
+        trend,
+        avg30,
+        hasHoloPrices: Boolean(holoRow),
+        updatedAt: today
+      },
+      priceHistory: hist,
+      createdAt: now.toISOString()
+    });
+    saveLocalPortfolio();
+  }
+
+  // Also ensure card is marked owned in checklist
+  const ownedMap = loadChecklistOwnedMap();
+  if (!ownedMap[tcgdexId] || typeof ownedMap[tcgdexId] !== 'object') ownedMap[tcgdexId] = {};
+  ownedMap[tcgdexId][card.key] = true;
+  saveChecklistOwnedMap(ownedMap);
+  renderAll();
+
+  const priceInfo = dePrice != null ? ` (${fmtEuro(dePrice)})` : '';
+  showToast(`„${card.name}“ ins Portfolio übernommen${priceInfo}`);
 }
 
 function toggleChecklistCardOwned(tcgdexId, cardKey, card, portfolioMatchedKeys) {
@@ -3160,9 +3304,12 @@ function renderChecklistView() {
           ${card.isSecret ? '<span class="checklist-secret-badge">SIR / Hit</span>' : ''}
         </div>
         <div class="checklist-card-name" title="${escapeHtml(card.name)}">${escapeHtml(card.name)}</div>
-        <button type="button" class="checklist-toggle-btn">
-          ${card.owned ? (card.inPortfolio ? '✓ Im Portfolio' : '✓ Im Besitz') : '+ Abhaken'}
-        </button>
+        <div class="checklist-actions-row">
+          <button type="button" class="checklist-toggle-btn">
+            ${card.owned ? (card.inPortfolio ? '✓ Im Portfolio' : '✓ Im Besitz') : '+ Abhaken'}
+          </button>
+          ${(!viewingFriend && !card.inPortfolio) ? `<button type="button" class="checklist-portfolio-btn" title="Direkt ins Portfolio übernehmen">+ Portfolio</button>` : ''}
+        </div>
       </div>
     `;
 
@@ -3188,6 +3335,10 @@ function renderChecklistView() {
     el.querySelector('.checklist-toggle-btn').addEventListener('click', () => {
       toggleChecklistCardOwned(tcgdexId, card.key, card, portfolioMatchedKeys);
     });
+    const addPortBtn = el.querySelector('.checklist-portfolio-btn');
+    if (addPortBtn) {
+      addPortBtn.addEventListener('click', () => addChecklistCardToPortfolio(card, setInfo, tcgdexId));
+    }
 
     grid.appendChild(el);
   }
@@ -3491,10 +3642,49 @@ document.addEventListener('DOMContentLoaded', () => {
     showToast(wasOwner ? `Willkommen, ${profileName}! Dein Portfolio ist bereit.` : `Profilname auf „${profileName}“ aktualisiert.`);
   });
 
-  // Export Backup (for Google Drive / iCloud / GitHub)
+  // Tools Dropdown Menu (Mobile & Desktop cleanup)
+  const toolsBtn = document.getElementById('btnToggleToolsMenu');
+  const toolsDrop = document.getElementById('toolsDropdown');
+  if (toolsBtn && toolsDrop) {
+    toolsBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      const willOpen = toolsDrop.classList.contains('hidden');
+      toolsDrop.classList.toggle('hidden', !willOpen);
+      toolsBtn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+    });
+    toolsDrop.addEventListener('click', () => {
+      toolsDrop.classList.add('hidden');
+      toolsBtn.setAttribute('aria-expanded', 'false');
+    });
+    document.addEventListener('click', e => {
+      if (!toolsDrop.classList.contains('hidden') && !e.target.closest('#toolsMenuWrap')) {
+        toolsDrop.classList.add('hidden');
+        toolsBtn.setAttribute('aria-expanded', 'false');
+      }
+    });
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && !toolsDrop.classList.contains('hidden')) {
+        toolsDrop.classList.add('hidden');
+        toolsBtn.setAttribute('aria-expanded', 'false');
+      }
+    });
+  }
+
+  document.getElementById('btnHardReloadApp')?.addEventListener('click', () => {
+    window.location.href = window.location.pathname + '?v=' + Date.now();
+  });
+
+  // Export Backup (incl. Portfolio, Set-Checkliste & gelöschte IDs)
   document.getElementById('btnExportBackup').addEventListener('click', () => {
     const safeName = profileName ? `-${profileName.toLowerCase().replace(/[^a-z0-9]/g, '')}` : '';
-    const blob = new Blob([JSON.stringify({ ownerName: profileName || 'Standard', items: portfolioItems }, null, 2)], { type: 'application/json' });
+    const payload = {
+      ownerName: profileName || 'Standard',
+      exportedAt: new Date().toISOString(),
+      items: portfolioItems,
+      checklists: loadChecklistOwnedMap(),
+      deletedIds: [...getDeletedOwnerIds()]
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = `portfolio${safeName}.json`;
@@ -3510,9 +3700,19 @@ document.addEventListener('DOMContentLoaded', () => {
       const parsed = JSON.parse(text);
       if (Array.isArray(parsed.items)) {
         portfolioItems = parsed.items;
+        if (Array.isArray(parsed.deletedIds)) {
+          saveDeletedOwnerIdsSet(new Set(parsed.deletedIds));
+        }
+        if (parsed.checklists && typeof parsed.checklists === 'object') {
+          saveChecklistOwnedMap(parsed.checklists, true);
+        }
+        await enrichItemsWithCatalog(portfolioItems);
         saveLocalPortfolio();
+        if (profileMode === 'owner' && isAdminMode && !viewingFriend) {
+          pushOwnerCloudVaultNow();
+        }
         renderAll();
-        showToast(`${portfolioItems.length} Einträge erfolgreich geladen!`);
+        showToast(`${portfolioItems.length} Einträge (inkl. Checklisten) geladen!`);
       }
     } catch (err) {
       alert('Ungültige Portfolio-Datei.');
@@ -3555,7 +3755,11 @@ document.addEventListener('DOMContentLoaded', () => {
       text.textContent = 'Preise synchronisiert';
       showToast('Cardmarket-Preise aktualisiert.');
     } else {
-      window.location.href = window.location.pathname + '?v=' + Date.now();
+      staticCatalogItems = null;
+      staticCatalogLoadingPromise = null;
+      await fetchPortfolio();
+      updateStaticStatusBadge();
+      showToast('Preise & Cloud-Stand aktualisiert.');
     }
   });
 

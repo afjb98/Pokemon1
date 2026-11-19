@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <link rel="stylesheet" href="./style.css?v=24" />
+  <link rel="stylesheet" href="./style.css?v=25" />
 </head>
 <body>
   <div class="app-shell">
@@ -40,28 +40,38 @@
         <button id="btnOpenFriendsModal" class="btn btn-secondary hidden" title="Sammlungen deiner Freunde live ansehen">
           Freunde
         </button>
-        <button id="btnShareFriendLink" class="btn btn-secondary" title="Link für Freunde kopieren, damit sie ihr eigenes Portfolio starten können">
-          Freunde-Link
-        </button>
-        <button id="btnOpenProfileModal" class="btn btn-secondary" title="Eigenes Portfolio anlegen oder Namen ändern">
-          Eigenes Portfolio
-        </button>
-        <button id="btnExportBackup" class="btn btn-secondary" title="Sammlung als Datei sichern (z.B. für iCloud / Google Drive)">
-          Backup ↓
-        </button>
-        <label class="btn btn-secondary" style="cursor:pointer;" title="Gespeicherte Portfolio-Datei laden">
-          Laden ↑
-          <input type="file" id="inputImportBackup" accept=".json" style="display:none;" />
-        </label>
-        <button id="btnRefreshCatalog" class="btn btn-secondary" title="Cardmarket-Daten neu abrufen">
-          Preise aktualisieren
+        <button id="btnRefreshCatalog" class="btn btn-secondary" title="Cardmarket-Preise & Cloud-Stand aktualisieren">
+          Preise ↻
         </button>
         <button id="btnOpenExpenseModal" class="btn btn-secondary" title="Geöffnetes Display, TTB oder Booster-Ausgaben eintragen">
-          + Display/TTB geöffnet
+          + Display/TTB
         </button>
         <button id="btnOpenAddModal" class="btn btn-primary">
-          + Produkt hinzufügen
+          + Produkt
         </button>
+        <div class="tools-menu-wrap" id="toolsMenuWrap">
+          <button type="button" id="btnToggleToolsMenu" class="btn btn-secondary" aria-expanded="false" title="Weitere Aktionen">
+            ⋯ Tools
+          </button>
+          <div id="toolsDropdown" class="tools-dropdown hidden">
+            <button type="button" id="btnOpenProfileModal" class="tools-dropdown-item">
+              👤 Eigenes Portfolio / Name
+            </button>
+            <button type="button" id="btnShareFriendLink" class="tools-dropdown-item">
+              🔗 Freunde-Link kopieren
+            </button>
+            <button type="button" id="btnExportBackup" class="tools-dropdown-item">
+              💾 Backup speichern ↓
+            </button>
+            <label class="tools-dropdown-item" style="cursor:pointer;">
+              📂 Backup laden ↑
+              <input type="file" id="inputImportBackup" accept=".json" style="display:none;" />
+            </label>
+            <button type="button" id="btnHardReloadApp" class="tools-dropdown-item">
+              🔄 App-Update neu laden
+            </button>
+          </div>
+        </div>
       </div>
     </header>
 
@@ -585,7 +595,8 @@
 
         <div class="form-group" style="margin-top: 12px;">
           <label for="expenseName">Produkt / Set *</label>
-          <input type="text" id="expenseName" required placeholder="z.B. Stürmische Funken Display (36 Packs)" />
+          <input type="text" id="expenseName" list="expenseSetSuggestions" required placeholder="z.B. Stürmische Funken Display (36 Packs)" />
+          <datalist id="expenseSetSuggestions"></datalist>
         </div>
 
         <div class="form-grid" style="margin-top: 12px;">
@@ -628,6 +639,6 @@
   <!-- Toast Notification -->
   <div id="toastBanner" class="toast-banner hidden"></div>
 
-  <script src="./app.js?v=24"></script>
+  <script src="./app.js?v=25"></script>
 </body>
 </html>
