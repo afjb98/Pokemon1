@@ -2828,9 +2828,48 @@ function getSetScopedCatalogSiblings(idProduct, rawCatalogName, setInfo) {
   return ids;
 }
 
-function buildPortfolioMatchedCardKeysForSet(cards, setInfo) {
-  const matchedKeys = new Set();
-  if (!Array.isArray(cards) || cards.length === 0) return matchedKeys;
+function extractCatalogRowMarketData(row) {
+  if (!Array.isArray(row)) return { marketEur: null, marketPrices: {} };
+  const dePrice = row[7] ?? null;
+  const low = row[8] ?? null;
+  const trend = row[9] ?? null;
+  const avg30 = row[10] ?? null;
+  const unitEur = dePrice ?? trend ?? low ?? null;
+  return {
+    marketEur: unitEur != null && !Number.isNaN(Number(unitEur)) ? Number(unitEur) : null,
+    marketPrices: {
+      dePrice,
+      low,
+      trend,
+      avg30,
+      hasHoloPrices: Array.isArray(row[13])
+    }
+  };
+}
+
+function getChecklistCardDisplayPrice(card, matchedItems) {
+  if (Array.isArray(matchedItems) && matchedItems.length > 0) {
+    let best = null;
+    for (const it of matchedItems) {
+      const p = getUnitDePrice(it);
+      if (p != null && !Number.isNaN(Number(p)) && (best === null || Number(p) > best)) {
+        best = Number(p);
+      }
+    }
+    if (best !== null && best > 0) return best;
+  }
+  return card?.marketEur != null ? Number(card.marketEur) : null;
+}
+
+function buildPortfolioMatchedCardMapForSet(cards, setInfo) {
+  const matchedMap = new Map();
+  if (!Array.isArray(cards) || cards.length === 0) return matchedMap;
+
+  const addMatch = (key, item) => {
+    if (!key) return;
+    if (!matchedMap.has(key)) matchedMap.set(key, []);
+    matchedMap.get(key).push(item);
+  };
 
   const catalogById = new Map();
   if (Array.isArray(staticCatalogItems)) {
@@ -2852,7 +2891,7 @@ function buildPortfolioMatchedCardKeysForSet(cards, setInfo) {
     // 1. Direct idProduct match (for fallback catalog-built checklists)
     const directCard = item.idProduct ? cards.find(c => c.idProduct && Number(c.idProduct) === Number(item.idProduct)) : null;
     if (directCard) {
-      matchedKeys.add(directCard.key);
+      addMatch(directCard.key, item);
       continue;
     }
 
@@ -2875,7 +2914,7 @@ function buildPortfolioMatchedCardKeysForSet(cards, setInfo) {
 
     if (matchingCards.length === 0) continue;
     if (matchingCards.length === 1) {
-      matchedKeys.add(matchingCards[0].key);
+      addMatch(matchingCards[0].key, item);
       continue;
     }
 
@@ -2896,10 +2935,14 @@ function buildPortfolioMatchedCardKeysForSet(cards, setInfo) {
     }
 
     const picked = matchingCards[Math.min(Math.max(0, chosenIdx), matchingCards.length - 1)];
-    if (picked) matchedKeys.add(picked.key);
+    if (picked) addMatch(picked.key, item);
   }
 
-  return matchedKeys;
+  return matchedMap;
+}
+
+function buildPortfolioMatchedCardKeysForSet(cards, setInfo) {
+  return new Set(buildPortfolioMatchedCardMapForSet(cards, setInfo).keys());
 }
 
 function getChecklistCardOwnedState(tcgdexId, card, ownedMap, portfolioMatchedKeys) {
@@ -3153,6 +3196,7 @@ async function loadChecklistSet(tcgdexId) {
         : null;
       const matchedId = matchedRow ? Number(matchedRow[0]) : null;
       const fallbackCmImg = matchedId ? (isStaticMode ? `./images/${matchedId}.jpg` : `/api/cm-image/${matchedId}`) : '';
+      const marketData = extractCatalogRowMarketData(matchedRow);
 
       return {
         key: String(c.id || loc),
@@ -3166,7 +3210,9 @@ async function loadChecklistSet(tcgdexId) {
         imageHigh: baseImg ? `${baseImg}/high.webp` : fallbackCmImg,
         isSecret,
         idProduct: matchedId,
-        siblingIdx: occIdx
+        siblingIdx: occIdx,
+        marketEur: marketData.marketEur,
+        marketPrices: marketData.marketPrices
       };
     });
   } else {
@@ -3174,19 +3220,24 @@ async function loadChecklistSet(tcgdexId) {
     officialCount = 0;
     try {
       if (catalogSetSingles.length > 0) {
-        cards = catalogSetSingles.map(r => ({
-          key: String(r[0]),
-          id: String(r[0]),
-          localId: `#${r[0]}`,
-          enName: r[1] || '',
-          rawName: r[1] || '',
-          deName: r[2] || '',
-          name: (r[2] || r[1] || '').replace(/\[.*?\]/g, '').trim(),
-          imageLow: isStaticMode ? `./images/${r[0]}.jpg` : `/api/cm-image/${r[0]}`,
-          imageHigh: isStaticMode ? `./images/${r[0]}.jpg` : `/api/cm-image/${r[0]}`,
-          isSecret: false,
-          idProduct: r[0]
-        }));
+        cards = catalogSetSingles.map(r => {
+          const marketData = extractCatalogRowMarketData(r);
+          return {
+            key: String(r[0]),
+            id: String(r[0]),
+            localId: `#${r[0]}`,
+            enName: r[1] || '',
+            rawName: r[1] || '',
+            deName: r[2] || '',
+            name: (r[2] || r[1] || '').replace(/\[.*?\]/g, '').trim(),
+            imageLow: isStaticMode ? `./images/${r[0]}.jpg` : `/api/cm-image/${r[0]}`,
+            imageHigh: isStaticMode ? `./images/${r[0]}.jpg` : `/api/cm-image/${r[0]}`,
+            isSecret: false,
+            idProduct: r[0],
+            marketEur: marketData.marketEur,
+            marketPrices: marketData.marketPrices
+          };
+        });
       } else if (!isStaticMode) {
         const res = await fetch(`/api/search?q=${encodeURIComponent(setInfo.en || setInfo.de)}&type=single`);
         const data = await res.json();
@@ -3204,7 +3255,9 @@ async function loadChecklistSet(tcgdexId) {
             imageLow: `/api/cm-image/${p.idProduct}`,
             imageHigh: `/api/cm-image/${p.idProduct}`,
             isSecret: false,
-            idProduct: p.idProduct
+            idProduct: p.idProduct,
+            marketEur: p.marketPrices?.dePrice ?? p.marketPrices?.trend ?? p.marketPrices?.low ?? null,
+            marketPrices: p.marketPrices || {}
           }));
       }
     } catch (e) {}
@@ -3232,16 +3285,25 @@ function renderChecklistView() {
     logoWrap.textContent = setInfo.code || 'SET';
   }
 
-  const portfolioMatchedKeys = buildPortfolioMatchedCardKeysForSet(cards, setInfo);
+  const portfolioMatchMap = buildPortfolioMatchedCardMapForSet(cards, setInfo);
+  const portfolioMatchedKeys = new Set(portfolioMatchMap.keys());
 
   let ownedCount = 0;
   let secretCount = 0;
+  let ownedValueEur = 0;
+  let totalValueEur = 0;
   const enriched = cards.map(c => {
     const owned = getChecklistCardOwnedState(tcgdexId, c, ownedMap, portfolioMatchedKeys);
     const inPortfolio = portfolioMatchedKeys.has(c.key);
-    if (owned) ownedCount++;
+    const matchedItems = portfolioMatchMap.get(c.key) || [];
+    const displayEur = getChecklistCardDisplayPrice(c, matchedItems);
+    if (displayEur != null && displayEur > 0) totalValueEur += displayEur;
+    if (owned) {
+      ownedCount++;
+      if (displayEur != null && displayEur > 0) ownedValueEur += displayEur;
+    }
     if (c.isSecret) secretCount++;
-    return { ...c, owned, inPortfolio };
+    return { ...c, owned, inPortfolio, displayEur };
   });
 
   const total = enriched.length;
@@ -3258,6 +3320,10 @@ function renderChecklistView() {
   document.getElementById('checklistPctLabel').textContent = pctTxt;
   document.getElementById('checklistOwnedCount').textContent = String(ownedCount);
   document.getElementById('checklistMissingCount').textContent = String(missingCount);
+  const ownedValEl = document.getElementById('checklistOwnedValue');
+  if (ownedValEl) ownedValEl.textContent = fmtEuro(ownedValueEur);
+  const totalValEl = document.getElementById('checklistTotalValue');
+  if (totalValEl) totalValEl.textContent = fmtEuro(totalValueEur);
   document.getElementById('checklistProgressFill').style.width = `${Math.min(100, pct)}%`;
 
   document.getElementById('cCountAll').textContent = String(total);
@@ -3302,6 +3368,7 @@ function renderChecklistView() {
         <div class="checklist-card-meta-row">
           <span class="checklist-num-badge">${escapeHtml(numDisplay)}</span>
           ${card.isSecret ? '<span class="checklist-secret-badge">SIR / Hit</span>' : ''}
+          ${card.displayEur != null ? `<span class="checklist-price-badge">${fmtEuro(card.displayEur)}</span>` : ''}
         </div>
         <div class="checklist-card-name" title="${escapeHtml(card.name)}">${escapeHtml(card.name)}</div>
         <div class="checklist-actions-row">
@@ -3327,7 +3394,7 @@ function renderChecklistView() {
         language: card.deName ? 'DE' : 'EN',
         quantity: 1,
         buyPrice: null,
-        marketPrices: {},
+        marketPrices: card.marketPrices || (card.displayEur != null ? { dePrice: card.displayEur } : {}),
         imageUrl: card.imageHigh || card.imageLow
       }, el.querySelector('.checklist-card-visual img'));
     });

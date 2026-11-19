@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <link rel="stylesheet" href="./style.css?v=25" />
+  <link rel="stylesheet" href="./style.css?v=26" />
 </head>
 <body>
   <div class="app-shell">
@@ -259,6 +259,14 @@
             <div class="set-stat-box">
               <span class="set-stat-num" id="checklistMissingCount">0</span>
               <span class="set-stat-lbl">Fehlend</span>
+            </div>
+            <div class="set-stat-box">
+              <span class="set-stat-num set-stat-value-green" id="checklistOwnedValue">0,00 €</span>
+              <span class="set-stat-lbl">Kartenwert (Besitz)</span>
+            </div>
+            <div class="set-stat-box">
+              <span class="set-stat-num" id="checklistTotalValue">0,00 €</span>
+              <span class="set-stat-lbl">Set-Wert (Alle)</span>
             </div>
           </div>
         </div>
@@ -639,6 +647,6 @@
   <!-- Toast Notification -->
   <div id="toastBanner" class="toast-banner hidden"></div>
 
-  <script src="./app.js?v=25"></script>
+  <script src="./app.js?v=26"></script>
 </body>
 </html>
