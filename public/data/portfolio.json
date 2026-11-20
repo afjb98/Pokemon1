@@ -21,14 +21,14 @@
       "notes": "",
       "marketPrices": {
         "low": 0.95,
-        "trend": 3.05,
-        "dePrice": 2.63,
-        "avg1": 2.63,
-        "avg7": 3.07,
-        "avg30": 3.65,
+        "trend": 2.87,
+        "dePrice": 2.82,
+        "avg1": 2.82,
+        "avg7": 2.89,
+        "avg30": 3.52,
         "avg": 4.51,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-17T02:51:10+0100"
+        "updatedAt": "2026-11-20T02:43:56+0100"
       },
       "priceHistory": [
         {
@@ -66,6 +66,12 @@
           "low": 2.63,
           "trend": 3.05,
           "label": "Heute"
+        },
+        {
+          "date": "2026-11-20",
+          "low": 2.82,
+          "trend": 2.87,
+          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T20:03:59.514Z",
@@ -92,15 +98,15 @@
       "cardmarketUrl": "https://www.cardmarket.com/de/Pokemon/Products/Search?searchString=Tate%20%26%20Liza's%20Training&language=3",
       "notes": "",
       "marketPrices": {
-        "low": 1,
-        "trend": 0.55,
-        "dePrice": 1,
-        "avg1": 1.77,
-        "avg7": 2.25,
-        "avg30": 2.6,
+        "low": 0.9,
+        "trend": 0.34,
+        "dePrice": 0.9,
+        "avg1": 1.79,
+        "avg7": 1.9,
+        "avg30": 2.37,
         "avg": 10.99,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-17T02:51:10+0100"
+        "updatedAt": "2026-11-20T02:43:56+0100"
       },
       "priceHistory": [
         {
@@ -138,6 +144,12 @@
           "low": 1,
           "trend": 0.55,
           "label": "Heute"
+        },
+        {
+          "date": "2026-11-20",
+          "low": 0.9,
+          "trend": 0.34,
+          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T20:00:45.618Z",
@@ -165,14 +177,14 @@
       "notes": "",
       "marketPrices": {
         "low": 1.8,
-        "trend": 2.25,
+        "trend": 2.22,
         "dePrice": 1.8,
-        "avg1": 3.2,
-        "avg7": 3.16,
-        "avg30": 3.31,
+        "avg1": 2.87,
+        "avg7": 3.02,
+        "avg30": 3.19,
         "avg": 5.98,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-17T02:51:10+0100"
+        "updatedAt": "2026-11-20T02:43:56+0100"
       },
       "priceHistory": [
         {
@@ -210,6 +222,12 @@
           "low": 1.8,
           "trend": 2.25,
           "label": "Heute"
+        },
+        {
+          "date": "2026-11-20",
+          "low": 1.8,
+          "trend": 2.22,
+          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T20:00:15.524Z",
@@ -237,14 +255,14 @@
       "notes": "",
       "marketPrices": {
         "low": 0.5,
-        "trend": 0.6,
+        "trend": 0.57,
         "dePrice": 0.5,
-        "avg1": 1.27,
-        "avg7": 1.57,
-        "avg30": 1.64,
+        "avg1": 1.41,
+        "avg7": 1.5,
+        "avg30": 1.59,
         "avg": 5,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-17T02:51:10+0100"
+        "updatedAt": "2026-11-20T02:43:56+0100"
       },
       "priceHistory": [
         {
@@ -282,6 +300,12 @@
           "low": 0.5,
           "trend": 0.6,
           "label": "Heute"
+        },
+        {
+          "date": "2026-11-20",
+          "low": 0.5,
+          "trend": 0.57,
+          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T19:59:58.677Z",
@@ -308,15 +332,15 @@
       "cardmarketUrl": "https://www.cardmarket.com/de/Pokemon/Products/Search?searchString=Mega%20Golisopod%20ex%20%5BFinishing%20Blow%20%7C%20Quatro-Hold%5D&language=3",
       "notes": "",
       "marketPrices": {
-        "low": 1.79,
-        "trend": 2.15,
-        "dePrice": 1.79,
-        "avg1": 2.89,
-        "avg7": 2.81,
-        "avg30": 2.97,
+        "low": 0.9,
+        "trend": 2,
+        "dePrice": 2,
+        "avg1": 2.46,
+        "avg7": 2.75,
+        "avg30": 2.91,
         "avg": 4.99,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-17T02:51:10+0100"
+        "updatedAt": "2026-11-20T02:43:56+0100"
       },
       "priceHistory": [
         {
@@ -354,6 +378,12 @@
           "low": 1.79,
           "trend": 2.15,
           "label": "Heute"
+        },
+        {
+          "date": "2026-11-20",
+          "low": 2,
+          "trend": 2,
+          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T19:59:23.638Z",
@@ -380,15 +410,15 @@
       "cardmarketUrl": "https://www.cardmarket.com/de/Pokemon/Products/Search?searchString=Azurill%20%5BHopping%20Charge%5D&language=3",
       "notes": "",
       "marketPrices": {
-        "low": 3.5,
-        "trend": 3.73,
-        "dePrice": 3.5,
-        "avg1": 4.86,
-        "avg7": 5.29,
-        "avg30": 5.48,
+        "low": 3.4,
+        "trend": 3.68,
+        "dePrice": 3.4,
+        "avg1": 5.2,
+        "avg7": 5.2,
+        "avg30": 5.4,
         "avg": 10.5,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-17T02:51:10+0100"
+        "updatedAt": "2026-11-20T02:43:56+0100"
       },
       "priceHistory": [
         {
@@ -426,6 +456,12 @@
           "low": 3.5,
           "trend": 3.73,
           "label": "Heute"
+        },
+        {
+          "date": "2026-11-20",
+          "low": 3.4,
+          "trend": 3.68,
+          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T19:59:04.887Z",
@@ -452,15 +488,15 @@
       "cardmarketUrl": "https://www.cardmarket.com/de/Pokemon/Products/Search?searchString=Inkay%20%5BKnock%20Off%5D&language=3",
       "notes": "",
       "marketPrices": {
-        "low": 2.6,
-        "trend": 2.24,
-        "dePrice": 2.6,
-        "avg1": 3.34,
-        "avg7": 3.49,
-        "avg30": 3.6,
+        "low": 2,
+        "trend": 2.23,
+        "dePrice": 2,
+        "avg1": 3.39,
+        "avg7": 3.28,
+        "avg30": 3.49,
         "avg": 13,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-17T02:51:10+0100"
+        "updatedAt": "2026-11-20T02:43:56+0100"
       },
       "priceHistory": [
         {
@@ -498,6 +534,12 @@
           "low": 2.6,
           "trend": 2.24,
           "label": "Heute"
+        },
+        {
+          "date": "2026-11-20",
+          "low": 2,
+          "trend": 2.23,
+          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T19:58:50.594Z",
@@ -524,15 +566,15 @@
       "cardmarketUrl": "https://www.cardmarket.com/de/Pokemon/Products/Search?searchString=Enamorus%20%5BIncarnate%20Union%20%7C%20Rising%20Heart%5D&language=3",
       "notes": "",
       "marketPrices": {
-        "low": 1.65,
-        "trend": 1.88,
-        "dePrice": 1.65,
-        "avg1": 2.55,
-        "avg7": 3.02,
-        "avg30": 3.33,
+        "low": 1.2,
+        "trend": 1.56,
+        "dePrice": 1.56,
+        "avg1": 2.29,
+        "avg7": 2.61,
+        "avg30": 3.09,
         "avg": 6.99,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-17T02:51:10+0100"
+        "updatedAt": "2026-11-20T02:43:56+0100"
       },
       "priceHistory": [
         {
@@ -570,6 +612,12 @@
           "low": 1.65,
           "trend": 1.88,
           "label": "Heute"
+        },
+        {
+          "date": "2026-11-20",
+          "low": 1.56,
+          "trend": 1.56,
+          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T19:58:32.419Z",
@@ -597,14 +645,14 @@
       "notes": "",
       "marketPrices": {
         "low": 1.11,
-        "trend": 1.7,
-        "dePrice": 1.7,
-        "avg1": 2.32,
-        "avg7": 2.36,
-        "avg30": 2.58,
+        "trend": 1.62,
+        "dePrice": 1.62,
+        "avg1": 2.09,
+        "avg7": 2.24,
+        "avg30": 2.46,
         "avg": 3.65,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-17T02:51:10+0100"
+        "updatedAt": "2026-11-20T02:43:56+0100"
       },
       "priceHistory": [
         {
@@ -642,6 +690,12 @@
           "low": 1.7,
           "trend": 1.7,
           "label": "Heute"
+        },
+        {
+          "date": "2026-11-20",
+          "low": 1.62,
+          "trend": 1.62,
+          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T19:58:13.848Z",
@@ -669,14 +723,14 @@
       "notes": "",
       "marketPrices": {
         "low": 1.95,
-        "trend": 2.34,
+        "trend": 2.13,
         "dePrice": 1.95,
-        "avg1": 3.33,
-        "avg7": 3.56,
-        "avg30": 3.89,
+        "avg1": 3.27,
+        "avg7": 3.33,
+        "avg30": 3.75,
         "avg": 8,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-17T02:51:10+0100"
+        "updatedAt": "2026-11-20T02:43:56+0100"
       },
       "priceHistory": [
         {
@@ -714,6 +768,12 @@
           "low": 1.95,
           "trend": 2.34,
           "label": "Heute"
+        },
+        {
+          "date": "2026-11-20",
+          "low": 1.95,
+          "trend": 2.13,
+          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T19:58:01.279Z",
@@ -740,15 +800,15 @@
       "cardmarketUrl": "https://www.cardmarket.com/de/Pokemon/Products/Search?searchString=Masquerain%20%5BFrightening%20Pattern%20%7C%20Bug%20Out%5D&language=3",
       "notes": "",
       "marketPrices": {
-        "low": 1.1,
-        "trend": 1.17,
-        "dePrice": 1.1,
-        "avg1": 1.83,
-        "avg7": 2.13,
-        "avg30": 2.31,
+        "low": 0.8,
+        "trend": 1.04,
+        "dePrice": 1.04,
+        "avg1": 1.73,
+        "avg7": 1.84,
+        "avg30": 2.15,
         "avg": 4.99,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-17T02:51:10+0100"
+        "updatedAt": "2026-11-20T02:43:56+0100"
       },
       "priceHistory": [
         {
@@ -786,6 +846,12 @@
           "low": 1.1,
           "trend": 1.17,
           "label": "Heute"
+        },
+        {
+          "date": "2026-11-20",
+          "low": 1.04,
+          "trend": 1.04,
+          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T19:57:47.288Z",
@@ -813,14 +879,14 @@
       "notes": "",
       "marketPrices": {
         "low": 0.02,
-        "trend": 0.23,
-        "dePrice": 0.23,
-        "avg1": 0.43,
-        "avg7": 0.5,
-        "avg30": 0.59,
-        "avg": 2.99,
+        "trend": 0.19,
+        "dePrice": 0.19,
+        "avg1": 0.49,
+        "avg7": 0.45,
+        "avg30": 0.55,
+        "avg": 0.55,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-17T02:51:10+0100"
+        "updatedAt": "2026-11-20T02:43:56+0100"
       },
       "priceHistory": [
         {
@@ -858,6 +924,12 @@
           "low": 0.23,
           "trend": 0.23,
           "label": "Heute"
+        },
+        {
+          "date": "2026-11-20",
+          "low": 0.19,
+          "trend": 0.19,
+          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T19:57:24.441Z",
@@ -883,15 +955,15 @@
       "cardmarketUrl": "https://www.cardmarket.com/de/Pokemon/Products/Search?searchString=Morpeko%20ex%20%5BWheely%20Draw%20%7C%20Hangry%20Blaster%5D&language=3",
       "notes": "",
       "marketPrices": {
-        "low": 1.2,
-        "trend": 3.07,
-        "dePrice": 2.66,
-        "avg1": 2.66,
-        "avg7": 3.18,
-        "avg30": 3.29,
+        "low": 1.3,
+        "trend": 3.01,
+        "dePrice": 2.99,
+        "avg1": 3,
+        "avg7": 2.99,
+        "avg30": 3.24,
         "avg": 3.45,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-17T02:51:10+0100"
+        "updatedAt": "2026-11-20T02:43:56+0100"
       },
       "priceHistory": [
         {
@@ -929,6 +1001,12 @@
           "low": 2.66,
           "trend": 3.07,
           "label": "Heute"
+        },
+        {
+          "date": "2026-11-20",
+          "low": 2.99,
+          "trend": 3.01,
+          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T18:34:07.460Z",
@@ -955,15 +1033,15 @@
       "cardmarketUrl": "https://www.cardmarket.com/de/Pokemon/Products/Search?searchString=Jirachi%20ex%20%5BWish%20Granter%20%7C%20Swift%5D&language=3",
       "notes": "",
       "marketPrices": {
-        "low": 24,
-        "trend": 30.12,
-        "dePrice": 24,
-        "avg1": 28.91,
-        "avg7": 29.3,
-        "avg30": 31.59,
-        "avg": 40.33,
+        "low": 24.49,
+        "trend": 30.46,
+        "dePrice": 24.49,
+        "avg1": 35.29,
+        "avg7": 29.96,
+        "avg30": 31.2,
+        "avg": 31.73,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-17T02:51:10+0100"
+        "updatedAt": "2026-11-20T02:43:56+0100"
       },
       "priceHistory": [
         {
@@ -1001,6 +1079,12 @@
           "low": 24,
           "trend": 30.12,
           "label": "Heute"
+        },
+        {
+          "date": "2026-11-20",
+          "low": 24.49,
+          "trend": 30.46,
+          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T18:33:52.492Z",
@@ -1027,15 +1111,15 @@
       "cardmarketUrl": "https://www.cardmarket.com/de/Pokemon/Products/Search?searchString=Zinnia's%20Trust&language=3",
       "notes": "",
       "marketPrices": {
-        "low": 2.5,
-        "trend": 2.37,
-        "dePrice": 2.5,
-        "avg1": 3.78,
-        "avg7": 3.93,
-        "avg30": 4.14,
+        "low": 1,
+        "trend": 2.27,
+        "dePrice": 2.27,
+        "avg1": 3.72,
+        "avg7": 3.59,
+        "avg30": 3.95,
         "avg": 9.98,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-17T02:51:10+0100"
+        "updatedAt": "2026-11-20T02:43:56+0100"
       },
       "priceHistory": [
         {
@@ -1073,6 +1157,12 @@
           "low": 2.5,
           "trend": 2.37,
           "label": "Heute"
+        },
+        {
+          "date": "2026-11-20",
+          "low": 2.27,
+          "trend": 2.27,
+          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T18:33:18.180Z",
@@ -1099,15 +1189,15 @@
       "cardmarketUrl": "https://www.cardmarket.com/de/Pokemon/Products/Search?searchString=Mega%20Golisopod%20ex%20%5BFinishing%20Blow%20%7C%20Quatro-Hold%5D&language=3",
       "notes": "",
       "marketPrices": {
-        "low": 15,
-        "trend": 18.49,
-        "dePrice": 15,
-        "avg1": 18.32,
-        "avg7": 18.76,
-        "avg30": 19.31,
+        "low": 14.5,
+        "trend": 17.47,
+        "dePrice": 14.5,
+        "avg1": 17.32,
+        "avg7": 17.55,
+        "avg30": 18.61,
         "avg": 21,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-17T02:51:10+0100"
+        "updatedAt": "2026-11-20T02:43:56+0100"
       },
       "priceHistory": [
         {
@@ -1145,6 +1235,12 @@
           "low": 15,
           "trend": 18.49,
           "label": "Heute"
+        },
+        {
+          "date": "2026-11-20",
+          "low": 14.5,
+          "trend": 17.47,
+          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T18:32:31.140Z",
@@ -1170,15 +1266,15 @@
       "cardmarketUrl": "https://www.cardmarket.com/de/Pokemon/Products/Search?searchString=Greninja%20ex%20%5BStealthy%20Slash%20%7C%20Aqua%20Edge%5D",
       "notes": "",
       "marketPrices": {
-        "low": 11,
-        "trend": 15.52,
-        "dePrice": 15.52,
-        "avg1": 15.55,
-        "avg7": 15.8,
-        "avg30": 17,
+        "low": 9.9,
+        "trend": 15.3,
+        "dePrice": 15.04,
+        "avg1": 15.04,
+        "avg7": 15.45,
+        "avg30": 16.68,
         "avg": 19.83,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-17T02:51:10+0100"
+        "updatedAt": "2026-11-20T02:43:56+0100"
       },
       "priceHistory": [
         {
@@ -1216,6 +1312,12 @@
           "low": 15.52,
           "trend": 15.52,
           "label": "Heute"
+        },
+        {
+          "date": "2026-11-20",
+          "low": 15.04,
+          "trend": 15.3,
+          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T18:14:33.945Z",
@@ -1242,15 +1344,15 @@
       "cardmarketUrl": "https://www.cardmarket.com/de/Pokemon/Products/Search?searchString=Groudon%20%5BStrength%20%7C%20Thrashing%20Earth%5D",
       "notes": "",
       "marketPrices": {
-        "low": 12.5,
-        "trend": 16.93,
-        "dePrice": 15.86,
-        "avg1": 15.86,
-        "avg7": 17.51,
-        "avg30": 18.2,
-        "avg": 24.99,
+        "low": 10,
+        "trend": 16.86,
+        "dePrice": 16.86,
+        "avg1": 18.08,
+        "avg7": 17.53,
+        "avg30": 18.09,
+        "avg": 18.06,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-17T02:51:10+0100"
+        "updatedAt": "2026-11-20T02:43:56+0100"
       },
       "priceHistory": [
         {
@@ -1288,6 +1390,12 @@
           "low": 15.86,
           "trend": 16.93,
           "label": "Heute"
+        },
+        {
+          "date": "2026-11-20",
+          "low": 16.86,
+          "trend": 16.86,
+          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T18:14:07.384Z",
@@ -1314,15 +1422,15 @@
       "cardmarketUrl": "https://www.cardmarket.com/de/Pokemon/Products/Search?searchString=30th%20Celebration%3A%20Mew%20Figure%20Collection",
       "notes": "",
       "marketPrices": {
-        "low": 45,
-        "trend": 56.59,
-        "dePrice": 56.59,
+        "low": 9.99,
+        "trend": 51.8,
+        "dePrice": 51.8,
         "avg1": null,
         "avg7": null,
         "avg30": null,
         "avg": 102.66,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-17T02:51:10+0100"
+        "updatedAt": "2026-11-20T02:43:56+0100"
       },
       "priceHistory": [
         {
@@ -1360,6 +1468,12 @@
           "low": 56.59,
           "trend": 56.59,
           "label": "Heute"
+        },
+        {
+          "date": "2026-11-20",
+          "low": 51.8,
+          "trend": 51.8,
+          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T18:13:18.488Z",
@@ -1386,15 +1500,15 @@
       "cardmarketUrl": "https://www.cardmarket.com/de/Pokemon/Products/Search?searchString=30th%20Celebration%20Booster%20Bundle",
       "notes": "",
       "marketPrices": {
-        "low": 46.44,
-        "trend": 64.44,
-        "dePrice": 64.44,
+        "low": 44.99,
+        "trend": 63.87,
+        "dePrice": 63.87,
         "avg1": null,
         "avg7": null,
         "avg30": null,
         "avg": 67.82,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-17T02:51:10+0100"
+        "updatedAt": "2026-11-20T02:43:56+0100"
       },
       "priceHistory": [
         {
@@ -1432,6 +1546,12 @@
           "low": 64.44,
           "trend": 64.44,
           "label": "Heute"
+        },
+        {
+          "date": "2026-11-20",
+          "low": 63.87,
+          "trend": 63.87,
+          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T18:13:06.695Z",
@@ -1459,14 +1579,14 @@
       "notes": "",
       "marketPrices": {
         "low": 30,
-        "trend": 40.56,
-        "dePrice": 40.56,
+        "trend": 38.9,
+        "dePrice": 38.9,
         "avg1": null,
         "avg7": null,
         "avg30": null,
         "avg": 47.33,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-17T02:51:10+0100"
+        "updatedAt": "2026-11-20T02:43:56+0100"
       },
       "priceHistory": [
         {
@@ -1504,6 +1624,12 @@
           "low": 40.56,
           "trend": 40.56,
           "label": "Heute"
+        },
+        {
+          "date": "2026-11-20",
+          "low": 38.9,
+          "trend": 38.9,
+          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T18:12:50.380Z",
@@ -1530,15 +1656,15 @@
       "cardmarketUrl": "https://www.cardmarket.com/de/Pokemon/Products/Search?searchString=Sylveon%20ex%20%5BColorful%20Harmony%5D",
       "notes": "",
       "marketPrices": {
-        "low": 22.99,
-        "trend": 31.48,
-        "dePrice": 30.18,
-        "avg1": 30.23,
-        "avg7": 30.18,
-        "avg30": 31.6,
+        "low": 20,
+        "trend": 30.21,
+        "dePrice": 29.4,
+        "avg1": 29.51,
+        "avg7": 29.4,
+        "avg30": 31.45,
         "avg": 38.68,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-17T02:51:10+0100"
+        "updatedAt": "2026-11-20T02:43:56+0100"
       },
       "priceHistory": [
         {
@@ -1576,6 +1702,12 @@
           "low": 30.18,
           "trend": 31.48,
           "label": "Heute"
+        },
+        {
+          "date": "2026-11-20",
+          "low": 29.4,
+          "trend": 30.21,
+          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T18:10:59.172Z",
@@ -1603,14 +1735,14 @@
       "notes": "",
       "marketPrices": {
         "low": 119.99,
-        "trend": 163.09,
-        "dePrice": 146.7,
-        "avg1": 146.7,
-        "avg7": 163.79,
-        "avg30": 159.01,
+        "trend": 165.01,
+        "dePrice": 165.01,
+        "avg1": 167.23,
+        "avg7": 166.33,
+        "avg30": 160.07,
         "avg": 168.39,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-17T02:51:10+0100"
+        "updatedAt": "2026-11-20T02:43:56+0100"
       },
       "priceHistory": [
         {
@@ -1648,6 +1780,12 @@
           "low": 146.7,
           "trend": 163.09,
           "label": "Heute"
+        },
+        {
+          "date": "2026-11-20",
+          "low": 165.01,
+          "trend": 165.01,
+          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T18:10:41.867Z",
@@ -1674,15 +1812,15 @@
       "cardmarketUrl": "https://www.cardmarket.com/de/Pokemon/Products/Search?searchString=Delta%20Reign%20Elite%20Trainer%20Box",
       "notes": "",
       "marketPrices": {
-        "low": 53,
-        "trend": 68.44,
-        "dePrice": 68.44,
+        "low": 51,
+        "trend": 66.62,
+        "dePrice": 66.62,
         "avg1": null,
         "avg7": null,
         "avg30": null,
         "avg": 95.37,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-17T02:51:10+0100"
+        "updatedAt": "2026-11-20T02:43:56+0100"
       },
       "priceHistory": [
         {
@@ -1720,6 +1858,12 @@
           "low": 68.44,
           "trend": 68.44,
           "label": "Heute"
+        },
+        {
+          "date": "2026-11-20",
+          "low": 66.62,
+          "trend": 66.62,
+          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T18:10:02.520Z",
@@ -1746,15 +1890,15 @@
       "cardmarketUrl": "https://www.cardmarket.com/de/Pokemon/Products/Search?searchString=Delta%20Reign%20Pok%C3%A9mon%20Center%20Elite%20Trainer%20Box",
       "notes": "",
       "marketPrices": {
-        "low": 93,
-        "trend": 101.1,
-        "dePrice": 101.1,
+        "low": 85,
+        "trend": 103.83,
+        "dePrice": 103.83,
         "avg1": null,
         "avg7": null,
         "avg30": null,
         "avg": 129.1,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-17T02:51:10+0100"
+        "updatedAt": "2026-11-20T02:43:56+0100"
       },
       "priceHistory": [
         {
@@ -1792,6 +1936,12 @@
           "low": 101.1,
           "trend": 101.1,
           "label": "Heute"
+        },
+        {
+          "date": "2026-11-20",
+          "low": 103.83,
+          "trend": 103.83,
+          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T18:09:52.652Z",
@@ -1819,14 +1969,14 @@
       "notes": "",
       "marketPrices": {
         "low": 40,
-        "trend": 62.95,
-        "dePrice": 62.95,
+        "trend": 62.47,
+        "dePrice": 62.47,
         "avg1": null,
         "avg7": null,
         "avg30": null,
         "avg": 61.95,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-17T02:51:10+0100"
+        "updatedAt": "2026-11-20T02:43:56+0100"
       },
       "priceHistory": [
         {
@@ -1864,6 +2014,12 @@
           "low": 62.95,
           "trend": 62.95,
           "label": "Heute"
+        },
+        {
+          "date": "2026-11-20",
+          "low": 62.47,
+          "trend": 62.47,
+          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T18:09:32.383Z",
@@ -1891,14 +2047,14 @@
       "notes": "",
       "marketPrices": {
         "low": 84,
-        "trend": 133.86,
-        "dePrice": 133.86,
+        "trend": 126.06,
+        "dePrice": 126.06,
         "avg1": null,
         "avg7": null,
         "avg30": null,
         "avg": 97.76,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-17T02:51:10+0100"
+        "updatedAt": "2026-11-20T02:43:56+0100"
       },
       "priceHistory": [
         {
@@ -1936,6 +2092,12 @@
           "low": 133.86,
           "trend": 133.86,
           "label": "Heute"
+        },
+        {
+          "date": "2026-11-20",
+          "low": 126.06,
+          "trend": 126.06,
+          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T18:08:57.040Z",
@@ -1963,14 +2125,14 @@
       "notes": "",
       "marketPrices": {
         "low": 45,
-        "trend": 72.47,
-        "dePrice": 72.47,
+        "trend": 70.65,
+        "dePrice": 70.65,
         "avg1": null,
         "avg7": null,
         "avg30": null,
-        "avg": 68.13,
+        "avg": 71.22,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-17T02:51:10+0100"
+        "updatedAt": "2026-11-20T02:43:56+0100"
       },
       "priceHistory": [
         {
@@ -2008,6 +2170,12 @@
           "low": 72.47,
           "trend": 72.47,
           "label": "Heute"
+        },
+        {
+          "date": "2026-11-20",
+          "low": 70.65,
+          "trend": 70.65,
+          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T18:08:25.015Z",
@@ -2035,14 +2203,14 @@
       "notes": "",
       "marketPrices": {
         "low": 44.9,
-        "trend": 66.59,
-        "dePrice": 66.59,
+        "trend": 66.05,
+        "dePrice": 66.05,
         "avg1": null,
         "avg7": null,
         "avg30": null,
         "avg": 68.41,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-17T02:51:10+0100"
+        "updatedAt": "2026-11-20T02:43:56+0100"
       },
       "priceHistory": [
         {
@@ -2080,6 +2248,12 @@
           "low": 66.59,
           "trend": 66.59,
           "label": "Heute"
+        },
+        {
+          "date": "2026-11-20",
+          "low": 66.05,
+          "trend": 66.05,
+          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T18:07:57.705Z",
@@ -2107,14 +2281,14 @@
       "notes": "",
       "marketPrices": {
         "low": 90,
-        "trend": 117.62,
-        "dePrice": 117.62,
+        "trend": 115.71,
+        "dePrice": 115.71,
         "avg1": null,
         "avg7": null,
         "avg30": null,
         "avg": 128.21,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-17T02:51:10+0100"
+        "updatedAt": "2026-11-20T02:43:56+0100"
       },
       "priceHistory": [
         {
@@ -2152,6 +2326,12 @@
           "low": 117.62,
           "trend": 117.62,
           "label": "Heute"
+        },
+        {
+          "date": "2026-11-20",
+          "low": 115.71,
+          "trend": 115.71,
+          "label": "Heute"
         }
       ],
       "createdAt": "2026-11-16T18:07:39.451Z",
@@ -2178,15 +2358,15 @@
       "cardmarketUrl": "https://www.cardmarket.com/de/Pokemon/Products/Search?searchString=Mega%20Rayquaza%20ex%20%5BRoar%20of%20the%20Ruler%20%7C%20Storm%20Emeralda%5D",
       "notes": "",
       "marketPrices": {
-        "low": 170,
-        "trend": 294.6,
-        "dePrice": 248.31,
-        "avg1": 248.31,
-        "avg7": 290.97,
-        "avg30": 307.94,
-        "avg": 280,
+        "low": 180,
+        "trend": 280.05,
+        "dePrice": 272.3,
+        "avg1": 272.3,
+        "avg7": 277.17,
+        "avg30": 298.85,
+        "avg": 301.59,
         "hasHoloPrices": false,
-        "updatedAt": "2026-11-17T02:51:10+0100"
+        "updatedAt": "2026-11-20T02:43:56+0100"
       },
       "priceHistory": [
         {
@@ -2223,6 +2403,12 @@
           "date": "2026-11-17",
           "low": 248.31,
           "trend": 294.6,
+          "label": "Heute"
+        },
+        {
+          "date": "2026-11-20",
+          "low": 272.3,
+          "trend": 280.05,
           "label": "Heute"
         }
       ],
