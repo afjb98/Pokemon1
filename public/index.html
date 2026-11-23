@@ -20,7 +20,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <link rel="stylesheet" href="./style.css?v=40" />
+  <link rel="stylesheet" href="./style.css?v=41" />
 </head>
 <body>
   <div class="app-shell">
@@ -669,23 +669,34 @@
       </div>
       <div class="modal-body scanner-layout">
         <div class="scanner-left">
-          <div class="scanner-stage">
+          <div class="scanner-stage" id="scannerStage">
             <video id="scannerVideo" autoplay playsinline muted></video>
             <canvas id="scannerPreviewCanvas" class="hidden"></canvas>
             <div class="scanner-overlay">
               <div class="scanner-frame-guide" id="scannerFrameGuide">
-                <span class="scanner-zone-hint top">Kartenname</span>
-                <span class="scanner-zone-hint bottom">Nr. (z.B. 199/165)</span>
+                <span class="scanner-zone-hint top">Kartenname (tippen = Fokus)</span>
+                <span class="scanner-zone-hint bottom">Nr. (z.B. DLR 108/103)</span>
               </div>
             </div>
+            <div id="scannerFocusRing" class="scanner-focus-ring hidden"></div>
             <div id="scannerStatusPill" class="scanner-status-pill">Kamera startet...</div>
+          </div>
+
+          <div class="scanner-focus-bar">
+            <div id="scannerZoomGroup" class="scanner-zoom-group hidden">
+              <button type="button" class="btn btn-sm btn-secondary scanner-zoom-btn active" data-zoom="1">1×</button>
+              <button type="button" class="btn btn-sm btn-secondary scanner-zoom-btn" data-zoom="1.5">1.5×</button>
+              <button type="button" class="btn btn-sm btn-secondary scanner-zoom-btn" data-zoom="2">2×</button>
+            </div>
+            <button type="button" id="btnScannerRefocus" class="btn btn-sm btn-secondary hidden" title="Neu fokussieren">🎯 Fokus</button>
+            <button type="button" id="btnScannerTorch" class="btn btn-sm btn-secondary hidden" title="Licht ein/aus">🔦 Licht</button>
           </div>
 
           <div class="scanner-controls">
             <button type="button" id="btnCaptureScan" class="btn btn-primary">📸 Karte scannen</button>
             <button type="button" id="btnToggleAutoScan" class="btn btn-secondary scanner-auto-btn active" title="Automatisch auslösen, sobald eine Karte ruhig &amp; scharf im Rahmen liegt">⚡ Auto: AN</button>
             <button type="button" id="btnResumeCamera" class="btn btn-secondary hidden">🔄 Nächste Karte</button>
-            <button type="button" id="btnSwitchCamera" class="btn btn-secondary hidden" title="Kamera wechseln">↺ Kamera</button>
+            <button type="button" id="btnSwitchCamera" class="btn btn-secondary hidden" title="Kamera / Linse wechseln">↺ Linse</button>
             <label class="btn btn-secondary" style="cursor:pointer;" title="Foto aus Galerie / Datei wählen">
               🖼️ Foto
               <input type="file" id="scannerFileInput" accept="image/*" capture="environment" style="display:none;" />
@@ -735,6 +746,6 @@
   <!-- Toast Notification -->
   <div id="toastBanner" class="toast-banner hidden"></div>
 
-  <script src="./app.js?v=40"></script>
+  <script src="./app.js?v=41"></script>
 </body>
 </html>

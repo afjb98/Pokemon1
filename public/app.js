@@ -4505,7 +4505,8 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       const meanGrad = gradSum / Math.max(1, innerCount);
       const edgeRatio = sharpEdges / Math.max(1, innerCount);
-      const isCardSharp = meanGrad >= 9.5 && edgeRatio >= 0.14;
+      const sharpPct = Math.min(100, Math.round((edgeRatio / 0.24) * 100));
+      const isCardSharp = meanGrad >= 11.0 && edgeRatio >= 0.16;
 
       let motionDiff = 99;
       if (autoScanPrevSample) {
@@ -4517,27 +4518,101 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       autoScanPrevSample = curr;
 
-      if (!isCardSharp || motionDiff > 7.0) {
+      if (!isCardSharp || motionDiff > 5.5) {
         autoScanSteadyCount = 0;
         setScannerGuideState('idle');
-        setScannerStatus(isCardSharp ? 'Kurz ruhig halten...' : 'Karte in den Rahmen halten');
+        if (motionDiff > 5.5 && isCardSharp) {
+          setScannerStatus(`Fokus ${sharpPct}% – kurz stillhalten...`);
+        } else {
+          setScannerStatus(`Fokus ${sharpPct}% – auf Karte tippen / weiter weg`);
+        }
         return;
       }
 
       autoScanSteadyCount++;
-      if (autoScanSteadyCount < 2) {
+      if (autoScanSteadyCount < 3) {
         setScannerGuideState('locking');
-        setScannerStatus('Karte erkannt – ruhig halten...');
+        setScannerStatus(`Fokus ${sharpPct}% – Autofokus rastet ein...`);
       } else {
         setScannerGuideState('locked');
-        setScannerStatus('✓ Scharf – wird gescannt!');
+        setScannerStatus(`✓ Scharf (${sharpPct}%) – wird gescannt!`);
         captureAndScanVideo();
       }
-    }, 220);
+    }, 280);
+  }
+
+  let scannerVideoDevices = [];
+  let scannerDeviceIdx = -1;
+  let scannerTorchOn = false;
+  let scannerZoomValue = 1;
+
+  function showFocusRingAt(px, py) {
+    const ring = document.getElementById('scannerFocusRing');
+    if (!ring) return;
+    ring.style.left = `${Math.round(px)}px`;
+    ring.style.top = `${Math.round(py)}px`;
+    ring.classList.remove('hidden');
+    // Restart animation cleanly
+    ring.style.animation = 'none';
+    void ring.offsetWidth;
+    ring.style.animation = '';
+    clearTimeout(showFocusRingAt._t);
+    showFocusRingAt._t = setTimeout(() => ring.classList.add('hidden'), 1100);
+  }
+
+  async function triggerCameraFocusAt(normX = 0.5, normY = 0.5) {
+    const vTrack = scannerStream?.getVideoTracks?.()[0];
+    if (!vTrack || !vTrack.applyConstraints) return;
+    autoScanSteadyCount = 0;
+    autoScanPrevSample = null;
+    setScannerStatus('🎯 Fokussiere...');
+    try {
+      await vTrack.applyConstraints({
+        advanced: [{ pointsOfInterest: [{ x: normX, y: normY }], focusMode: 'single-shot' }]
+      });
+      setTimeout(() => {
+        vTrack.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
+      }, 1400);
+    } catch (e) {
+      try {
+        await vTrack.applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
+      } catch (e2) {}
+    }
+  }
+
+  function setupScannerTrackControls(vTrack) {
+    const zoomGroup = document.getElementById('scannerZoomGroup');
+    const refocusBtn = document.getElementById('btnScannerRefocus');
+    const torchBtn = document.getElementById('btnScannerTorch');
+    scannerTorchOn = false;
+    scannerZoomValue = 1;
+    torchBtn?.classList.remove('active');
+
+    refocusBtn?.classList.remove('hidden');
+
+    const caps = (vTrack && typeof vTrack.getCapabilities === 'function') ? vTrack.getCapabilities() : {};
+    if (zoomGroup) {
+      if (caps.zoom && Number(caps.zoom.max) > 1.1) {
+        zoomGroup.classList.remove('hidden');
+        zoomGroup.querySelectorAll('.scanner-zoom-btn').forEach(b => {
+          const z = Number(b.dataset.zoom || 1);
+          const disabled = z > Number(caps.zoom.max) + 0.05;
+          b.disabled = disabled;
+          b.classList.toggle('active', z === 1);
+        });
+      } else {
+        zoomGroup.classList.add('hidden');
+      }
+    }
+    if (torchBtn) {
+      torchBtn.classList.toggle('hidden', !caps.torch);
+    }
   }
 
   function stopScannerStream() {
     stopAutoScanLoop();
+    scannerTorchOn = false;
+    document.getElementById('btnScannerTorch')?.classList.remove('active');
     if (scannerStream) {
       for (const track of scannerStream.getTracks()) {
         try { track.stop(); } catch (e) {}
@@ -4548,7 +4623,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (video) video.srcObject = null;
   }
 
-  async function startScannerCamera() {
+  async function startScannerCamera(preferredDeviceId = null) {
     const video = document.getElementById('scannerVideo');
     const canvas = document.getElementById('scannerPreviewCanvas');
     const resumeBtn = document.getElementById('btnResumeCamera');
@@ -4570,27 +4645,41 @@ document.addEventListener('DOMContentLoaded', () => {
 
     setScannerStatus('Kamera startet...');
     try {
+      const videoConstraints = preferredDeviceId
+        ? {
+            deviceId: { exact: preferredDeviceId },
+            width: { ideal: 2560, min: 1280 },
+            height: { ideal: 2560, min: 720 }
+          }
+        : {
+            facingMode: { ideal: scannerFacingMode },
+            width: { ideal: 2560, min: 1280 },
+            height: { ideal: 2560, min: 720 }
+          };
+
       scannerStream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: scannerFacingMode },
-          width: { ideal: 2560, min: 1280 },
-          height: { ideal: 2560, min: 720 }
-        },
+        video: videoConstraints,
         audio: false
       });
       const vTrack = scannerStream.getVideoTracks?.()[0];
       if (vTrack && vTrack.applyConstraints) {
         vTrack.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
       }
+      setupScannerTrackControls(vTrack);
       video.srcObject = scannerStream;
       await video.play().catch(() => {});
-      setScannerStatus(autoScanEnabled ? 'Karte in den Rahmen halten' : 'Karte in Rahmen halten & scannen');
+      setScannerStatus(autoScanEnabled ? 'Karte in den Rahmen halten' : 'Auf Karte tippen (Fokus) & scannen');
       startAutoScanLoop();
 
       try {
         const devs = await navigator.mediaDevices.enumerateDevices();
-        const cams = devs.filter(d => d.kind === 'videoinput');
-        if (switchBtn) switchBtn.classList.toggle('hidden', cams.length < 2);
+        scannerVideoDevices = devs.filter(d => d.kind === 'videoinput');
+        const activeId = vTrack?.getSettings?.()?.deviceId;
+        if (activeId) {
+          const idx = scannerVideoDevices.findIndex(d => d.deviceId === activeId);
+          if (idx >= 0) scannerDeviceIdx = idx;
+        }
+        if (switchBtn) switchBtn.classList.toggle('hidden', scannerVideoDevices.length < 2);
       } catch (e) {}
     } catch (err) {
       setScannerStatus('Kamera abgelehnt – nutze 🖼️ Foto');
@@ -5315,29 +5404,49 @@ document.addEventListener('DOMContentLoaded', () => {
         setScannerStatus('Lese Set-Code, Nr. & Namen...');
         if (debugEl) debugEl.textContent = 'High-Res OCR liest Set-Kürzel, Nummer & Kartenname...';
         const worker = await getScannerOcrWorker();
+        const T = window.Tesseract;
 
         const w = cardCanvas.width;
         const h = cardCanvas.height;
-        // Dedicated zoomed high-DPI crops: top card name + bottom-left ("DLR 078/103") without flavor text noise
-        const topCrop = enhanceContrastGrayCanvas(cardCanvas, w * 0.05, h * 0.04, w * 0.80, h * 0.115, 1100, true);
-        const botLeftCrop = enhanceContrastGrayCanvas(cardCanvas, w * 0.02, h * 0.86, w * 0.46, h * 0.115, 1100, true);
+        // Clean high-DPI grayscale crops WITHOUT Laplacian ringing noise
+        const topCrop = enhanceContrastGrayCanvas(cardCanvas, w * 0.05, h * 0.035, w * 0.80, h * 0.115, 1100, false);
+        const botLeftCrop = enhanceContrastGrayCanvas(cardCanvas, w * 0.02, h * 0.86, w * 0.46, h * 0.115, 1100, false);
 
-        const [topRes, botLeftRes, idxSets] = await Promise.all([
-          worker.recognize(topCrop),
-          worker.recognize(botLeftCrop),
-          ensureSetsIndexLoaded().catch(() => [])
-        ]);
+        try {
+          await worker.setParameters({
+            tessedit_pageseg_mode: T?.PSM?.SINGLE_BLOCK || '6',
+            tessedit_char_whitelist: ''
+          });
+        } catch (e) {}
+        const topRes = await worker.recognize(topCrop);
+
+        try {
+          await worker.setParameters({
+            tessedit_pageseg_mode: T?.PSM?.SINGLE_LINE || '7',
+            tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/ -'
+          });
+        } catch (e) {}
+        const botLeftRes = await worker.recognize(botLeftCrop);
+
+        const idxSets = await ensureSetsIndexLoaded().catch(() => []);
         const knownCodes = new Set((idxSets || []).map(s => String(s.code || '').toUpperCase()).filter(Boolean));
         let botText = botLeftRes?.data?.text || '';
         parsed = parseOcrCardFields(topRes?.data?.text || '', botText, knownCodes);
 
         // If no collector number found bottom-left (e.g. older EX/WOTC cards have number on bottom-right), scan bottom-right too
         if (!parsed.number) {
-          const botRightCrop = enhanceContrastGrayCanvas(cardCanvas, w * 0.54, h * 0.86, w * 0.43, h * 0.115, 900, true);
+          const botRightCrop = enhanceContrastGrayCanvas(cardCanvas, w * 0.54, h * 0.86, w * 0.43, h * 0.115, 900, false);
           const botRightRes = await worker.recognize(botRightCrop);
           botText = `${botText} ${botRightRes?.data?.text || ''}`;
           parsed = parseOcrCardFields(topRes?.data?.text || '', botText, knownCodes);
         }
+
+        try {
+          await worker.setParameters({
+            tessedit_pageseg_mode: T?.PSM?.SPARSE_TEXT || '11',
+            tessedit_char_whitelist: ''
+          });
+        } catch (e) {}
       }
 
       const displayQuery = [
@@ -5374,8 +5483,65 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   document.getElementById('btnSwitchCamera')?.addEventListener('click', () => {
-    scannerFacingMode = scannerFacingMode === 'environment' ? 'user' : 'environment';
-    startScannerCamera();
+    if (scannerVideoDevices.length >= 2) {
+      scannerDeviceIdx = (scannerDeviceIdx + 1) % scannerVideoDevices.length;
+      const nextDev = scannerVideoDevices[scannerDeviceIdx];
+      showToast(`Linse: ${nextDev.label || `Kamera ${scannerDeviceIdx + 1}`}`);
+      startScannerCamera(nextDev.deviceId);
+    } else {
+      scannerFacingMode = scannerFacingMode === 'environment' ? 'user' : 'environment';
+      startScannerCamera();
+    }
+  });
+
+  document.getElementById('scannerStage')?.addEventListener('click', e => {
+    const video = document.getElementById('scannerVideo');
+    const stage = document.getElementById('scannerStage');
+    if (!video || !stage || video.classList.contains('hidden')) return;
+    const rect = stage.getBoundingClientRect();
+    const px = e.clientX - rect.left;
+    const py = e.clientY - rect.top;
+    const nx = Math.max(0.05, Math.min(0.95, px / Math.max(1, rect.width)));
+    const ny = Math.max(0.05, Math.min(0.95, py / Math.max(1, rect.height)));
+    showFocusRingAt(px, py);
+    triggerCameraFocusAt(nx, ny);
+  });
+
+  document.getElementById('btnScannerRefocus')?.addEventListener('click', () => {
+    const stage = document.getElementById('scannerStage');
+    if (stage) showFocusRingAt(stage.clientWidth / 2, stage.clientHeight / 2);
+    triggerCameraFocusAt(0.5, 0.5);
+  });
+
+  document.querySelectorAll('#scannerZoomGroup .scanner-zoom-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const vTrack = scannerStream?.getVideoTracks?.()[0];
+      if (!vTrack) return;
+      const desired = Number(btn.dataset.zoom || 1);
+      const caps = vTrack.getCapabilities?.() || {};
+      if (!caps.zoom) return;
+      const clamped = Math.max(Number(caps.zoom.min || 1), Math.min(Number(caps.zoom.max || 1), desired));
+      try {
+        await vTrack.applyConstraints({ advanced: [{ zoom: clamped }] });
+        scannerZoomValue = clamped;
+        document.querySelectorAll('#scannerZoomGroup .scanner-zoom-btn').forEach(b => {
+          b.classList.toggle('active', b === btn);
+        });
+        autoScanSteadyCount = 0;
+        autoScanPrevSample = null;
+      } catch (e) {}
+    });
+  });
+
+  document.getElementById('btnScannerTorch')?.addEventListener('click', async () => {
+    const vTrack = scannerStream?.getVideoTracks?.()[0];
+    if (!vTrack) return;
+    const next = !scannerTorchOn;
+    try {
+      await vTrack.applyConstraints({ advanced: [{ torch: next }] });
+      scannerTorchOn = next;
+      document.getElementById('btnScannerTorch')?.classList.toggle('active', scannerTorchOn);
+    } catch (e) {}
   });
 
   document.getElementById('btnResumeCamera')?.addEventListener('click', () => {

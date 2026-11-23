@@ -2074,6 +2074,57 @@ body {
   color: #4ade80;
 }
 
+.scanner-focus-ring {
+  position: absolute;
+  width: 56px;
+  height: 56px;
+  margin-left: -28px;
+  margin-top: -28px;
+  border: 2px solid #fbbf24;
+  border-radius: 10px;
+  box-shadow: 0 0 12px rgba(251, 191, 36, 0.45);
+  pointer-events: none;
+  z-index: 5;
+  animation: focusPulse 0.65s ease-out;
+}
+
+.scanner-focus-ring.hidden {
+  display: none;
+}
+
+@keyframes focusPulse {
+  0% { transform: scale(1.35); opacity: 0.4; }
+  60% { transform: scale(0.95); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.scanner-focus-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.scanner-focus-bar:empty {
+  display: none;
+}
+
+.scanner-zoom-group {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.scanner-zoom-group.hidden {
+  display: none;
+}
+
+.scanner-zoom-btn.active,
+#btnScannerTorch.active {
+  background: rgba(59, 130, 246, 0.22);
+  border-color: #60a5fa;
+  color: #ffffff;
+}
+
 .scanner-zone-hint {
   position: absolute;
   left: 8px;
