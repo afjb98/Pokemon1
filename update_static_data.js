@@ -170,6 +170,7 @@ function getCandidateS3ImageUrls(product) {
     if (bracketMatch) {
       const codeGuess = bracketMatch[1].toUpperCase();
       urls.push(`https://product-images.s3.cardmarket.com/51/${codeGuess}/${id}/${id}.jpg`);
+      urls.push(`https://product-images.s3.cardmarket.com/51/${codeGuess}/${id}/${id}.png`);
     }
   } else {
     urls.push(`https://product-images.s3.cardmarket.com/${cat}/${id}/${id}.png`);
@@ -199,7 +200,8 @@ async function ensurePortfolioImage(product) {
         headers: {
           'Referer': 'https://www.cardmarket.com/',
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        }
+        },
+        signal: AbortSignal.timeout(8000)
       });
       if (res.ok) {
         const ct = res.headers.get('content-type') || '';
@@ -436,22 +438,25 @@ async function run() {
   fs.writeFileSync(path.join(PUBLIC_DATA_DIR, 'sets_index.json'), JSON.stringify(setsIndex), 'utf8');
   console.log(`Sets index built: ${setsIndex.length} collections in public/data/sets_index.json`);
 
-  // In GitHub Actions Pages build (--with-sealed-images), also pre-cache all ETBs (1016), Displays (53)
-  // AND newest featured sets whose artworks may still be missing on TCGdex!
+  // In GitHub Actions Pages build (--with-sealed-images), also pre-cache all Sealed products (Displays, ETBs, Bundles, Tins, Boxes, Boosters, Blisters, Decks)
+  // AND newest/promo sets whose artworks may still be missing on TCGdex!
   if (process.argv.includes('--with-sealed-images')) {
-    const FEATURED_SET_CODES = new Set(['30C', 'DLR', 'PBL', 'CRI', 'POR', 'ASC', 'PFL', 'MEG']);
+    const SEALED_PRECACHE_CATS = new Set([52, 53, 54, 1013, 1014, 1015, 1016, 1083]);
+    const FEATURED_SET_CODES = new Set(['30C', 'DLR', 'PBL', 'CRI', 'POR', 'ASC', 'PFL', 'MEG', 'MEP', 'SVP', 'DRI', 'WHT', 'BLK']);
     const targets = [];
     for (const prod of productMap.values()) {
       const hasFeaturedCode = prod.expansionCode && FEATURED_SET_CODES.has(String(prod.expansionCode).toUpperCase());
-      if (prod.idCategory === 1016 || prod.idCategory === 53 || (prod.type === 'single' && hasFeaturedCode)) {
+      const hasSealedPrice = prod.type === 'sealed' && SEALED_PRECACHE_CATS.has(Number(prod.idCategory)) &&
+        (prod.prices?.dePrice != null || prod.prices?.low != null);
+      if (hasSealedPrice || (prod.type === 'single' && hasFeaturedCode)) {
         targets.push(prod);
       }
     }
-    console.log(`Pre-caching ${targets.length} ETB, Display & newest set images for GitHub Pages...`);
-    for (let i = 0; i < targets.length; i += 25) {
-      await Promise.all(targets.slice(i, i + 25).map(p => ensurePortfolioImage(p).catch(() => null)));
+    console.log(`Pre-caching ${targets.length} Sealed, Promo & newest set images for GitHub Pages...`);
+    for (let i = 0; i < targets.length; i += 40) {
+      await Promise.all(targets.slice(i, i + 40).map(p => ensurePortfolioImage(p).catch(() => null)));
     }
-    console.log('Done pre-caching ETB, Display & newest set images.');
+    console.log('Done pre-caching Sealed, Promo & newest set images.');
   }
 }
 

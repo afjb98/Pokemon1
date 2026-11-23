@@ -21,7 +21,7 @@ const PROFILE_MODE_KEY = 'pokevault_profile_mode';
 const PROFILE_NAME_KEY = 'pokevault_profile_name';
 const ADMIN_FLAG_KEY = 'pokevault_is_admin';
 const ADMIN_SESSION_KEY = 'pokevault_admin_session_v1';
-const IMG_FALLBACK_CACHE_KEY = 'pokevault_img_cache_v3';
+const IMG_FALLBACK_CACHE_KEY = 'pokevault_img_cache_v4';
 const CHECKLIST_STORAGE_PREFIX = 'pokevault_checklist_v1_';
 const CHECKLIST_SAVED_AT_KEY = 'pokevault_checklist_saved_at_v1';
 const CHECKLIST_LAST_SET_KEY = 'pokevault_checklist_last_set_v1';
@@ -535,10 +535,11 @@ function saveLocalPortfolio(skipCloudSync = false) {
 }
 
 let tcgdexAllSetsPromise = null;
+let tcgdexAllDeSetsPromise = null;
 const tcgdexCardDetailPromises = new Map();
 
-function parseCardmarketHints(rawName) {
-  const raw = String(rawName || '');
+function parseCardmarketHints(rawName, displayNameDe = '') {
+  const raw = String(rawName || '').replace(/[’‘`]/g, "'");
   const bracketBlocks = [];
   raw.replace(/\[([^\]]+)\]/g, (_, inner) => {
     bracketBlocks.push(inner);
@@ -566,16 +567,21 @@ function parseCardmarketHints(rawName) {
   let n = raw.replace(/\[.*?\]/g, '').trim();
   if (n.includes(' – ')) n = n.split(' – ').slice(1).join(' – ').trim();
   const parenDeMatch = n.match(/^[^(]+\(([^)]+)\)$/);
-  if (parenDeMatch && !/^(?:v\s*\d+|version\s*\d+|\d+\/\d+|full art|secret|alt art|promo|holo)$/i.test(parenDeMatch[1].trim())) {
+  if (parenDeMatch && !/^(?:v\s*\d+|version\s*\d+|\d+\/\d+|full art|secret|alt art|promo|holo|illustration rare|special illustration rare|hyper rare|double rare|ultra rare|ace spec|reverse holo|cosmos holo|poke ball|master ball|shiny)$/i.test(parenDeMatch[1].trim())) {
     n = parenDeMatch[1].trim();
   }
   n = n
     .replace(/\((?:v|ver|version)\s*\.?\s*\d+\)/gi, '')
     .replace(/\(\s*\d+\s*\/\s*\d+\s*\)/g, '')
+    .replace(/\((?:full art|secret(?: rare)?|alt art|promo|holo|illustration rare|special illustration rare|hyper rare|double rare|ultra rare|ace spec|reverse holo|cosmos holo|pok[eé] ball|master ball|shiny)\)/gi, '')
+    .replace(/#\s*\d+(?:\s*\/\s*\d+)?/g, '')
     .replace(/\s+/g, ' ')
     .trim();
 
   const nameCandidates = [n];
+  if (/[δ]|delta\s+species/i.test(n)) {
+    nameCandidates.push(n.replace(/[δ]/g, '').replace(/\bdelta\s+species\b/gi, '').replace(/\s+/g, ' ').trim());
+  }
   if (/gold\s*star/i.test(n)) {
     nameCandidates.unshift(n.replace(/\s*gold\s*star/gi, ' ☆').trim());
     nameCandidates.push(n.replace(/\s*gold\s*star/gi, ' ★').trim());
@@ -584,10 +590,28 @@ function parseCardmarketHints(rawName) {
   if (/\bex\b/i.test(n) && !/-ex/i.test(n)) {
     nameCandidates.push(n.replace(/\s+EX\b/, '-EX').trim());
   }
+  if (/-EX\b/i.test(n)) {
+    nameCandidates.push(n.replace(/-EX\b/gi, ' ex').trim());
+  }
+  if (/^Mega\s+/i.test(n)) {
+    nameCandidates.push(n.replace(/^Mega\s+/i, 'M ').trim());
+    nameCandidates.push(n.replace(/^Mega\s+/i, 'M ').replace(/\s+ex$/i, '-EX').trim());
+  }
+
+  const deNameCandidates = [];
+  if (displayNameDe) {
+    let deClean = String(displayNameDe).replace(/[’‘`]/g, "'").replace(/\[.*?\]/g, '').trim();
+    if (deClean.includes(' – ')) deClean = deClean.split(' – ')[0].trim();
+    deClean = deClean.replace(/\([^)]*\)/g, '').replace(/#\s*\d+(?:\s*\/\s*\d+)?/g, '').replace(/[δ]/g, '').replace(/\s+/g, ' ').trim();
+    if (deClean && deClean.toLowerCase() !== n.toLowerCase()) {
+      deNameCandidates.push(deClean);
+    }
+  }
 
   return {
     cleanName: nameCandidates[0],
     nameCandidates: [...new Set(nameCandidates.filter(Boolean))],
+    deNameCandidates: [...new Set(deNameCandidates.filter(Boolean))],
     attackHints,
     variantIndex,
     localIdHint
@@ -603,27 +627,73 @@ async function fetchAllTcgdexSets() {
   return tcgdexAllSetsPromise;
 }
 
-async function findTcgdexSetIdByExpansion(expansionName) {
-  if (!expansionName) return '';
-  const allSets = await fetchAllTcgdexSets();
-  if (!Array.isArray(allSets) || allSets.length === 0) return '';
+async function fetchAllTcgdexDeSets() {
+  if (!tcgdexAllDeSetsPromise) {
+    tcgdexAllDeSetsPromise = fetch('https://api.tcgdex.net/v2/de/sets')
+      .then(r => (r.ok ? r.json() : []))
+      .catch(() => []);
+  }
+  return tcgdexAllDeSetsPromise;
+}
 
-  const cleanExp = String(expansionName)
-    .replace(/^(?:karmesin\s*&\s*purpur|schwert\s*&\s*schild|sonne\s*&\s*mond|scarlet\s*&\s*violet|sword\s*&\s*shield|sun\s*&\s*moon)[:\s-]*/i, '')
+async function findTcgdexSetIdByExpansion(expansionName, expansionCode = '') {
+  const codeUpper = String(expansionCode || '').trim().toUpperCase();
+  const cleanExp = String(expansionName || '')
+    .replace(/^(?:karmesin\s*&\s*purpur|schwert\s*&\s*schild|sonne\s*&\s*mond|scarlet\s*&\s*violet|sword\s*&\s*shield|sun\s*&\s*moon)[:\s–-]*/i, '')
     .trim()
     .toLowerCase();
-  const normExp = cleanExp.replace(/[^a-z0-9]/g, '');
+  const normExp = cleanExp.replace(/[^a-z0-9äöüß]/g, '');
 
-  for (const s of allSets) {
-    if (s.name && s.name.toLowerCase() === cleanExp) return s.id;
-  }
-  for (const s of allSets) {
-    if (s.name && s.name.toLowerCase().replace(/[^a-z0-9]/g, '') === normExp) return s.id;
-  }
-  if (cleanExp.length >= 4) {
+  // 1. Check sets_index.json first (supports code, German names, and English names)
+  try {
+    const idxSets = await ensureSetsIndexLoaded();
+    if (Array.isArray(idxSets) && idxSets.length > 0) {
+      if (codeUpper) {
+        const byCode = idxSets.find(s => String(s.code || '').toUpperCase() === codeUpper);
+        if (byCode?.tcgdexId) return byCode.tcgdexId;
+      }
+      if (cleanExp) {
+        for (const s of idxSets) {
+          const de = String(s.de || '').toLowerCase();
+          const en = String(s.en || '').toLowerCase();
+          if (de === cleanExp || en === cleanExp) return s.tcgdexId;
+        }
+        for (const s of idxSets) {
+          const deNorm = String(s.de || '').toLowerCase().replace(/[^a-z0-9äöüß]/g, '');
+          const enNorm = String(s.en || '').toLowerCase().replace(/[^a-z0-9äöüß]/g, '');
+          if (normExp && (deNorm === normExp || enNorm === normExp)) return s.tcgdexId;
+        }
+        if (cleanExp.length >= 4) {
+          for (const s of idxSets) {
+            const de = String(s.de || '').toLowerCase();
+            const en = String(s.en || '').toLowerCase();
+            if ((de && (de.includes(cleanExp) || cleanExp.includes(de))) ||
+                (en && (en.includes(cleanExp) || cleanExp.includes(en)))) {
+              return s.tcgdexId;
+            }
+          }
+        }
+      }
+    }
+  } catch (e) {}
+
+  if (!cleanExp) return '';
+
+  // 2. Fallback: TCGdex EN sets, then DE sets
+  for (const fetcher of [fetchAllTcgdexSets, fetchAllTcgdexDeSets]) {
+    const allSets = await fetcher();
+    if (!Array.isArray(allSets) || allSets.length === 0) continue;
     for (const s of allSets) {
-      const sn = (s.name || '').toLowerCase();
-      if (sn.includes(cleanExp) || cleanExp.includes(sn)) return s.id;
+      if (s.name && s.name.toLowerCase() === cleanExp) return s.id;
+    }
+    for (const s of allSets) {
+      if (s.name && s.name.toLowerCase().replace(/[^a-z0-9äöüß]/g, '') === normExp) return s.id;
+    }
+    if (cleanExp.length >= 4) {
+      for (const s of allSets) {
+        const sn = (s.name || '').toLowerCase();
+        if (sn && (sn.includes(cleanExp) || cleanExp.includes(sn))) return s.id;
+      }
     }
   }
   return '';
@@ -712,22 +782,22 @@ async function pickBestCardCandidate(matches, hints, siblingIdx = 0) {
   return pool[0];
 }
 
-async function resolveTcgdexImage(idProduct, rawName, type, tcgdexId, expansionName = '', siblingIdxOverride = null) {
+async function resolveTcgdexImage(idProduct, rawName, type, tcgdexId, expansionName = '', siblingIdxOverride = null, expansionCode = '', displayNameDe = '') {
   const key = String(idProduct || rawName || '');
   if (tcgdexImgCache[key]) return tcgdexImgCache[key];
   if (tcgdexInflightCard.has(key)) return tcgdexInflightCard.get(key);
 
   const task = (async () => {
     try {
-      const hints = parseCardmarketHints(rawName);
+      const hints = parseCardmarketHints(rawName, displayNameDe);
       const siblingIdx = siblingIdxOverride != null
         ? Number(siblingIdxOverride) || 0
         : getCatalogSiblingIndex(idProduct, rawName, expansionName);
-      const resolvedSetId = tcgdexId || await findTcgdexSetIdByExpansion(expansionName);
+      const resolvedSetId = tcgdexId || await findTcgdexSetIdByExpansion(expansionName, expansionCode);
 
       if (type === 'sealed') {
         if (resolvedSetId) {
-          const setObj = await fetchTcgdexSet(resolvedSetId);
+          const setObj = await fetchTcgdexSet(resolvedSetId) || await fetchTcgdexSetDe(resolvedSetId);
           if (setObj?.logo) {
             const url = `${setObj.logo}.webp`;
             tcgdexImgCache[key] = url;
@@ -738,30 +808,55 @@ async function resolveTcgdexImage(idProduct, rawName, type, tcgdexId, expansionN
         return null;
       }
 
-      // Single card: match inside resolved TCGdex set
-      if (resolvedSetId && hints.nameCandidates.length > 0) {
-        const setObj = await fetchTcgdexSet(resolvedSetId);
-        if (setObj && Array.isArray(setObj.cards)) {
-          let matches = [];
-          for (const cand of hints.nameCandidates) {
-            const lower = cand.toLowerCase();
-            const norm = lower.replace(/[^a-z0-9]/g, '');
-            matches = setObj.cards.filter(c => c.image && c.name && c.name.toLowerCase() === lower);
-            if (matches.length === 0) {
-              matches = setObj.cards.filter(c => c.image && c.name && c.name.toLowerCase().replace(/[^a-z0-9]/g, '') === norm);
+      // Single card: match inside resolved TCGdex set (EN first, then DE fallback)
+      if (resolvedSetId) {
+        if (hints.nameCandidates.length > 0) {
+          const setObj = await fetchTcgdexSet(resolvedSetId);
+          if (setObj && Array.isArray(setObj.cards)) {
+            let matches = [];
+            for (const cand of hints.nameCandidates) {
+              const lower = cand.toLowerCase();
+              const norm = lower.replace(/[^a-z0-9]/g, '');
+              matches = setObj.cards.filter(c => c.image && c.name && c.name.toLowerCase() === lower);
+              if (matches.length === 0) {
+                matches = setObj.cards.filter(c => c.image && c.name && c.name.toLowerCase().replace(/[^a-z0-9]/g, '') === norm);
+              }
+              if (matches.length === 0 && lower.length >= 4) {
+                matches = setObj.cards.filter(c => c.image && c.name && (c.name.toLowerCase().includes(lower) || lower.includes(c.name.toLowerCase())));
+              }
+              if (matches.length > 0) break;
             }
-            if (matches.length === 0 && lower.length >= 4) {
-              matches = setObj.cards.filter(c => c.image && c.name && (c.name.toLowerCase().includes(lower) || lower.includes(c.name.toLowerCase())));
-            }
-            if (matches.length > 0) break;
-          }
 
-          const chosen = await pickBestCardCandidate(matches, hints, siblingIdx);
-          if (chosen?.image) {
-            const url = `${chosen.image}/low.webp`;
-            tcgdexImgCache[key] = url;
-            saveImgFallbackCache();
-            return url;
+            const chosen = await pickBestCardCandidate(matches, hints, siblingIdx);
+            if (chosen?.image) {
+              const url = `${chosen.image}/low.webp`;
+              tcgdexImgCache[key] = url;
+              saveImgFallbackCache();
+              return url;
+            }
+          }
+        }
+
+        if (hints.deNameCandidates.length > 0) {
+          const deSetObj = await fetchTcgdexSetDe(resolvedSetId);
+          if (deSetObj && Array.isArray(deSetObj.cards)) {
+            let deMatches = [];
+            for (const cand of hints.deNameCandidates) {
+              const lower = cand.toLowerCase();
+              const norm = lower.replace(/[^a-z0-9äöüß]/g, '');
+              deMatches = deSetObj.cards.filter(c => c.image && c.name && c.name.toLowerCase() === lower);
+              if (deMatches.length === 0) {
+                deMatches = deSetObj.cards.filter(c => c.image && c.name && c.name.toLowerCase().replace(/[^a-z0-9äöüß]/g, '') === norm);
+              }
+              if (deMatches.length > 0) break;
+            }
+            const chosenDe = await pickBestCardCandidate(deMatches, hints, siblingIdx);
+            if (chosenDe?.image) {
+              const url = `${chosenDe.image}/low.webp`;
+              tcgdexImgCache[key] = url;
+              saveImgFallbackCache();
+              return url;
+            }
           }
         }
       }
@@ -779,7 +874,8 @@ async function resolveTcgdexImage(idProduct, rawName, type, tcgdexId, expansionN
         let pool = physical.length > 0 ? physical : withImg;
 
         if (resolvedSetId) {
-          const inSet = pool.filter(c => c.id && c.id.startsWith(`${resolvedSetId}-`));
+          const prefix = `${resolvedSetId.toLowerCase()}-`;
+          const inSet = pool.filter(c => c.id && c.id.toLowerCase().startsWith(prefix));
           if (inSet.length > 0) {
             pool = inSet;
           } else {
@@ -814,9 +910,11 @@ window.handleCardImageError = async function(imgEl) {
 
   const idProduct = imgEl.dataset.id;
   const rawName = imgEl.dataset.name;
+  const deName = imgEl.dataset.de || '';
   const type = imgEl.dataset.type || 'single';
   const tcgdexId = imgEl.dataset.tcgdex || '';
   const expName = imgEl.dataset.exp || '';
+  const expCode = imgEl.dataset.code || '';
   const sidx = imgEl.dataset.sidx != null && imgEl.dataset.sidx !== '' ? Number(imgEl.dataset.sidx) : null;
   const badge = imgEl.dataset.badge || (type === 'sealed' ? 'BOX' : 'TCG');
   const step = imgEl.dataset.tryStep || '';
@@ -837,20 +935,27 @@ window.handleCardImageError = async function(imgEl) {
     return;
   }
 
-  // Step 2: if already tried TCGdex fallback (or cm_api failed), show badge
+  // Step 2: if already tried TCGdex fallback (or cm_api failed), show badge (and purge broken cached URL)
   if (step === 'tcgdex' || step === 'done' || step === 'cm_api') {
+    if (curSrc.includes('tcgdex.net')) {
+      const cacheKey = String(idProduct || rawName || '');
+      if (cacheKey && tcgdexImgCache[cacheKey]) {
+        delete tcgdexImgCache[cacheKey];
+        saveImgFallbackCache();
+      }
+    }
     if (imgEl.parentElement) imgEl.parentElement.textContent = badge;
     return;
   }
 
   imgEl.dataset.tryStep = 'tcgdex';
 
-  if (!isStaticMode && !tcgdexId && !expName) {
+  if (!isStaticMode && !tcgdexId && !expName && !expCode) {
     if (imgEl.parentElement) imgEl.parentElement.textContent = badge;
     return;
   }
 
-  const url = await resolveTcgdexImage(idProduct, rawName, type, tcgdexId, expName, sidx);
+  const url = await resolveTcgdexImage(idProduct, rawName, type, tcgdexId, expName, sidx, expCode, deName);
   if (url) {
     imgEl.src = url;
   } else {
@@ -1366,7 +1471,7 @@ function renderTable() {
     const effectiveImg = resolveItemImageUrl(item);
     const badgeTxt = item.expansionCode || (item.type === 'sealed' ? 'BOX' : 'TCG');
     const thumbContent = effectiveImg
-      ? `<img src="${escapeHtml(effectiveImg)}" alt="" data-id="${escapeHtml(item.idProduct || '')}" data-name="${escapeHtml(item.name)}" data-type="${escapeHtml(item.type)}" data-tcgdex="${escapeHtml(item.tcgdexId || '')}" data-exp="${escapeHtml(item.expansionName || '')}" data-badge="${escapeHtml(badgeTxt)}" onerror="handleCardImageError(this)" />`
+      ? `<img src="${escapeHtml(effectiveImg)}" alt="" data-id="${escapeHtml(item.idProduct || '')}" data-name="${escapeHtml(item.name)}" data-de="${escapeHtml(item.displayNameDe || '')}" data-type="${escapeHtml(item.type)}" data-tcgdex="${escapeHtml(item.tcgdexId || '')}" data-exp="${escapeHtml(item.expansionName || '')}" data-code="${escapeHtml(item.expansionCode || '')}" data-badge="${escapeHtml(badgeTxt)}" onerror="handleCardImageError(this)" />`
       : escapeHtml(badgeTxt);
 
     const displayTitle = item.displayNameDe || item.name;
@@ -1504,7 +1609,7 @@ function renderSetGallery(items, container) {
       const thumbBadge = item.expansionCode || 'BOX';
       card.innerHTML = `
         <div class="expense-card-left-wrap">
-          ${imgUrl ? `<div class="expense-card-thumb"><img src="${escapeHtml(imgUrl)}" loading="lazy" alt="" data-id="${escapeHtml(item.idProduct || '')}" data-name="${escapeHtml(item.name || '')}" data-type="sealed" data-exp="${escapeHtml(item.expansionName || '')}" data-badge="${escapeHtml(thumbBadge)}" onerror="handleCardImageError(this)" /></div>` : ''}
+          ${imgUrl ? `<div class="expense-card-thumb"><img src="${escapeHtml(imgUrl)}" loading="lazy" alt="" data-id="${escapeHtml(item.idProduct || '')}" data-name="${escapeHtml(item.name || '')}" data-de="${escapeHtml(item.displayNameDe || '')}" data-type="sealed" data-tcgdex="${escapeHtml(item.tcgdexId || '')}" data-exp="${escapeHtml(item.expansionName || '')}" data-code="${escapeHtml(item.expansionCode || '')}" data-badge="${escapeHtml(thumbBadge)}" onerror="handleCardImageError(this)" /></div>` : ''}
           <div class="expense-card-left">
             <div class="expense-card-title">${escapeHtml(item.displayNameDe || item.name || 'Geöffnetes Produkt')}</div>
             <div class="expense-card-meta">${escapeHtml(metaBits.join(' • '))}</div>
@@ -1614,7 +1719,7 @@ function renderSetGallery(items, container) {
       cardEl.innerHTML = `
         <div class="gallery-card-visual">
           ${qty > 1 ? `<span class="gallery-qty-badge">${qty}x</span>` : ''}
-          ${effectiveImg ? `<img src="${escapeHtml(effectiveImg)}" loading="lazy" alt="" data-id="${escapeHtml(item.idProduct || '')}" data-name="${escapeHtml(item.name)}" data-type="${escapeHtml(item.type)}" data-tcgdex="${escapeHtml(item.tcgdexId || '')}" data-exp="${escapeHtml(item.expansionName || '')}" data-badge="${escapeHtml(cardBadgeTxt)}" onerror="handleCardImageError(this)" />` : `<span>${escapeHtml(cardBadgeTxt)}</span>`}
+          ${effectiveImg ? `<img src="${escapeHtml(effectiveImg)}" loading="lazy" alt="" data-id="${escapeHtml(item.idProduct || '')}" data-name="${escapeHtml(item.name)}" data-de="${escapeHtml(item.displayNameDe || '')}" data-type="${escapeHtml(item.type)}" data-tcgdex="${escapeHtml(item.tcgdexId || '')}" data-exp="${escapeHtml(item.expansionName || '')}" data-code="${escapeHtml(item.expansionCode || '')}" data-badge="${escapeHtml(cardBadgeTxt)}" onerror="handleCardImageError(this)" />` : `<span>${escapeHtml(cardBadgeTxt)}</span>`}
           <span class="gallery-price-pill">${fmtEuro(uDe)}</span>
         </div>
         <div class="gallery-card-footer">
@@ -2578,9 +2683,11 @@ function openCardZoomModal(item, sourceImgEl = null) {
       }
       zoomImg.dataset.id = item.idProduct || '';
       zoomImg.dataset.name = item.name || '';
+      zoomImg.dataset.de = item.displayNameDe || '';
       zoomImg.dataset.type = item.type || 'single';
       zoomImg.dataset.tcgdex = item.tcgdexId || '';
       zoomImg.dataset.exp = item.expansionName || '';
+      zoomImg.dataset.code = item.expansionCode || '';
       zoomImg.dataset.badge = badgeTxt;
       handleCardImageError(zoomImg);
     };
