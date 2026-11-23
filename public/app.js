@@ -3984,7 +3984,70 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  document.getElementById('btnHardReloadApp')?.addEventListener('click', () => {
+  // PWA Service Worker & App Installation
+  let deferredInstallPrompt = null;
+  const installBtnTop = document.getElementById('btnInstallPwa');
+  const installBtnMenu = document.getElementById('btnInstallPwaMenu');
+  const isStandaloneApp = () =>
+    window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
+  if ('serviceWorker' in navigator && (window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  }
+
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    if (installBtnTop && !isStandaloneApp()) {
+      installBtnTop.classList.remove('hidden');
+    }
+  });
+
+  window.addEventListener('appinstalled', () => {
+    deferredInstallPrompt = null;
+    if (installBtnTop) installBtnTop.classList.add('hidden');
+    showToast('App erfolgreich installiert! 🎉');
+  });
+
+  async function triggerPwaInstall() {
+    if (isStandaloneApp()) {
+      showToast('App läuft bereits im App-Modus ✓');
+      return;
+    }
+    if (deferredInstallPrompt) {
+      deferredInstallPrompt.prompt();
+      try {
+        const choice = await deferredInstallPrompt.userChoice;
+        if (choice?.outcome === 'accepted') {
+          deferredInstallPrompt = null;
+          if (installBtnTop) installBtnTop.classList.add('hidden');
+        }
+      } catch (e) {}
+      return;
+    }
+    const ua = navigator.userAgent || '';
+    const isIos = /iphone|ipad|ipod/i.test(ua);
+    if (isIos) {
+      alert('iPhone / iPad als App speichern:\n1. Unten in Safari auf das Teilen-Symbol (⬆️) tippen.\n2. „Zum Home-Bildschirm“ wählen.\n3. Auf „Hinzufügen“ tippen.');
+    } else {
+      alert('Als App installieren (PC & Android):\n• Chrome / Edge am PC: Rechts oben in der Adressleiste auf das „Installieren“-Symbol (💻 / ⊕) oder Menü → „App installieren“ klicken.\n• Android Chrome: Menü (⋮) → „App installieren“ / „Zum Startbildschirm hinzufügen“.');
+    }
+  }
+
+  installBtnTop?.addEventListener('click', triggerPwaInstall);
+  installBtnMenu?.addEventListener('click', triggerPwaInstall);
+
+  document.getElementById('btnHardReloadApp')?.addEventListener('click', async () => {
+    try {
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k)));
+      }
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(r => r.update().catch(() => {})));
+      }
+    } catch (e) {}
     window.location.href = window.location.pathname + '?v=' + Date.now();
   });
 
