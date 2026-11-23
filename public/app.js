@@ -5549,34 +5549,51 @@ document.addEventListener('DOMContentLoaded', () => {
     ]);
     if (!hashes || hashes.length === 0 || !catalog || catalog.length === 0) return null;
 
-    const qVec = computeCanvasVisualVector(cardCanvas, 0, 0, 1);
-    const dim = Math.min(qVec.length, hashes[0].vec.length);
-    let qSq = 0;
-    for (let k = 0; k < dim; k++) qSq += qVec[k] * qVec[k];
-    const qNorm = Math.max(1e-3, Math.sqrt(qSq));
+    // Evaluate 3 scales across the full index so slightly zoomed-out cards with desk margins still hit top-60
+    const baseScales = [1.0, 0.88, 0.78];
+    const qSet = baseScales.map(sc => {
+      const vec = computeCanvasVisualVector(cardCanvas, 0, 0, sc);
+      let sq = 0;
+      for (let k = 0; k < vec.length; k++) sq += vec[k] * vec[k];
+      return { sc, vec, norm: Math.max(1e-3, Math.sqrt(sq)) };
+    });
+    const dim = Math.min(qSet[0].vec.length, hashes[0].vec.length);
 
-    const scored = [];
+    const scored = new Array(hashes.length);
     for (let i = 0; i < hashes.length; i++) {
       const entry = hashes[i];
       const hVec = entry.vec;
-      let dot = 0;
-      for (let k = 0; k < dim; k++) dot += qVec[k] * hVec[k];
-      const sim = dot / (qNorm * entry.norm);
-      scored.push({ idx: i, idProduct: entry.idProduct, sim });
+      let bestSim = -1;
+      let bestSc = 1.0;
+      for (let qIdx = 0; qIdx < qSet.length; qIdx++) {
+        const q = qSet[qIdx];
+        let dot = 0;
+        for (let k = 0; k < dim; k++) dot += q.vec[k] * hVec[k];
+        const sim = dot / (q.norm * entry.norm);
+        if (sim > bestSim) {
+          bestSim = sim;
+          bestSc = q.sc;
+        }
+      }
+      scored[i] = { idx: i, idProduct: entry.idProduct, sim: bestSim, bestSc };
     }
     scored.sort((a, b) => b.sim - a.sim);
 
-    // Refine top 60 candidates against slight handheld camera shifts and zoom variations
+    // Refine top 60 candidates against slight handheld shifts & fine scale tweaks across top candidate scales
     const topPool = scored.slice(0, 60);
     if (topPool.length > 0 && topPool[0].sim < 0.88) {
-      const transforms = [
-        [-0.035, 0, 1],
-        [0.035, 0, 1],
-        [0, -0.035, 1],
-        [0, 0.035, 1],
-        [0, 0, 0.94],
-        [0, 0, 1.06]
-      ];
+      const refScales = [...new Set(topPool.slice(0, 10).map(x => x.bestSc))].slice(0, 2);
+      const transforms = [];
+      for (const refSc of refScales) {
+        transforms.push(
+          [-0.035, 0, refSc],
+          [0.035, 0, refSc],
+          [0, -0.035, refSc],
+          [0, 0.035, refSc],
+          [0, 0, refSc * 0.94],
+          [0, 0, Math.min(1.06, refSc * 1.06)]
+        );
+      }
       for (const [sx, sy, sc] of transforms) {
         const sVec = computeCanvasVisualVector(cardCanvas, sx, sy, sc);
         let sSq = 0;
@@ -5624,7 +5641,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const margin = visRes.topSim - secondSim;
           const pct = Math.round(visRes.topSim * 100);
           renderScannerMatchRows(visRes.matches.map(m => m.row));
-          if (visRes.topSim >= 0.78 && margin >= 0.025) {
+          if ((visRes.topSim >= 0.76 && margin >= 0.025) || (visRes.topSim >= 0.64 && margin >= 0.09)) {
             const bestTitle = (bestRow[2] || bestRow[1] || '').replace(/\[.*?\]/g, '').trim();
             if (searchInput) searchInput.value = bestTitle;
             if (debugEl) {
