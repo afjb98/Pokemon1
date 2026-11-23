@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pokeportfolio-shell-v39';
+const CACHE_NAME = 'pokeportfolio-shell-v40';
 const SHELL_ASSETS = [
   './',
   './index.html',

@@ -4573,11 +4573,15 @@ document.addEventListener('DOMContentLoaded', () => {
       scannerStream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: { ideal: scannerFacingMode },
-          width: { ideal: 1920 },
-          height: { ideal: 2560 }
+          width: { ideal: 2560, min: 1280 },
+          height: { ideal: 2560, min: 720 }
         },
         audio: false
       });
+      const vTrack = scannerStream.getVideoTracks?.()[0];
+      if (vTrack && vTrack.applyConstraints) {
+        vTrack.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
+      }
       video.srcObject = scannerStream;
       await video.play().catch(() => {});
       setScannerStatus(autoScanEnabled ? 'Karte in den Rahmen halten' : 'Karte in Rahmen halten & scannen');
@@ -4595,13 +4599,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function syncScannerAiUi(forceOpenSetup = false) {
     const savedKey = (localStorage.getItem(SCANNER_KEY_STORAGE) || '').trim();
+    const aiEnabled = Boolean(savedKey) && localStorage.getItem(SCANNER_AI_STORAGE) !== '0';
     const readyBar = document.getElementById('scannerAiReadyBar');
+    const readyLbl = document.getElementById('scannerAiReadyLabel');
+    const toggleBtn = document.getElementById('btnToggleScannerAi');
     const setupCard = document.getElementById('scannerAiSetupCard');
     const keyInput = document.getElementById('scannerGeminiKeyInput');
     if (keyInput && savedKey && !keyInput.value) keyInput.value = savedKey;
     const showReady = Boolean(savedKey) && !forceOpenSetup;
     readyBar?.classList.toggle('hidden', !showReady);
     setupCard?.classList.toggle('hidden', showReady);
+    if (readyLbl) {
+      readyLbl.innerHTML = aiEnabled
+        ? '✨ <strong>KI-Scanner aktiv</strong>'
+        : '📷 <strong>Offline-OCR aktiv</strong> (ohne KI)';
+    }
+    if (toggleBtn) {
+      toggleBtn.textContent = aiEnabled ? 'Ohne KI (OCR)' : '✨ KI einschalten';
+    }
   }
 
   function openScannerModal() {
@@ -4659,52 +4674,82 @@ document.addEventListener('DOMContentLoaded', () => {
     return scannerWorkerPromise;
   }
 
-  function enhanceContrastGrayCanvas(srcCanvas, sx, sy, sw, sh, targetW = 900) {
+  function enhanceContrastGrayCanvas(srcCanvas, sx, sy, sw, sh, targetW = 1000, sharpen = true) {
     const scale = targetW / Math.max(1, sw);
     const out = document.createElement('canvas');
     out.width = Math.max(1, Math.round(sw * scale));
     out.height = Math.max(1, Math.round(sh * scale));
     const ctx = out.getContext('2d', { willReadFrequently: true });
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(srcCanvas, sx, sy, sw, sh, 0, 0, out.width, out.height);
     const img = ctx.getImageData(0, 0, out.width, out.height);
     const d = img.data;
+    const w = out.width;
+    const h = out.height;
+    const grayBuf = new Uint8ClampedArray(w * h);
     let minG = 255, maxG = 0;
-    for (let i = 0; i < d.length; i += 4) {
-      const g = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+    for (let i = 0, p = 0; i < d.length; i += 4, p++) {
+      const g = (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) | 0;
+      grayBuf[p] = g;
       if (g < minG) minG = g;
       if (g > maxG) maxG = g;
     }
     const span = Math.max(24, maxG - minG);
-    for (let i = 0; i < d.length; i += 4) {
-      const g = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-      const norm = ((g - minG) / span) * 255;
-      const c = Math.max(0, Math.min(255, norm));
-      d[i] = d[i + 1] = d[i + 2] = c;
+    for (let p = 0; p < grayBuf.length; p++) {
+      grayBuf[p] = Math.max(0, Math.min(255, (((grayBuf[p] - minG) / span) * 255) | 0));
+    }
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const p = y * w + x;
+        let val = grayBuf[p];
+        if (sharpen && x > 0 && x < w - 1 && y > 0 && y < h - 1) {
+          const lap = 5 * val - grayBuf[p - 1] - grayBuf[p + 1] - grayBuf[p - w] - grayBuf[p + w];
+          val = Math.max(0, Math.min(255, Math.round(val * 0.6 + lap * 0.4)));
+        }
+        const i = p * 4;
+        d[i] = d[i + 1] = d[i + 2] = val;
+      }
     }
     ctx.putImageData(img, 0, 0);
     return out;
   }
 
   function parseOcrCardFields(topText, bottomText, knownCodes = null) {
-    const cleanNumText = String(bottomText || '').replace(/\s+/g, ' ');
-    const numMatch = cleanNumText.match(/\b(\d{1,3})\s*\/\s*(\d{1,3})\b/) ||
-      cleanNumText.match(/\b((?:TG|GG|SV|SH|AR)\s*\d{1,3})\b/i) ||
-      cleanNumText.match(/(?:#|\b)(\d{2,3})\b/);
+    const rawBot = String(bottomText || '').replace(/\s+/g, ' ');
+    // Fix common digit confusions (O->0, l/I->1) specifically inside collector numbers like O78/1O3
+    const normFrac = rawBot.replace(/\b([0-9OoIl]{1,3})\s*\/\s*([0-9OoIl]{2,3})\b/g, (_, a, b) => {
+      const fix = s => s.replace(/[Oo]/g, '0').replace(/[Il]/g, '1');
+      return `${fix(a)}/${fix(b)}`;
+    });
+    const numMatch = normFrac.match(/\b(\d{1,3})\s*\/\s*(\d{1,3})\b/) ||
+      rawBot.match(/\b((?:TG|GG|SV|SH|AR)\s*\d{1,3})\b/i) ||
+      normFrac.match(/(?:#|\b)(\d{2,3})\b/);
     const cardNumber = numMatch ? numMatch[1].replace(/\s+/g, '').replace(/^0+(?=\d)/, '') : '';
     const cardTotal = (numMatch && numMatch[2]) ? numMatch[2].replace(/^0+(?=\d)/, '') : '';
 
     let setCode = '';
+    const langSkip = new Set(['DE', 'EN', 'FR', 'ES', 'IT', 'PT', 'JP']);
     if (knownCodes && knownCodes.size > 0) {
-      const upperTokens = cleanNumText.toUpperCase().match(/\b[A-Z0-9]{2,4}\b/g) || [];
+      const upperTokens = rawBot.toUpperCase().match(/\b[A-Z0-9]{2,4}\b/g) || [];
       for (const tok of upperTokens) {
-        if (tok !== 'DE' && tok !== 'EN' && tok !== 'FR' && tok !== 'ES' && tok !== 'IT' && knownCodes.has(tok)) {
+        if (langSkip.has(tok)) continue;
+        if (knownCodes.has(tok)) {
           setCode = tok;
+          break;
+        }
+        const altD = tok.replace(/^0/, 'D');
+        const altO = tok.replace(/0/g, 'O');
+        const altI = tok.replace(/1/g, 'I');
+        const matchAlt = [altD, altO, altI].find(a => !langSkip.has(a) && knownCodes.has(a));
+        if (matchAlt) {
+          setCode = matchAlt;
           break;
         }
       }
     }
     if (!setCode) {
-      const setMatch = cleanNumText.match(/\b([A-Z]{2,4})\b(?=\s+(?:EN|DE|FR|ES|IT|\d))/);
+      const setMatch = rawBot.match(/\b([A-Z]{2,4})\b(?=\s+(?:EN|DE|FR|ES|IT|\d))/);
       setCode = setMatch ? setMatch[1] : '';
     }
 
@@ -5238,7 +5283,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const searchInput = document.getElementById('scannerSearchInput');
     const debugEl = document.getElementById('scannerOcrDebug');
     const apiKey = (localStorage.getItem(SCANNER_KEY_STORAGE) || document.getElementById('scannerGeminiKeyInput')?.value || '').trim();
-    const useAi = Boolean(apiKey);
+    const useAi = Boolean(apiKey) && localStorage.getItem(SCANNER_AI_STORAGE) !== '0';
 
     try {
       let parsed = null;
@@ -5260,28 +5305,39 @@ document.addEventListener('DOMContentLoaded', () => {
           };
           usedAi = true;
         } catch (aiErr) {
-          if (debugEl) debugEl.textContent = `KI-Fehler (${aiErr.message}) – prüfe Key oder OCR-Fallback...`;
-          showToast(`KI-Fehler: ${aiErr.message}`, 4500);
+          const isQuota = aiErr.status === 429 || /quota|limit|exceeded/i.test(aiErr.message || '');
+          if (debugEl) debugEl.textContent = isQuota ? 'KI-Tageslimit erreicht – nutze High-Res OCR...' : `KI-Fehler – nutze High-Res OCR...`;
+          showToast(isQuota ? 'KI-Limit erreicht – scanne ohne KI per High-Res OCR' : `KI-Fehler: ${aiErr.message}`, 3500);
         }
       }
 
       if (!parsed) {
-        setScannerStatus('Lese Kartenname & Nummer...');
-        if (debugEl) debugEl.textContent = useAi ? 'Weiche auf Browser-OCR aus...' : 'Tipp: Oben kostenlosen KI-Key einfügen für perfekte Erkennung (lädt OCR...)';
+        setScannerStatus('Lese Set-Code, Nr. & Namen...');
+        if (debugEl) debugEl.textContent = 'High-Res OCR liest Set-Kürzel, Nummer & Kartenname...';
         const worker = await getScannerOcrWorker();
 
         const w = cardCanvas.width;
         const h = cardCanvas.height;
-        const topCrop = enhanceContrastGrayCanvas(cardCanvas, w * 0.06, h * 0.05, w * 0.87, h * 0.105, 1000);
-        const botCrop = enhanceContrastGrayCanvas(cardCanvas, w * 0.03, h * 0.87, w * 0.94, h * 0.10, 1000);
+        // Dedicated zoomed high-DPI crops: top card name + bottom-left ("DLR 078/103") without flavor text noise
+        const topCrop = enhanceContrastGrayCanvas(cardCanvas, w * 0.05, h * 0.04, w * 0.80, h * 0.115, 1100, true);
+        const botLeftCrop = enhanceContrastGrayCanvas(cardCanvas, w * 0.02, h * 0.86, w * 0.46, h * 0.115, 1100, true);
 
-        const [topRes, botRes, idxSets] = await Promise.all([
+        const [topRes, botLeftRes, idxSets] = await Promise.all([
           worker.recognize(topCrop),
-          worker.recognize(botCrop),
+          worker.recognize(botLeftCrop),
           ensureSetsIndexLoaded().catch(() => [])
         ]);
         const knownCodes = new Set((idxSets || []).map(s => String(s.code || '').toUpperCase()).filter(Boolean));
-        parsed = parseOcrCardFields(topRes?.data?.text || '', botRes?.data?.text || '', knownCodes);
+        let botText = botLeftRes?.data?.text || '';
+        parsed = parseOcrCardFields(topRes?.data?.text || '', botText, knownCodes);
+
+        // If no collector number found bottom-left (e.g. older EX/WOTC cards have number on bottom-right), scan bottom-right too
+        if (!parsed.number) {
+          const botRightCrop = enhanceContrastGrayCanvas(cardCanvas, w * 0.54, h * 0.86, w * 0.43, h * 0.115, 900, true);
+          const botRightRes = await worker.recognize(botRightCrop);
+          botText = `${botText} ${botRightRes?.data?.text || ''}`;
+          parsed = parseOcrCardFields(topRes?.data?.text || '', botText, knownCodes);
+        }
       }
 
       const displayQuery = [
@@ -5324,6 +5380,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('btnResumeCamera')?.addEventListener('click', () => {
     startScannerCamera();
+  });
+
+  document.getElementById('btnToggleScannerAi')?.addEventListener('click', () => {
+    const curOff = localStorage.getItem(SCANNER_AI_STORAGE) === '0';
+    localStorage.setItem(SCANNER_AI_STORAGE, curOff ? '1' : '0');
+    syncScannerAiUi(false);
+    showToast(curOff ? '✨ KI-Modus aktiviert' : '📷 Offline-OCR-Modus (ohne KI) aktiv');
   });
 
   document.getElementById('btnEditScannerKey')?.addEventListener('click', () => {

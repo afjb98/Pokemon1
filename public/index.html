@@ -20,7 +20,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <link rel="stylesheet" href="./style.css?v=39" />
+  <link rel="stylesheet" href="./style.css?v=40" />
 </head>
 <body>
   <div class="app-shell">
@@ -693,8 +693,11 @@
           </div>
 
           <div id="scannerAiReadyBar" class="scanner-ai-ready hidden">
-            <span>✨ <strong>KI-Scanner aktiv</strong> (Gemini Vision)</span>
-            <button type="button" id="btnEditScannerKey" class="btn btn-sm btn-secondary">🔑 Key ändern</button>
+            <span id="scannerAiReadyLabel">✨ <strong>KI-Scanner aktiv</strong></span>
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+              <button type="button" id="btnToggleScannerAi" class="btn btn-sm btn-secondary">Ohne KI (OCR)</button>
+              <button type="button" id="btnEditScannerKey" class="btn btn-sm btn-secondary">🔑 Key</button>
+            </div>
           </div>
 
           <div id="scannerAiSetupCard" class="scanner-ai-setup">
@@ -732,6 +735,6 @@
   <!-- Toast Notification -->
   <div id="toastBanner" class="toast-banner hidden"></div>
 
-  <script src="./app.js?v=39"></script>
+  <script src="./app.js?v=40"></script>
 </body>
 </html>
