@@ -2171,6 +2171,35 @@ body {
   flex: 1 1 auto;
 }
 
+.scanner-modal .modal-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.scanner-bottom-bar {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 16px max(12px, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border);
+  background: var(--bg-card);
+}
+
+.scanner-bottom-bar .scanner-scan-btn {
+  flex: 1.5 1 160px;
+  min-height: 44px;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.scanner-bottom-bar .scanner-auto-btn {
+  flex: 0.9 1 110px;
+  min-height: 44px;
+}
+
 .scanner-ai-ready {
   display: flex;
   align-items: center;

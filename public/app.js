@@ -4642,6 +4642,7 @@ document.addEventListener('DOMContentLoaded', () => {
     video.classList.remove('hidden');
     overlay?.classList.remove('hidden');
     resumeBtn?.classList.add('hidden');
+    document.getElementById('btnCaptureScan')?.classList.remove('hidden');
     stopScannerStream();
     updateAutoScanButtonUI();
 
@@ -5888,6 +5889,7 @@ document.addEventListener('DOMContentLoaded', () => {
       overlay?.classList.add('hidden');
       preview.classList.remove('hidden');
       resumeBtn?.classList.remove('hidden');
+      document.getElementById('btnCaptureScan')?.classList.add('hidden');
 
       const cardCanvas = document.createElement('canvas');
       cardCanvas.width = cropW;
