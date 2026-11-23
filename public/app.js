@@ -4381,18 +4381,148 @@ document.addEventListener('DOMContentLoaded', () => {
   // =========================================================================
   const SCANNER_KEY_STORAGE = 'pokevault_gemini_api_key';
   const SCANNER_AI_STORAGE = 'pokevault_scanner_use_ai';
+  const SCANNER_AUTO_STORAGE = 'pokevault_scanner_autoscan';
   let scannerStream = null;
   let scannerFacingMode = 'environment';
   let tesseractPromise = null;
   let scannerWorkerPromise = null;
   let scannerDebounce = null;
+  let autoScanEnabled = localStorage.getItem(SCANNER_AUTO_STORAGE) !== '0';
+  let autoScanTimer = null;
+  let autoScanPrevSample = null;
+  let autoScanSteadyCount = 0;
+  let scannerCaptureBusy = false;
 
   function setScannerStatus(msg) {
     const el = document.getElementById('scannerStatusPill');
     if (el) el.textContent = msg;
   }
 
+  function setScannerGuideState(state) {
+    const guide = document.getElementById('scannerFrameGuide');
+    if (!guide) return;
+    guide.classList.remove('is-locking', 'is-locked');
+    if (state === 'locking') guide.classList.add('is-locking');
+    else if (state === 'locked') guide.classList.add('is-locked');
+  }
+
+  function updateAutoScanButtonUI() {
+    const btn = document.getElementById('btnToggleAutoScan');
+    if (!btn) return;
+    btn.classList.toggle('active', autoScanEnabled);
+    btn.textContent = autoScanEnabled ? '⚡ Auto: AN' : '⚡ Auto: AUS';
+  }
+
+  function stopAutoScanLoop() {
+    if (autoScanTimer) {
+      clearInterval(autoScanTimer);
+      autoScanTimer = null;
+    }
+    autoScanPrevSample = null;
+    autoScanSteadyCount = 0;
+    setScannerGuideState('idle');
+  }
+
+  function getScannerGuideVideoCropRect(video, guide) {
+    const vw = video.videoWidth;
+    const vh = video.videoHeight;
+    const vRect = video.getBoundingClientRect();
+    const gRect = guide ? guide.getBoundingClientRect() : vRect;
+
+    let sx = 0, sy = 0, cropW = vw, cropH = vh;
+    if (vRect.width > 0 && vRect.height > 0 && gRect.width > 0 && gRect.height > 0) {
+      const coverScale = Math.max(vRect.width / vw, vRect.height / vh);
+      const renderedW = vw * coverScale;
+      const renderedH = vh * coverScale;
+      const offsetX = (renderedW - vRect.width) / 2;
+      const offsetY = (renderedH - vRect.height) / 2;
+      const relLeft = (gRect.left - vRect.left) + offsetX;
+      const relTop = (gRect.top - vRect.top) + offsetY;
+      sx = Math.max(0, Math.round(relLeft / coverScale));
+      sy = Math.max(0, Math.round(relTop / coverScale));
+      cropW = Math.min(vw - sx, Math.max(40, Math.round(gRect.width / coverScale)));
+      cropH = Math.min(vh - sy, Math.max(40, Math.round(gRect.height / coverScale)));
+    }
+    return { vw, vh, sx, sy, cropW, cropH };
+  }
+
+  function startAutoScanLoop() {
+    stopAutoScanLoop();
+    if (!autoScanEnabled) return;
+
+    const sampleCanvas = document.createElement('canvas');
+    sampleCanvas.width = 120;
+    sampleCanvas.height = 168;
+    const sampleCtx = sampleCanvas.getContext('2d', { willReadFrequently: true });
+
+    autoScanTimer = setInterval(() => {
+      if (!autoScanEnabled || scannerCaptureBusy) return;
+      const modal = document.getElementById('scannerModal');
+      const video = document.getElementById('scannerVideo');
+      const guide = document.getElementById('scannerFrameGuide');
+      if (!modal || modal.classList.contains('hidden') || !video || video.classList.contains('hidden') || !video.videoWidth) {
+        return;
+      }
+
+      const { sx, sy, cropW, cropH } = getScannerGuideVideoCropRect(video, guide);
+      sampleCtx.drawImage(video, sx, sy, cropW, cropH, 0, 0, 120, 168);
+      const data = sampleCtx.getImageData(0, 0, 120, 168).data;
+
+      // Convert to grayscale and compute sharpness (gradient) + frame-to-frame stability
+      const sw = 120, sh = 168;
+      const curr = new Uint8Array(sw * sh);
+      for (let i = 0, p = 0; i < data.length; i += 4, p++) {
+        curr[p] = (0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]) | 0;
+      }
+
+      let gradSum = 0;
+      let sharpEdges = 0;
+      let innerCount = 0;
+      for (let y = 10; y < sh - 10; y++) {
+        const row = y * sw;
+        for (let x = 10; x < sw - 10; x++) {
+          const idx = row + x;
+          const g = Math.abs(curr[idx] - curr[idx - 1]) + Math.abs(curr[idx] - curr[idx - sw]);
+          gradSum += g;
+          if (g > 20) sharpEdges++;
+          innerCount++;
+        }
+      }
+      const meanGrad = gradSum / Math.max(1, innerCount);
+      const edgeRatio = sharpEdges / Math.max(1, innerCount);
+      const isCardSharp = meanGrad >= 9.5 && edgeRatio >= 0.14;
+
+      let motionDiff = 99;
+      if (autoScanPrevSample) {
+        let diffSum = 0;
+        for (let i = 0; i < curr.length; i += 2) {
+          diffSum += Math.abs(curr[i] - autoScanPrevSample[i]);
+        }
+        motionDiff = diffSum / (curr.length / 2);
+      }
+      autoScanPrevSample = curr;
+
+      if (!isCardSharp || motionDiff > 6.5) {
+        autoScanSteadyCount = 0;
+        setScannerGuideState('idle');
+        setScannerStatus(isCardSharp ? 'Kurz ruhig halten...' : 'Karte in den Rahmen halten');
+        return;
+      }
+
+      autoScanSteadyCount++;
+      if (autoScanSteadyCount < 3) {
+        setScannerGuideState('locking');
+        setScannerStatus('Karte erkannt – ruhig halten...');
+      } else {
+        setScannerGuideState('locked');
+        setScannerStatus('✓ Scharf – wird gescannt!');
+        captureAndScanVideo();
+      }
+    }, 280);
+  }
+
   function stopScannerStream() {
+    stopAutoScanLoop();
     if (scannerStream) {
       for (const track of scannerStream.getTracks()) {
         try { track.stop(); } catch (e) {}
@@ -4416,6 +4546,7 @@ document.addEventListener('DOMContentLoaded', () => {
     overlay?.classList.remove('hidden');
     resumeBtn?.classList.add('hidden');
     stopScannerStream();
+    updateAutoScanButtonUI();
 
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       setScannerStatus('Kamera hier nicht verfügbar – nutze 🖼️ Foto');
@@ -4434,7 +4565,8 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       video.srcObject = scannerStream;
       await video.play().catch(() => {});
-      setScannerStatus('Karte in Rahmen halten & scannen');
+      setScannerStatus(autoScanEnabled ? 'Karte in den Rahmen halten' : 'Karte in Rahmen halten & scannen');
+      startAutoScanLoop();
 
       try {
         const devs = await navigator.mediaDevices.enumerateDevices();
@@ -4957,7 +5089,8 @@ document.addEventListener('DOMContentLoaded', () => {
     localStorage.setItem(SCANNER_AI_STORAGE, e.target.checked ? '1' : '0');
   });
 
-  document.getElementById('btnCaptureScan')?.addEventListener('click', async () => {
+  async function captureAndScanVideo() {
+    if (scannerCaptureBusy) return;
     const video = document.getElementById('scannerVideo');
     const preview = document.getElementById('scannerPreviewCanvas');
     const overlay = document.querySelector('#scannerModal .scanner-overlay');
@@ -4968,43 +5101,43 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // Compute exact pixel crop inside video matching the visible dashed card guide (under object-fit: cover)
-    const vw = video.videoWidth;
-    const vh = video.videoHeight;
-    const vRect = video.getBoundingClientRect();
-    const gRect = guide ? guide.getBoundingClientRect() : vRect;
+    scannerCaptureBusy = true;
+    stopAutoScanLoop();
+    try {
+      const { vw, vh, sx, sy, cropW, cropH } = getScannerGuideVideoCropRect(video, guide);
 
-    let sx = 0, sy = 0, cropW = vw, cropH = vh;
-    if (vRect.width > 0 && vRect.height > 0 && gRect.width > 0 && gRect.height > 0) {
-      const coverScale = Math.max(vRect.width / vw, vRect.height / vh);
-      const renderedW = vw * coverScale;
-      const renderedH = vh * coverScale;
-      const offsetX = (renderedW - vRect.width) / 2;
-      const offsetY = (renderedH - vRect.height) / 2;
-      const relLeft = (gRect.left - vRect.left) + offsetX;
-      const relTop = (gRect.top - vRect.top) + offsetY;
-      sx = Math.max(0, Math.round(relLeft / coverScale));
-      sy = Math.max(0, Math.round(relTop / coverScale));
-      cropW = Math.min(vw - sx, Math.max(40, Math.round(gRect.width / coverScale)));
-      cropH = Math.min(vh - sy, Math.max(40, Math.round(gRect.height / coverScale)));
+      preview.width = vw;
+      preview.height = vh;
+      preview.getContext('2d').drawImage(video, 0, 0, vw, vh);
+      video.classList.add('hidden');
+      overlay?.classList.add('hidden');
+      preview.classList.remove('hidden');
+      resumeBtn?.classList.remove('hidden');
+
+      const cardCanvas = document.createElement('canvas');
+      cardCanvas.width = cropW;
+      cardCanvas.height = cropH;
+      cardCanvas.getContext('2d').drawImage(preview, sx, sy, cropW, cropH, 0, 0, cropW, cropH);
+
+      await processScannedImageCanvas(cardCanvas);
+    } finally {
+      scannerCaptureBusy = false;
     }
+  }
 
-    // Show full frame in preview canvas (with overlay hidden so guide labels don't block the card)
-    preview.width = vw;
-    preview.height = vh;
-    preview.getContext('2d').drawImage(video, 0, 0, vw, vh);
-    video.classList.add('hidden');
-    overlay?.classList.add('hidden');
-    preview.classList.remove('hidden');
-    resumeBtn?.classList.remove('hidden');
-
-    const cardCanvas = document.createElement('canvas');
-    cardCanvas.width = cropW;
-    cardCanvas.height = cropH;
-    cardCanvas.getContext('2d').drawImage(preview, sx, sy, cropW, cropH, 0, 0, cropW, cropH);
-
-    await processScannedImageCanvas(cardCanvas);
+  document.getElementById('btnToggleAutoScan')?.addEventListener('click', () => {
+    autoScanEnabled = !autoScanEnabled;
+    localStorage.setItem(SCANNER_AUTO_STORAGE, autoScanEnabled ? '1' : '0');
+    updateAutoScanButtonUI();
+    const video = document.getElementById('scannerVideo');
+    if (autoScanEnabled && video && !video.classList.contains('hidden')) {
+      startAutoScanLoop();
+    } else {
+      stopAutoScanLoop();
+    }
   });
+
+  document.getElementById('btnCaptureScan')?.addEventListener('click', captureAndScanVideo);
 
   document.getElementById('scannerFileInput')?.addEventListener('change', async e => {
     const file = e.target.files?.[0];
