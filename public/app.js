@@ -5367,7 +5367,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderScannerMatchRows(rows, listEl);
   }
 
-  function renderScannerMatchRows(rows, listEl = document.getElementById('scannerMatchList')) {
+  function renderScannerMatchRows(rows, listEl = document.getElementById('scannerMatchesList')) {
     if (!listEl) return;
     listEl.innerHTML = '';
     if (!rows || rows.length === 0) {
