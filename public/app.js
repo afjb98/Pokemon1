@@ -4410,8 +4410,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const switchBtn = document.getElementById('btnSwitchCamera');
     if (!video || !canvas) return;
 
+    const overlay = document.querySelector('#scannerModal .scanner-overlay');
     canvas.classList.add('hidden');
     video.classList.remove('hidden');
+    overlay?.classList.remove('hidden');
     resumeBtn?.classList.add('hidden');
     stopScannerStream();
 
@@ -4494,7 +4496,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return scannerWorkerPromise;
   }
 
-  function enhanceContrastGrayCanvas(srcCanvas, sx, sy, sw, sh, targetW = 700) {
+  function enhanceContrastGrayCanvas(srcCanvas, sx, sy, sw, sh, targetW = 900) {
     const scale = targetW / Math.max(1, sw);
     const out = document.createElement('canvas');
     out.width = Math.max(1, Math.round(sw * scale));
@@ -4503,10 +4505,17 @@ document.addEventListener('DOMContentLoaded', () => {
     ctx.drawImage(srcCanvas, sx, sy, sw, sh, 0, 0, out.width, out.height);
     const img = ctx.getImageData(0, 0, out.width, out.height);
     const d = img.data;
+    let minG = 255, maxG = 0;
     for (let i = 0; i < d.length; i += 4) {
-      const gray = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-      // Boost local contrast for dark/light card header & collector numbers
-      const c = Math.max(0, Math.min(255, (gray - 128) * 1.45 + 128));
+      const g = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+      if (g < minG) minG = g;
+      if (g > maxG) maxG = g;
+    }
+    const span = Math.max(24, maxG - minG);
+    for (let i = 0; i < d.length; i += 4) {
+      const g = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+      const norm = ((g - minG) / span) * 255;
+      const c = Math.max(0, Math.min(255, norm));
       d[i] = d[i + 1] = d[i + 2] = c;
     }
     ctx.putImageData(img, 0, 0);
@@ -4521,25 +4530,67 @@ document.addEventListener('DOMContentLoaded', () => {
     const cardNumber = numMatch ? numMatch[1].replace(/\s+/g, '').replace(/^0+(?=\d)/, '') : '';
     const cardTotal = (numMatch && numMatch[2]) ? numMatch[2].replace(/^0+(?=\d)/, '') : '';
 
-    const setMatch = cleanNumText.match(/\b([A-Z]{3})\b(?=\s+(?:EN|DE|FR|ES|IT|\d))/);
+    const setMatch = cleanNumText.match(/\b([A-Z]{2,4})\b(?=\s+(?:EN|DE|FR|ES|IT|\d))/);
     const setCode = setMatch ? setMatch[1] : '';
 
-    const stopWords = /^(basis|basic|phase|stage|trainer|unterst[uü]tzer|supporter|item|stadion|stadium|ausr[uü]stung|tool|energ[iy]e?|kp|hp|restored|entwickelt|\d+)$/i;
+    const stopWords = /^(basis|basic|phase|stage|trainer|trawer|tramer|tra1ner|unterst[uü]tzer|supporter|item|stadion|stadium|ausr[uü]stung|tool|energ[iy]e?|kp|hp|restored|entwickelt|evolves|from|\d+)$/i;
+    const isNoiseHeaderLine = txt => {
+      const low = txt.toLowerCase();
+      if (/^(trai?n[eo]r|trawer|tramer|supp[o0]rter|unterst[uü]tzer|bas[il1]s|stage\s*\d*|phase\s*\d*|stadi[ou]m|item)\b/i.test(low)) return true;
+      // Ignore purely uppercase short garbage lines (e.g. OCR reading border patterns)
+      if (txt === txt.toUpperCase() && txt.length <= 9 && !/\d/.test(txt)) return true;
+      return false;
+    };
+
     const lines = String(topText || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
     let bestName = '';
+    let bestScore = -1;
     for (const line of lines) {
       const stripped = line
         .replace(/\b(?:KP|HP)\s*\d{2,3}\b/gi, '')
         .replace(/[^A-Za-zÄÖÜäöüßéÉ0-9'’\-\s]/g, ' ')
         .replace(/\s+/g, ' ')
         .trim();
-      const tokens = stripped.split(' ').filter(t => t.length > 1 && !stopWords.test(t));
-      if (tokens.length > 0) {
-        bestName = tokens.join(' ');
-        break;
+      if (!stripped || stripped.length < 3) continue;
+      if (isNoiseHeaderLine(stripped)) continue;
+      const tokens = stripped.split(' ').filter(t => t.length >= 2 && !stopWords.test(t));
+      if (tokens.length === 0) continue;
+      const candidate = tokens.join(' ');
+      const hasMixedCase = /[a-zäöüßé]/.test(candidate) && /[A-ZÄÖÜ]/.test(candidate);
+      const score = (hasMixedCase ? 20 : 0) + tokens.length * 6 + Math.min(15, candidate.length);
+      if (score > bestScore) {
+        bestScore = score;
+        bestName = candidate;
       }
     }
     return { name: bestName, number: cardNumber, total: cardTotal, setCode };
+  }
+
+  function normalizeScanText(s) {
+    return String(s || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[’‘`]/g, "'")
+      .toLowerCase();
+  }
+
+  function diceBigramSimilarity(a, b) {
+    if (!a || !b || a.length < 2 || b.length < 2) return 0;
+    const map = new Map();
+    for (let i = 0; i < a.length - 1; i++) {
+      const bg = a.slice(i, i + 2);
+      map.set(bg, (map.get(bg) || 0) + 1);
+    }
+    let overlap = 0;
+    for (let i = 0; i < b.length - 1; i++) {
+      const bg = b.slice(i, i + 2);
+      const cnt = map.get(bg) || 0;
+      if (cnt > 0) {
+        overlap++;
+        map.set(bg, cnt - 1);
+      }
+    }
+    return (2 * overlap) / (a.length + b.length - 2);
   }
 
   async function scanCardWithGeminiVision(cardCanvas, apiKey) {
@@ -4655,14 +4706,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const listEl = document.getElementById('scannerMatchesList');
     if (!listEl) return;
     const rawQ = String(queryText || '').trim();
-    const numInQ = rawQ.match(/\b(\d{1,3})(?:\s*\/\s*\d{1,3})?\b/);
+    const normQ = normalizeScanText(rawQ);
+    const numInQ = normQ.match(/\b(\d{1,3})(?:\s*\/\s*\d{1,3})?\b/);
     const numHint = parsedHints?.number || (numInQ ? numInQ[1] : '');
     const setHint = (parsedHints?.setCode || '').toUpperCase();
-    const cleanedWords = rawQ
+    const cleanedWords = normQ
       .replace(/\b\d{1,3}\s*\/\s*\d{1,3}\b/g, '')
-      .toLowerCase()
+      .replace(/[^a-z0-9'\s]/g, ' ')
       .split(/\s+/)
-      .filter(w => w.length >= 2);
+      .filter(w => w.length >= 2 && /[a-z]/.test(w));
 
     if (cleanedWords.length === 0 && !numHint) {
       listEl.innerHTML = '<div class="search-hint">Name oder Kartennummer eingeben bzw. Karte scannen.</div>';
@@ -4677,32 +4729,65 @@ document.addEventListener('DOMContentLoaded', () => {
       const scored = [];
       for (let i = 0; i < cat.length; i++) {
         const r = cat[i];
-        const en = String(r[1] || '').toLowerCase();
-        const de = String(r[2] || '').toLowerCase();
-        const exp = String(r[5] || '').toLowerCase();
+        const enClean = normalizeScanText(String(r[1] || '').replace(/\[.*?\]/g, ''));
+        const deClean = normalizeScanText(String(r[2] || '').replace(/\[.*?\]/g, ''));
+        const expClean = normalizeScanText(r[5] || '');
         const code = String(r[6] || '').toUpperCase();
-        const hay = `${en} ${de} ${exp} ${code.toLowerCase()}`;
+        const nameHay = `${enClean} ${deClean}`;
+        const fullHay = `${nameHay} ${expClean} ${code.toLowerCase()}`;
 
         let score = 0;
-        let wordHits = 0;
+        let nameHits = 0;
+        let anyHits = 0;
         for (const w of cleanedWords) {
-          if (hay.includes(w)) {
-            wordHits++;
-            score += (en.startsWith(w) || de.startsWith(w)) ? 25 : 14;
+          if (nameHay.includes(w)) {
+            nameHits++;
+            anyHits++;
+            score += (enClean.startsWith(w) || deClean.startsWith(w)) ? 30 : 18;
+          } else if (fullHay.includes(w)) {
+            anyHits++;
+            score += 8;
           }
         }
-        if (cleanedWords.length > 0 && wordHits === 0) continue;
-        if (wordHits === cleanedWords.length && cleanedWords.length > 0) score += 30;
-        if (numHint && (en.includes(`#${numHint}`) || en.includes(`(${numHint})`) || en.includes(` ${numHint}/`))) {
+        if (cleanedWords.length > 0 && nameHits === 0 && anyHits < cleanedWords.length) continue;
+        if (nameHits === cleanedWords.length && cleanedWords.length > 0) score += 40;
+        if (numHint && (String(r[1] || '').includes(`#${numHint}`) || String(r[1] || '').includes(`(${numHint})`))) {
           score += 35;
         }
         if (setHint && code === setHint) score += 25;
         if (r[3] === 'c') score += 5;
 
-        if (score > 0) scored.push({ r, score, price: Number(r[7] ?? r[9] ?? 0) });
+        if (score >= 18) scored.push({ r, score, price: Number(r[7] ?? r[9] ?? 0) });
       }
+
+      // Fuzzy bigram fallback when OCR misread 1–2 characters and produced too few hits
+      if (scored.length < 3 && cleanedWords.length > 0) {
+        const namePhrase = cleanedWords.join(' ');
+        if (namePhrase.length >= 4) {
+          for (let i = 0; i < cat.length; i++) {
+            const r = cat[i];
+            if (r[3] !== 'c') continue;
+            const enBase = normalizeScanText(String(r[1] || '').replace(/\[.*?\]/g, '').trim());
+            const deBase = normalizeScanText(String(r[2] || '').split(' – ')[0].replace(/\[.*?\]/g, '').trim());
+            const sim = Math.max(
+              diceBigramSimilarity(namePhrase, enBase),
+              deBase ? diceBigramSimilarity(namePhrase, deBase) : 0
+            );
+            if (sim >= 0.56) {
+              scored.push({ r, score: Math.round(sim * 60), price: Number(r[7] ?? r[9] ?? 0) });
+            }
+          }
+        }
+      }
+
       scored.sort((a, b) => (b.score - a.score) || (b.price - a.price));
-      rows = scored.slice(0, 18).map(x => x.r);
+      const seenIds = new Set();
+      for (const x of scored) {
+        if (seenIds.has(x.r[0])) continue;
+        seenIds.add(x.r[0]);
+        rows.push(x.r);
+        if (rows.length >= 18) break;
+      }
     } else {
       const qTerm = cleanedWords.join(' ') || numHint;
       const res = await fetch(`/api/search?q=${encodeURIComponent(qTerm)}&type=single`);
@@ -4800,8 +4885,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const w = cardCanvas.width;
         const h = cardCanvas.height;
-        const topCrop = enhanceContrastGrayCanvas(cardCanvas, w * 0.04, h * 0.02, w * 0.78, h * 0.17, 680);
-        const botCrop = enhanceContrastGrayCanvas(cardCanvas, w * 0.02, h * 0.84, w * 0.66, h * 0.14, 620);
+        const topCrop = enhanceContrastGrayCanvas(cardCanvas, w * 0.02, h * 0.02, w * 0.95, h * 0.19, 900);
+        const botCrop = enhanceContrastGrayCanvas(cardCanvas, w * 0.02, h * 0.82, w * 0.96, h * 0.16, 900);
 
         const [topRes, botRes] = await Promise.all([
           worker.recognize(topCrop),
@@ -4866,30 +4951,44 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btnCaptureScan')?.addEventListener('click', async () => {
     const video = document.getElementById('scannerVideo');
     const preview = document.getElementById('scannerPreviewCanvas');
+    const overlay = document.querySelector('#scannerModal .scanner-overlay');
+    const guide = document.getElementById('scannerFrameGuide');
     const resumeBtn = document.getElementById('btnResumeCamera');
     if (!video || !preview || !video.videoWidth) {
       showToast('Kamera noch nicht bereit – oder wähle 🖼️ Foto');
       return;
     }
 
-    // Freeze full frame on preview canvas
+    // Compute exact pixel crop inside video matching the visible dashed card guide (under object-fit: cover)
     const vw = video.videoWidth;
     const vh = video.videoHeight;
+    const vRect = video.getBoundingClientRect();
+    const gRect = guide ? guide.getBoundingClientRect() : vRect;
+
+    let sx = 0, sy = 0, cropW = vw, cropH = vh;
+    if (vRect.width > 0 && vRect.height > 0 && gRect.width > 0 && gRect.height > 0) {
+      const coverScale = Math.max(vRect.width / vw, vRect.height / vh);
+      const renderedW = vw * coverScale;
+      const renderedH = vh * coverScale;
+      const offsetX = (renderedW - vRect.width) / 2;
+      const offsetY = (renderedH - vRect.height) / 2;
+      const relLeft = (gRect.left - vRect.left) + offsetX;
+      const relTop = (gRect.top - vRect.top) + offsetY;
+      sx = Math.max(0, Math.round(relLeft / coverScale));
+      sy = Math.max(0, Math.round(relTop / coverScale));
+      cropW = Math.min(vw - sx, Math.max(40, Math.round(gRect.width / coverScale)));
+      cropH = Math.min(vh - sy, Math.max(40, Math.round(gRect.height / coverScale)));
+    }
+
+    // Show full frame in preview canvas (with overlay hidden so guide labels don't block the card)
     preview.width = vw;
     preview.height = vh;
-    const pCtx = preview.getContext('2d');
-    pCtx.drawImage(video, 0, 0, vw, vh);
+    preview.getContext('2d').drawImage(video, 0, 0, vw, vh);
     video.classList.add('hidden');
+    overlay?.classList.add('hidden');
     preview.classList.remove('hidden');
     resumeBtn?.classList.remove('hidden');
 
-    // Crop exact card frame region (63:88 centered, ~82% height of video)
-    const maxH = vh * 0.82;
-    const rawW = maxH * (63 / 88);
-    const cropW = Math.round(Math.min(vw * 0.94, rawW));
-    const cropH = Math.round(Math.min(maxH, cropW * (88 / 63)));
-    const sx = Math.max(0, Math.round((vw - cropW) / 2));
-    const sy = Math.max(0, Math.round((vh - cropH) / 2));
     const cardCanvas = document.createElement('canvas');
     cardCanvas.width = cropW;
     cardCanvas.height = cropH;
@@ -4918,6 +5017,7 @@ document.addEventListener('DOMContentLoaded', () => {
       URL.revokeObjectURL(imgUrl);
 
       video.classList.add('hidden');
+      document.querySelector('#scannerModal .scanner-overlay')?.classList.add('hidden');
       preview.classList.remove('hidden');
       resumeBtn?.classList.remove('hidden');
 
