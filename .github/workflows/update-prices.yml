@@ -60,6 +60,9 @@ jobs:
         with:
           path: './public'
 
+      - name: Kurz auf Artifact-Indexierung warten
+        run: sleep 10
+
       - name: Auf GitHub Pages veröffentlichen
         id: deployment
         uses: actions/deploy-pages@v4
