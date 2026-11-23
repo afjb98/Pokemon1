@@ -1431,6 +1431,7 @@ function renderTable() {
       </td>
       <td>
         <div class="row-actions" onclick="event.stopPropagation();">
+          ${!viewingFriend && item.type === 'sealed' ? `<button class="action-btn open-sealed-btn" title="Aus Sealed-Bestand öffnen & unter Geöffnet verbuchen" onclick="markSealedAsOpened('${item.id}')">📦 Geöffnet</button>` : ''}
           ${viewingFriend ? '' : (item.type === 'expense' ? '' : `<button class="action-btn" title="DE-Preis direkt anpassen" onclick="openSnapshotModal('${item.id}')">DE €</button>`)}
           ${cmUrl ? `<a class="action-btn" href="${escapeHtml(cmUrl)}" target="_blank" rel="noopener" title="Auf Cardmarket (Deutsch) öffnen">CM ↗</a>` : ''}
           ${viewingFriend ? '' : `<button class="action-btn" title="Bearbeiten" onclick="${item.type === 'expense' ? `openExpenseModal('${item.id}')` : `openEditModal('${item.id}')`}">Bearbeiten</button>`}
@@ -1499,10 +1500,15 @@ function renderSetGallery(items, container) {
         item.notes || ''
       ].filter(Boolean);
 
+      const imgUrl = resolveItemImageUrl(item);
+      const thumbBadge = item.expansionCode || 'BOX';
       card.innerHTML = `
-        <div class="expense-card-left">
-          <div class="expense-card-title">${escapeHtml(item.displayNameDe || item.name || 'Geöffnetes Produkt')}</div>
-          <div class="expense-card-meta">${escapeHtml(metaBits.join(' • '))}</div>
+        <div class="expense-card-left-wrap">
+          ${imgUrl ? `<div class="expense-card-thumb"><img src="${escapeHtml(imgUrl)}" loading="lazy" alt="" data-id="${escapeHtml(item.idProduct || '')}" data-name="${escapeHtml(item.name || '')}" data-type="sealed" data-exp="${escapeHtml(item.expansionName || '')}" data-badge="${escapeHtml(thumbBadge)}" onerror="handleCardImageError(this)" /></div>` : ''}
+          <div class="expense-card-left">
+            <div class="expense-card-title">${escapeHtml(item.displayNameDe || item.name || 'Geöffnetes Produkt')}</div>
+            <div class="expense-card-meta">${escapeHtml(metaBits.join(' • '))}</div>
+          </div>
         </div>
         <div class="expense-card-right">
           <div class="expense-card-amount">-${fmtEuro(totCost)}</div>
@@ -1622,6 +1628,7 @@ function renderSetGallery(items, container) {
             <button class="action-btn" onclick="openSnapshotModal('${item.id}')">DE €</button>
             <button class="action-btn" onclick="openEditModal('${item.id}')">Edit</button>
             <button class="action-btn delete" onclick="deleteItem('${item.id}')">✕</button>
+            ${item.type === 'sealed' ? `<button type="button" class="action-btn open-sealed-btn" title="Aus Sealed-Bestand öffnen & unter Geöffnet verbuchen" onclick="markSealedAsOpened('${item.id}')">📦 Geöffnet</button>` : ''}
           </div>`}
         </div>
       `;
@@ -2531,6 +2538,21 @@ function openCardZoomModal(item, sourceImgEl = null) {
     cmLink.classList.add('hidden');
   }
 
+  const zoomOpenSealedBtn = document.getElementById('btnCardZoomOpenSealed');
+  if (zoomOpenSealedBtn) {
+    const canOpenSealed = item.type === 'sealed' && !viewingFriend && item.id && portfolioItems.some(p => p.id === item.id);
+    if (canOpenSealed) {
+      zoomOpenSealedBtn.classList.remove('hidden');
+      zoomOpenSealedBtn.onclick = () => {
+        closeCardZoomModal();
+        markSealedAsOpened(item.id);
+      };
+    } else {
+      zoomOpenSealedBtn.classList.add('hidden');
+      zoomOpenSealedBtn.onclick = null;
+    }
+  }
+
   const chartBtn = document.getElementById('btnCardZoomChart');
   chartBtn.onclick = () => {
     closeCardZoomModal();
@@ -2586,11 +2608,97 @@ function updateExpensePerPackHelp() {
   }
 }
 
+function guessExpensePresetForSealed(item) {
+  const txt = `${item?.displayNameDe || ''} ${item?.name || ''} ${item?.categoryName || ''}`.toLowerCase();
+  if (/booster\s*pack|\b1\s*pack\b|sleeved/.test(txt) && !/bundle|box|display|tin/.test(txt)) {
+    return { preset: 'booster', packs: 1 };
+  }
+  if (/top[-\s]*trainer|ttb|etb|elite\s*trainer/.test(txt)) {
+    return { preset: 'ttb', packs: 9 };
+  }
+  if (/bundle|\b6\s*pack/.test(txt)) {
+    return { preset: 'bundle', packs: 6 };
+  }
+  if (/tin|\bmini\s*tin\b|blister|collection|kollektion/.test(txt)) {
+    return { preset: 'bundle', packs: 4 };
+  }
+  if (/display|booster\s*box|\b36\b/.test(txt)) {
+    return { preset: 'display', packs: 36 };
+  }
+  return { preset: 'display', packs: 36 };
+}
+
+function populateExpenseSetSuggestionsLazy() {
+  const dl = document.getElementById('expenseSetSuggestions');
+  if (!dl || dl.options.length > 0) return;
+  ensureSetsIndexLoaded().then(list => {
+    if (!Array.isArray(list) || dl.options.length > 0) return;
+    const frag = document.createDocumentFragment();
+    for (const s of list.slice(0, 60)) {
+      const label = s.de || s.en || '';
+      if (!label) continue;
+      for (const suffix of ['Display (36 Packs)', 'Top-Trainer-Box (TTB)']) {
+        const opt = document.createElement('option');
+        opt.value = `${label} ${suffix}`;
+        frag.appendChild(opt);
+      }
+    }
+    dl.appendChild(frag);
+  }).catch(() => {});
+}
+
+function markSealedAsOpened(itemId) {
+  if (viewingFriend || !itemId) return;
+  const item = portfolioItems.find(i => i.id === itemId && i.type === 'sealed');
+  if (!item) return;
+
+  const modal = document.getElementById('expenseModal');
+  const delBtn = document.getElementById('btnDeleteExpense');
+  const titleEl = document.getElementById('expenseModalTitle');
+  const subEl = document.getElementById('expenseModalSub');
+  const saveBtn = document.getElementById('btnSaveExpense');
+  const qtyEl = document.getElementById('expenseQuantity');
+  const today = new Date().toISOString().slice(0, 10);
+
+  const sealedQty = Math.max(1, Number(item.quantity) || 1);
+  const guess = guessExpensePresetForSealed(item);
+  const defaultCost = hasBuyPrice(item) ? Number(item.buyPrice) : Number((getUnitDePrice(item) || 0).toFixed(2));
+
+  document.querySelectorAll('#expenseModal .expense-preset-pills .pill').forEach(p => p.classList.remove('active'));
+  document.querySelector(`#expenseModal .expense-preset-pills .pill[data-preset="${guess.preset}"]`)?.classList.add('active');
+
+  titleEl.textContent = 'Sealed-Produkt öffnen';
+  if (subEl) {
+    subEl.textContent = sealedQty > 1
+      ? `Bestand im Sealed-Portfolio: ${sealedQty}x → gewählte Anzahl wird abgezogen & zu „Geöffnet“ verschoben`
+      : 'Wird aus deinem Sealed-Bestand entfernt und automatisch zu „Geöffnet“ verschoben';
+  }
+  saveBtn.textContent = '📦 Als geöffnet verschieben';
+
+  document.getElementById('expenseEditId').value = '';
+  document.getElementById('expenseSourceSealedId').value = item.id;
+  document.getElementById('expenseName').value = (item.displayNameDe || item.name || '').replace(/\[.*?\]/g, '').trim();
+  document.getElementById('expenseCost').value = defaultCost;
+  document.getElementById('expensePacksCount').value = guess.packs;
+  qtyEl.value = '1';
+  qtyEl.max = String(sealedQty);
+  document.getElementById('expenseDate').value = today;
+  document.getElementById('expenseNotes').value = item.notes || '';
+  delBtn.classList.add('hidden');
+  delBtn.onclick = null;
+
+  updateExpensePerPackHelp();
+  modal.classList.remove('hidden');
+  populateExpenseSetSuggestionsLazy();
+}
+
 function openExpenseModal(editItemId = null) {
   const modal = document.getElementById('expenseModal');
   const delBtn = document.getElementById('btnDeleteExpense');
   const titleEl = document.getElementById('expenseModalTitle');
+  const subEl = document.getElementById('expenseModalSub');
   const saveBtn = document.getElementById('btnSaveExpense');
+  const qtyEl = document.getElementById('expenseQuantity');
   const today = new Date().toISOString().slice(0, 10);
 
   let item = null;
@@ -2598,6 +2706,11 @@ function openExpenseModal(editItemId = null) {
     item = portfolioItems.find(i => i.id === editItemId);
   }
 
+  document.getElementById('expenseSourceSealedId').value = '';
+  qtyEl.removeAttribute('max');
+  if (subEl) {
+    subEl.textContent = 'Zählt als Ausgabe ins Gesamt-Ergebnis, ohne dass noch Sealed-Wert dazugerechnet wird';
+  }
   document.querySelectorAll('#expenseModal .expense-preset-pills .pill').forEach(p => p.classList.remove('active'));
 
   if (item) {
@@ -2607,7 +2720,7 @@ function openExpenseModal(editItemId = null) {
     document.getElementById('expenseName').value = item.displayNameDe || item.name || '';
     document.getElementById('expenseCost').value = item.buyPrice ?? '';
     document.getElementById('expensePacksCount').value = item.packsCount || 36;
-    document.getElementById('expenseQuantity').value = item.quantity || 1;
+    qtyEl.value = item.quantity || 1;
     document.getElementById('expenseDate').value = item.buyDate || today;
     document.getElementById('expenseNotes').value = item.notes || '';
     const presetKey = item.expensePreset || 'display';
@@ -2624,7 +2737,7 @@ function openExpenseModal(editItemId = null) {
     document.getElementById('expenseName').value = '';
     document.getElementById('expenseCost').value = '';
     document.getElementById('expensePacksCount').value = '36';
-    document.getElementById('expenseQuantity').value = '1';
+    qtyEl.value = '1';
     document.getElementById('expenseDate').value = today;
     document.getElementById('expenseNotes').value = '';
     document.querySelector('#expenseModal .expense-preset-pills .pill[data-preset="display"]')?.classList.add('active');
@@ -2634,25 +2747,7 @@ function openExpenseModal(editItemId = null) {
   updateExpensePerPackHelp();
   modal.classList.remove('hidden');
   setTimeout(() => document.getElementById('expenseName').focus(), 50);
-
-  // Lazy-populate set suggestions for opened Display / TTB autocomplete
-  const dl = document.getElementById('expenseSetSuggestions');
-  if (dl && dl.options.length === 0) {
-    ensureSetsIndexLoaded().then(list => {
-      if (!Array.isArray(list) || dl.options.length > 0) return;
-      const frag = document.createDocumentFragment();
-      for (const s of list.slice(0, 60)) {
-        const label = s.de || s.en || '';
-        if (!label) continue;
-        for (const suffix of ['Display (36 Packs)', 'Top-Trainer-Box (TTB)']) {
-          const opt = document.createElement('option');
-          opt.value = `${label} ${suffix}`;
-          frag.appendChild(opt);
-        }
-      }
-      dl.appendChild(frag);
-    }).catch(() => {});
-  }
+  populateExpenseSetSuggestionsLazy();
 }
 
 function closeExpenseModal() {
@@ -3533,20 +3628,36 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('expenseForm').addEventListener('submit', async e => {
     e.preventDefault();
     const editId = document.getElementById('expenseEditId').value;
+    const sourceSealedId = document.getElementById('expenseSourceSealedId').value;
+    const sourceSealed = sourceSealedId
+      ? portfolioItems.find(i => i.id === sourceSealedId && i.type === 'sealed')
+      : null;
     const activePreset = document.querySelector('#expenseModal .expense-preset-pills .pill.active')?.dataset.preset || 'display';
     const today = new Date().toISOString().slice(0, 10);
+    let requestedQty = Math.max(1, Number(document.getElementById('expenseQuantity').value) || 1);
+    const sealedQty = sourceSealed ? Math.max(1, Number(sourceSealed.quantity) || 1) : 0;
+    if (sourceSealed) {
+      requestedQty = Math.min(sealedQty, requestedQty);
+    }
+
     const payload = {
       name: document.getElementById('expenseName').value.trim(),
       type: 'expense',
       categoryName: 'Geöffnet / Packs',
       buyPrice: Number(document.getElementById('expenseCost').value) || 0,
       packsCount: Math.max(1, Number(document.getElementById('expensePacksCount').value) || 1),
-      quantity: Math.max(1, Number(document.getElementById('expenseQuantity').value) || 1),
+      quantity: requestedQty,
       buyDate: document.getElementById('expenseDate').value || today,
       notes: document.getElementById('expenseNotes').value.trim(),
       expensePreset: activePreset,
       condition: 'M',
-      language: 'DE'
+      language: sourceSealed?.language || 'DE',
+      idProduct: sourceSealed?.idProduct || null,
+      expansionName: sourceSealed?.expansionName || '',
+      expansionCode: sourceSealed?.expansionCode || '',
+      tcgdexId: sourceSealed?.tcgdexId || '',
+      imageUrl: sourceSealed?.imageUrl || '',
+      cardmarketUrl: sourceSealed?.cardmarketUrl || ''
     };
 
     if (!isStaticMode && profileMode === 'owner') {
@@ -3562,6 +3673,18 @@ document.addEventListener('DOMContentLoaded', () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
+        if (sourceSealed) {
+          if (requestedQty >= sealedQty) {
+            await fetch(`/api/portfolio/${sourceSealed.id}`, { method: 'DELETE' });
+            if (selectedChartItemId === sourceSealed.id) selectedChartItemId = null;
+          } else {
+            await fetch(`/api/portfolio/${sourceSealed.id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ quantity: sealedQty - requestedQty })
+            });
+          }
+        }
       }
       closeExpenseModal();
       await fetchPortfolio();
@@ -3581,15 +3704,31 @@ document.addEventListener('DOMContentLoaded', () => {
           it.mobileEditedAt = new Date().toISOString();
         }
       } else {
+        if (sourceSealed) {
+          if (requestedQty >= sealedQty) {
+            if (isStaticMode && profileMode === 'owner' && !String(sourceSealed.id).startsWith('mobile_')) {
+              addDeletedOwnerId(sourceSealed.id);
+            }
+            portfolioItems = portfolioItems.filter(i => i.id !== sourceSealed.id);
+            if (selectedChartItemId === sourceSealed.id) selectedChartItemId = null;
+          } else {
+            sourceSealed.quantity = sealedQty - requestedQty;
+            sourceSealed.mobileEditedAt = new Date().toISOString();
+          }
+        }
         portfolioItems.unshift({
           id: 'mobile_exp_' + Date.now(),
-          idProduct: null,
+          idProduct: payload.idProduct,
           name: payload.name,
           displayNameDe: payload.name,
           type: 'expense',
           categoryName: 'Geöffnet / Packs',
-          expansionName: '',
-          expansionCode: '',
+          expansionName: payload.expansionName,
+          expansionCode: payload.expansionCode,
+          tcgdexId: payload.tcgdexId,
+          imageUrl: payload.imageUrl,
+          fallbackImageUrl: sourceSealed?.fallbackImageUrl || '',
+          cardmarketUrl: payload.cardmarketUrl,
           packsCount: payload.packsCount,
           expensePreset: payload.expensePreset,
           quantity: payload.quantity,
@@ -3606,8 +3745,9 @@ document.addEventListener('DOMContentLoaded', () => {
       renderAll();
     }
 
-    // Switch straight to Geöffnet tab if not already viewing it so user sees the entry right away
-    if (activeFilter !== 'expense') {
+    if (sourceSealed) {
+      showToast(`„${payload.name}“ (${requestedQty}x) zu Geöffnet verschoben`);
+    } else if (activeFilter !== 'expense') {
       showToast(`Ausgabe gespeichert (-${fmtEuro(payload.buyPrice * payload.quantity)})`);
     }
   });

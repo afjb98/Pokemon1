@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <link rel="stylesheet" href="./style.css?v=26" />
+  <link rel="stylesheet" href="./style.css?v=27" />
 </head>
 <body>
   <div class="app-shell">
@@ -573,6 +573,7 @@
           <div class="card-zoom-badges" id="cardZoomBadges"></div>
           <div class="card-zoom-prices" id="cardZoomPrices"></div>
           <div class="card-zoom-actions">
+            <button type="button" id="btnCardZoomOpenSealed" class="btn btn-sm open-sealed-zoom-btn hidden">📦 Geöffnet</button>
             <button type="button" id="btnCardZoomChart" class="btn btn-secondary btn-sm">📈 Preisverlauf</button>
             <a id="cardZoomCmLink" href="#" target="_blank" rel="noopener" class="btn btn-primary btn-sm hidden">Auf Cardmarket ↗</a>
           </div>
@@ -587,12 +588,13 @@
       <div class="modal-header">
         <div>
           <h2 id="expenseModalTitle">Geöffnetes Display / TTB eintragen</h2>
-          <p class="modal-sub">Zählt als Ausgabe ins Gesamt-Ergebnis, ohne dass noch Sealed-Wert dazugerechnet wird</p>
+          <p class="modal-sub" id="expenseModalSub">Zählt als Ausgabe ins Gesamt-Ergebnis, ohne dass noch Sealed-Wert dazugerechnet wird</p>
         </div>
         <button id="btnCloseExpenseModal" class="btn-icon">✕</button>
       </div>
       <form id="expenseForm" class="modal-body">
         <input type="hidden" id="expenseEditId" value="" />
+        <input type="hidden" id="expenseSourceSealedId" value="" />
 
         <div class="expense-preset-pills">
           <button type="button" class="pill active" data-preset="display" data-packs="36">Display (36 Packs)</button>
@@ -647,6 +649,6 @@
   <!-- Toast Notification -->
   <div id="toastBanner" class="toast-banner hidden"></div>
 
-  <script src="./app.js?v=26"></script>
+  <script src="./app.js?v=27"></script>
 </body>
 </html>

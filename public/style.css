@@ -748,6 +748,7 @@ body {
 .gallery-card-actions {
   display: flex;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 4px;
   margin-top: 4px;
 }
@@ -757,6 +758,34 @@ body {
   text-align: center;
   padding: 4px 4px;
   font-size: 0.68rem;
+}
+
+.action-btn.open-sealed-btn {
+  background: rgba(245, 158, 11, 0.14);
+  border-color: rgba(245, 158, 11, 0.45);
+  color: #fbbf24;
+  font-weight: 600;
+}
+
+.action-btn.open-sealed-btn:hover {
+  background: rgba(245, 158, 11, 0.25);
+  border-color: #f59e0b;
+  color: #fde68a;
+}
+
+.gallery-card-actions .open-sealed-btn {
+  flex: 1 0 100%;
+}
+
+.open-sealed-zoom-btn {
+  background: rgba(245, 158, 11, 0.16);
+  border: 1px solid rgba(245, 158, 11, 0.5);
+  color: #fbbf24;
+}
+
+.open-sealed-zoom-btn:hover {
+  background: rgba(245, 158, 11, 0.28);
+  color: #fde68a;
 }
 
 .toolbar-right {
@@ -1500,6 +1529,32 @@ body {
   background: var(--bg-main);
   border: 1px solid var(--border);
   border-radius: 10px;
+}
+
+.expense-card-left-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.expense-card-thumb {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.expense-card-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 .expense-card-left {
