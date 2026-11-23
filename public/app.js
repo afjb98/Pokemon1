@@ -5447,70 +5447,96 @@ document.addEventListener('DOMContentLoaded', () => {
     return cardHashesPromise;
   }
 
-  /** Compute lighting- and white-balance-invariant 72-dim visual descriptor from a card canvas. */
-  function computeCanvasVisualVector(cardCanvas, shiftXFrac = 0, shiftYFrac = 0) {
-    const sw = 48;
-    const sh = 68;
+  /** Compute 128-dim artwork-focused + structure visual descriptor from a card canvas. */
+  function computeCanvasVisualVector(cardCanvas, shiftXFrac = 0, shiftYFrac = 0, scaleFrac = 1) {
+    const W = 96, H = 136, N = W * H;
     const tmp = document.createElement('canvas');
-    tmp.width = sw;
-    tmp.height = sh;
+    tmp.width = W;
+    tmp.height = H;
     const ctx = tmp.getContext('2d', { willReadFrequently: true });
-    const sx = Math.max(0, Math.min(cardCanvas.width * 0.14, cardCanvas.width * (0.07 + shiftXFrac)));
-    const sy = Math.max(0, Math.min(cardCanvas.height * 0.14, cardCanvas.height * (0.07 + shiftYFrac)));
-    const cw = Math.max(8, cardCanvas.width * 0.86);
-    const ch = Math.max(12, cardCanvas.height * 0.86);
-    ctx.drawImage(cardCanvas, sx, sy, Math.min(cw, cardCanvas.width - sx), Math.min(ch, cardCanvas.height - sy), 0, 0, sw, sh);
-    const px = ctx.getImageData(0, 0, sw, sh).data;
+    const frac = Math.min(0.98, Math.max(0.65, 0.86 * scaleFrac));
+    const sx = Math.max(0, Math.min(cardCanvas.width * (1 - frac), cardCanvas.width * ((1 - frac) / 2 + shiftXFrac)));
+    const sy = Math.max(0, Math.min(cardCanvas.height * (1 - frac), cardCanvas.height * ((1 - frac) / 2 + shiftYFrac)));
+    const cw = Math.max(8, cardCanvas.width * frac);
+    const ch = Math.max(12, cardCanvas.height * frac);
+    ctx.drawImage(cardCanvas, sx, sy, Math.min(cw, cardCanvas.width - sx), Math.min(ch, cardCanvas.height - sy), 0, 0, W, H);
+    const px = ctx.getImageData(0, 0, W, H).data;
 
-    const gx = 4, gy = 6, cells = gx * gy;
-    const yArr = new Float32Array(cells);
-    const rgArr = new Float32Array(cells);
-    const byArr = new Float32Array(cells);
-    const cntArr = new Int32Array(cells);
+    const yBuf = new Float32Array(N);
+    const rgBuf = new Float32Array(N);
+    const byBuf = new Float32Array(N);
+    const edgeBuf = new Float32Array(N);
 
-    for (let y = 0; y < sh; y++) {
-      const cellY = Math.min(gy - 1, Math.floor((y * gy) / sh));
-      for (let x = 0; x < sw; x++) {
-        const cellX = Math.min(gx - 1, Math.floor((x * gx) / sw));
-        const cIdx = cellY * gx + cellX;
-        const p = (y * sw + x) * 4;
-        const r = px[p], g = px[p + 1], b = px[p + 2];
-        yArr[cIdx] += 0.299 * r + 0.587 * g + 0.114 * b;
-        rgArr[cIdx] += (r - g);
-        byArr[cIdx] += (b - 0.5 * (r + g));
-        cntArr[cIdx]++;
+    for (let i = 0; i < N; i++) {
+      const p = i * 4;
+      const r = px[p], g = px[p + 1], b = px[p + 2];
+      yBuf[i] = 0.299 * r + 0.587 * g + 0.114 * b;
+      rgBuf[i] = r - g;
+      byBuf[i] = b - 0.5 * (r + g);
+    }
+
+    for (let y = 1; y < H - 1; y++) {
+      const row = y * W;
+      for (let x = 1; x < W - 1; x++) {
+        const idx = row + x;
+        edgeBuf[idx] = Math.abs(yBuf[idx + 1] - yBuf[idx - 1]) + Math.abs(yBuf[idx + W] - yBuf[idx - W]);
       }
     }
 
-    for (let i = 0; i < cells; i++) {
-      const cnt = Math.max(1, cntArr[i]);
-      yArr[i] /= cnt;
-      rgArr[i] /= cnt;
-      byArr[i] /= cnt;
-    }
-
-    const normalizeChannel = arr => {
+    function extractGrid(buf, rx0, ry0, rx1, ry1, gx, gy) {
+      const cells = gx * gy;
+      const out = new Float32Array(cells);
+      const cnt = new Int32Array(cells);
+      const rw = rx1 - rx0;
+      const rh = ry1 - ry0;
+      for (let y = ry0; y < ry1; y++) {
+        const cellY = Math.min(gy - 1, Math.floor(((y - ry0) * gy) / rh));
+        const row = y * W;
+        for (let x = rx0; x < rx1; x++) {
+          const cellX = Math.min(gx - 1, Math.floor(((x - rx0) * gx) / rw));
+          const cIdx = cellY * gx + cellX;
+          out[cIdx] += buf[row + x];
+          cnt[cIdx]++;
+        }
+      }
       let mean = 0;
-      for (let i = 0; i < arr.length; i++) mean += arr[i];
-      mean /= arr.length;
-      let sq = 0;
-      for (let i = 0; i < arr.length; i++) {
-        arr[i] -= mean;
-        sq += arr[i] * arr[i];
+      for (let i = 0; i < cells; i++) {
+        out[i] /= Math.max(1, cnt[i]);
+        mean += out[i];
       }
-      const norm = Math.max(1e-3, Math.sqrt(sq));
-      for (let i = 0; i < arr.length; i++) arr[i] /= norm;
-    };
-    normalizeChannel(yArr);
-    normalizeChannel(rgArr);
-    normalizeChannel(byArr);
-
-    const out = new Float32Array(cells * 3);
-    for (let i = 0; i < cells; i++) {
-      out[i] = yArr[i];
-      out[cells + i] = rgArr[i];
-      out[cells * 2 + i] = byArr[i];
+      mean /= cells;
+      let sq = 0;
+      for (let i = 0; i < cells; i++) {
+        out[i] -= mean;
+        sq += out[i] * out[i];
+      }
+      const norm = Math.max(1e-2, Math.sqrt(sq));
+      for (let i = 0; i < cells; i++) out[i] /= norm;
+      return out;
     }
+
+    const blocks = [
+      [extractGrid(yBuf, 4, 11, 92, 65, 6, 6), 1.35],
+      [extractGrid(rgBuf, 4, 11, 92, 65, 4, 4), 0.85],
+      [extractGrid(byBuf, 4, 11, 92, 65, 4, 4), 0.85],
+      [extractGrid(edgeBuf, 4, 11, 92, 65, 4, 4), 1.20],
+      [extractGrid(yBuf, 0, 0, W, H, 4, 5), 0.80],
+      [extractGrid(rgBuf, 0, 0, W, H, 3, 4), 0.65],
+      [extractGrid(byBuf, 0, 0, W, H, 3, 4), 0.65]
+    ];
+
+    const out = new Float32Array(128);
+    let offset = 0;
+    let totalSq = 0;
+    for (const [blk, weight] of blocks) {
+      for (let i = 0; i < blk.length; i++) {
+        const val = blk[i] * weight;
+        out[offset++] = val;
+        totalSq += val * val;
+      }
+    }
+    const totalNorm = Math.max(1e-3, Math.sqrt(totalSq));
+    for (let i = 0; i < 128; i++) out[i] /= totalNorm;
     return out;
   }
 
@@ -5522,9 +5548,10 @@ document.addEventListener('DOMContentLoaded', () => {
     ]);
     if (!hashes || hashes.length === 0 || !catalog || catalog.length === 0) return null;
 
-    const qVec = computeCanvasVisualVector(cardCanvas, 0, 0);
+    const qVec = computeCanvasVisualVector(cardCanvas, 0, 0, 1);
+    const dim = Math.min(qVec.length, hashes[0].vec.length);
     let qSq = 0;
-    for (let k = 0; k < qVec.length; k++) qSq += qVec[k] * qVec[k];
+    for (let k = 0; k < dim; k++) qSq += qVec[k] * qVec[k];
     const qNorm = Math.max(1e-3, Math.sqrt(qSq));
 
     const scored = [];
@@ -5532,25 +5559,32 @@ document.addEventListener('DOMContentLoaded', () => {
       const entry = hashes[i];
       const hVec = entry.vec;
       let dot = 0;
-      for (let k = 0; k < 72; k++) dot += qVec[k] * hVec[k];
+      for (let k = 0; k < dim; k++) dot += qVec[k] * hVec[k];
       const sim = dot / (qNorm * entry.norm);
       scored.push({ idx: i, idProduct: entry.idProduct, sim });
     }
     scored.sort((a, b) => b.sim - a.sim);
 
-    // If framing is slightly off-center, re-score top 30 with small X/Y shifts
-    const topPool = scored.slice(0, 30);
-    if (topPool.length > 0 && topPool[0].sim < 0.86) {
-      const shifts = [[-0.035, 0], [0.035, 0], [0, -0.035], [0, 0.035]];
-      for (const [sx, sy] of shifts) {
-        const sVec = computeCanvasVisualVector(cardCanvas, sx, sy);
+    // Refine top 60 candidates against slight handheld camera shifts and zoom variations
+    const topPool = scored.slice(0, 60);
+    if (topPool.length > 0 && topPool[0].sim < 0.88) {
+      const transforms = [
+        [-0.035, 0, 1],
+        [0.035, 0, 1],
+        [0, -0.035, 1],
+        [0, 0.035, 1],
+        [0, 0, 0.94],
+        [0, 0, 1.06]
+      ];
+      for (const [sx, sy, sc] of transforms) {
+        const sVec = computeCanvasVisualVector(cardCanvas, sx, sy, sc);
         let sSq = 0;
-        for (let k = 0; k < sVec.length; k++) sSq += sVec[k] * sVec[k];
+        for (let k = 0; k < dim; k++) sSq += sVec[k] * sVec[k];
         const sNorm = Math.max(1e-3, Math.sqrt(sSq));
         for (const item of topPool) {
           const entry = hashes[item.idx];
           let dot = 0;
-          for (let k = 0; k < 72; k++) dot += sVec[k] * entry.vec[k];
+          for (let k = 0; k < dim; k++) dot += sVec[k] * entry.vec[k];
           const sim = dot / (sNorm * entry.norm);
           if (sim > item.sim) item.sim = sim;
         }
@@ -5585,9 +5619,11 @@ document.addEventListener('DOMContentLoaded', () => {
         visRes = await matchCardByVisualHash(cardCanvas, 8).catch(() => null);
         if (visRes && visRes.matches.length > 0) {
           const bestRow = visRes.matches[0].row;
+          const secondSim = visRes.matches[1] ? visRes.matches[1].sim : 0;
+          const margin = visRes.topSim - secondSim;
           const pct = Math.round(visRes.topSim * 100);
           renderScannerMatchRows(visRes.matches.map(m => m.row));
-          if (visRes.topSim >= 0.76) {
+          if (visRes.topSim >= 0.78 && margin >= 0.025) {
             const bestTitle = (bestRow[2] || bestRow[1] || '').replace(/\[.*?\]/g, '').trim();
             if (searchInput) searchInput.value = bestTitle;
             if (debugEl) {
@@ -5597,7 +5633,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
           }
           if (debugEl) {
-            debugEl.textContent = `⚡ Visuelle Vorschau (${pct}%) – prüfe zusätzlich Kartentext...`;
+            debugEl.textContent = `⚡ Visuelle Vorauswahl (${pct}%) – prüfe Set-Text...`;
           }
         }
       }
