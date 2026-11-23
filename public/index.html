@@ -20,7 +20,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <link rel="stylesheet" href="./style.css?v=33" />
+  <link rel="stylesheet" href="./style.css?v=34" />
 </head>
 <body>
   <div class="app-shell">
@@ -692,19 +692,27 @@
             </label>
           </div>
 
-          <details class="scanner-ai-settings">
-            <summary>⚙️ Optional: KI-Modus (Gemini API-Key für perfekte Full-Art-Erkennung)</summary>
-            <div class="scanner-ai-inner">
-              <label class="scanner-ai-toggle">
-                <input type="checkbox" id="scannerUseAiCheck" />
-                <span>KI-Erkennung aktivieren (falls API-Key gespeichert)</span>
-              </label>
-              <div style="display:flex; gap:6px; margin-top:6px;">
-                <input type="password" id="scannerGeminiKeyInput" placeholder="Gemini API-Key (wird nur lokal gespeichert)" autocomplete="off" />
-                <button type="button" id="btnSaveScannerKey" class="btn btn-sm btn-secondary">Speichern</button>
+          <div id="scannerAiReadyBar" class="scanner-ai-ready hidden">
+            <span>✨ <strong>KI-Scanner aktiv</strong> (Gemini Vision)</span>
+            <button type="button" id="btnEditScannerKey" class="btn btn-sm btn-secondary">🔑 Key ändern</button>
+          </div>
+
+          <div id="scannerAiSetupCard" class="scanner-ai-setup">
+            <div class="scanner-ai-setup-head">
+              <strong>✨ KI-Scanner in 20 Sek. aktivieren (kostenlos)</strong>
+              <p>Erkennt alte EX-Karten, Holos &amp; Full-Arts sofort per Bild. Key bleibt nur auf deinem Gerät.</p>
+            </div>
+            <div class="scanner-ai-steps">
+              <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" class="btn btn-primary btn-sm scanner-ai-link-btn">
+                1. Kostenlosen Key bei Google holen ↗
+              </a>
+              <div class="scanner-ai-key-row">
+                <input type="text" id="scannerGeminiKeyInput" placeholder="2. Key hier einfügen (AIza...)" autocomplete="off" spellcheck="false" />
+                <button type="button" id="btnPasteScannerKey" class="btn btn-sm btn-secondary" title="Aus Zwischenablage einfügen">📋 Einfügen</button>
+                <button type="button" id="btnSaveScannerKey" class="btn btn-sm btn-primary">✓ Aktivieren</button>
               </div>
             </div>
-          </details>
+          </div>
         </div>
 
         <div class="scanner-right">
@@ -724,6 +732,6 @@
   <!-- Toast Notification -->
   <div id="toastBanner" class="toast-banner hidden"></div>
 
-  <script src="./app.js?v=33"></script>
+  <script src="./app.js?v=34"></script>
 </body>
 </html>

@@ -4578,15 +4578,25 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  function syncScannerAiUi(forceOpenSetup = false) {
+    const savedKey = (localStorage.getItem(SCANNER_KEY_STORAGE) || '').trim();
+    const readyBar = document.getElementById('scannerAiReadyBar');
+    const setupCard = document.getElementById('scannerAiSetupCard');
+    const keyInput = document.getElementById('scannerGeminiKeyInput');
+    if (keyInput && savedKey && !keyInput.value) keyInput.value = savedKey;
+    const showReady = Boolean(savedKey) && !forceOpenSetup;
+    readyBar?.classList.toggle('hidden', !showReady);
+    setupCard?.classList.toggle('hidden', showReady);
+  }
+
   function openScannerModal() {
     if (viewingFriend) return;
     const modal = document.getElementById('scannerModal');
     if (!modal) return;
     const keyInput = document.getElementById('scannerGeminiKeyInput');
-    const aiCheck = document.getElementById('scannerUseAiCheck');
     const savedKey = localStorage.getItem(SCANNER_KEY_STORAGE) || '';
     if (keyInput) keyInput.value = savedKey;
-    if (aiCheck) aiCheck.checked = Boolean(savedKey) && localStorage.getItem(SCANNER_AI_STORAGE) === '1';
+    syncScannerAiUi(false);
 
     modal.classList.remove('hidden');
     startScannerCamera();
@@ -4735,26 +4745,57 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function scanCardWithGeminiVision(cardCanvas, apiKey) {
-    const b64 = cardCanvas.toDataURL('image/jpeg', 0.86).split(',')[1];
-    const prompt = 'Identify this Pokémon TCG card. Return strictly JSON only (no markdown): {"nameEn":"","nameDe":"","number":"","total":"","setCode":""}. Leave unknown fields empty.';
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{
-          parts: [
-            { text: prompt },
-            { inline_data: { mime_type: 'image/jpeg', data: b64 } }
-          ]
-        }]
-      })
-    });
-    if (!res.ok) throw new Error(`Gemini HTTP ${res.status}`);
-    const data = await res.json();
-    const rawTxt = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    const jsonMatch = rawTxt.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('Keine JSON-Antwort von KI');
-    return JSON.parse(jsonMatch[0]);
+    // Resize smoothly up to 1200px wide for crisp, fast Gemini upload
+    let sendCanvas = cardCanvas;
+    if (cardCanvas.width > 1200) {
+      const sc = 1200 / cardCanvas.width;
+      sendCanvas = document.createElement('canvas');
+      sendCanvas.width = 1200;
+      sendCanvas.height = Math.round(cardCanvas.height * sc);
+      sendCanvas.getContext('2d').drawImage(cardCanvas, 0, 0, sendCanvas.width, sendCanvas.height);
+    }
+    const b64 = sendCanvas.toDataURL('image/jpeg', 0.9).split(',')[1];
+    const prompt = [
+      'Identify this Pokémon TCG card accurately from the image.',
+      'Look at the card name, set name/symbol, collector number (e.g. 89/109 or 199/165), set code (e.g. TR, MEW, SSP, DLR, PRE), and first attack/ability name.',
+      'Return strictly JSON only (no markdown, no explanation):',
+      '{"nameEn":"","nameDe":"","setNameEn":"","setCode":"","number":"","total":"","attack":"","isHolo":false}'
+    ].join(' ');
+
+    const models = ['gemini-2.5-flash', 'gemini-2.0-flash'];
+    let lastErr = null;
+    for (const model of models) {
+      try {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{
+              parts: [
+                { text: prompt },
+                { inline_data: { mime_type: 'image/jpeg', data: b64 } }
+              ]
+            }],
+            generationConfig: { temperature: 0.1 }
+          })
+        });
+        if (!res.ok) {
+          const errBody = await res.json().catch(() => ({}));
+          const msg = errBody?.error?.message || `HTTP ${res.status}`;
+          lastErr = new Error(msg);
+          if (res.status === 404 || res.status === 400) continue;
+          throw lastErr;
+        }
+        const data = await res.json();
+        const rawTxt = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        const jsonMatch = rawTxt.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) throw new Error('Keine JSON-Antwort von KI');
+        return JSON.parse(jsonMatch[0]);
+      } catch (err) {
+        lastErr = err;
+      }
+    }
+    throw lastErr || new Error('KI-Anfrage fehlgeschlagen');
   }
 
   async function addCatalogRowToPortfolio(row, alsoCheckChecklist = false) {
@@ -4849,9 +4890,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const rawQ = String(queryText || '').trim();
     const normQ = normalizeScanText(rawQ);
     const numInQ = normQ.match(/\b(\d{1,3})(?:\s*\/\s*\d{1,3})?\b/);
-    const numHint = parsedHints?.number || (numInQ ? numInQ[1] : '');
+    const numHint = parsedHints?.number ? String(parsedHints.number).replace(/^0+(?=\d)/, '') : (numInQ ? numInQ[1] : '');
     const setHint = (parsedHints?.setCode || '').toUpperCase();
-    const cleanedWords = normQ
+    const setNameHint = normalizeScanText(parsedHints?.setNameEn || '');
+    const attackHint = normalizeScanText(parsedHints?.attack || '');
+    const aiNameRaw = normalizeScanText(parsedHints?.enName || parsedHints?.name || '');
+    const searchBase = aiNameRaw || normQ;
+    const cleanedWords = searchBase
       .replace(/\b\d{1,3}\s*\/\s*\d{1,3}\b/g, '')
       .replace(/[^a-z0-9'\s]/g, ' ')
       .split(/\s+/)
@@ -4870,8 +4915,10 @@ document.addEventListener('DOMContentLoaded', () => {
       const scored = [];
       for (let i = 0; i < cat.length; i++) {
         const r = cat[i];
-        const enClean = normalizeScanText(String(r[1] || '').replace(/\[.*?\]/g, ''));
+        const rawEn = String(r[1] || '');
+        const enClean = normalizeScanText(rawEn.replace(/\[.*?\]/g, ''));
         const deClean = normalizeScanText(String(r[2] || '').replace(/\[.*?\]/g, ''));
+        const bracketClean = normalizeScanText((rawEn.match(/\[([^\]]+)\]/) || [])[1] || '');
         const expClean = normalizeScanText(r[5] || '');
         const code = String(r[6] || '').toUpperCase();
         const nameHay = `${enClean} ${deClean}`;
@@ -4892,10 +4939,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (cleanedWords.length > 0 && nameHits === 0 && anyHits < cleanedWords.length) continue;
         if (nameHits === cleanedWords.length && cleanedWords.length > 0) score += 40;
-        if (numHint && (String(r[1] || '').includes(`#${numHint}`) || String(r[1] || '').includes(`(${numHint})`))) {
+        if (aiNameRaw && (enClean === aiNameRaw || deClean.startsWith(aiNameRaw))) score += 35;
+        if (setHint && code === setHint) score += 45;
+        if (setNameHint && expClean && (expClean.includes(setNameHint) || setNameHint.includes(expClean))) score += 40;
+        if (attackHint && bracketClean && bracketClean.includes(attackHint)) score += 45;
+        if (numHint && (rawEn.includes(`#${numHint}`) || rawEn.includes(`(${numHint})`))) {
           score += 35;
         }
-        if (setHint && code === setHint) score += 25;
         if (r[3] === 'c') score += 5;
 
         if (score >= 18) scored.push({ r, score, price: Number(r[7] ?? r[9] ?? 0) });
@@ -4997,31 +5047,36 @@ document.addEventListener('DOMContentLoaded', () => {
   async function processScannedImageCanvas(cardCanvas) {
     const searchInput = document.getElementById('scannerSearchInput');
     const debugEl = document.getElementById('scannerOcrDebug');
-    const apiKey = (document.getElementById('scannerGeminiKeyInput')?.value || '').trim();
-    const useAi = Boolean(document.getElementById('scannerUseAiCheck')?.checked) && Boolean(apiKey);
+    const apiKey = (localStorage.getItem(SCANNER_KEY_STORAGE) || document.getElementById('scannerGeminiKeyInput')?.value || '').trim();
+    const useAi = Boolean(apiKey);
 
     try {
       let parsed = null;
+      let usedAi = false;
       if (useAi) {
-        setScannerStatus('KI analysiert Karte...');
-        if (debugEl) debugEl.textContent = 'Gemini Vision KI wird gefragt...';
+        setScannerStatus('✨ KI erkennt Karte...');
+        if (debugEl) debugEl.textContent = 'Gemini Vision KI analysiert die Karte...';
         try {
           const aiRes = await scanCardWithGeminiVision(cardCanvas, apiKey);
           parsed = {
             name: aiRes.nameDe || aiRes.nameEn || '',
             enName: aiRes.nameEn || '',
+            setNameEn: aiRes.setNameEn || '',
             number: aiRes.number || '',
             total: aiRes.total || '',
-            setCode: aiRes.setCode || ''
+            setCode: aiRes.setCode || '',
+            attack: aiRes.attack || ''
           };
+          usedAi = true;
         } catch (aiErr) {
-          if (debugEl) debugEl.textContent = `KI-Fehler (${aiErr.message}) – weiche auf Browser-OCR aus...`;
+          if (debugEl) debugEl.textContent = `KI-Fehler (${aiErr.message}) – prüfe Key oder OCR-Fallback...`;
+          showToast(`KI-Fehler: ${aiErr.message}`, 4500);
         }
       }
 
       if (!parsed) {
         setScannerStatus('Lese Kartenname & Nummer...');
-        if (debugEl) debugEl.textContent = 'Lade OCR-Texterkennung (beim 1. Mal ca. 2–3 Sek)...';
+        if (debugEl) debugEl.textContent = useAi ? 'Weiche auf Browser-OCR aus...' : 'Tipp: Oben kostenlosen KI-Key einfügen für perfekte Erkennung (lädt OCR...)';
         const worker = await getScannerOcrWorker();
 
         const w = cardCanvas.width;
@@ -5042,14 +5097,21 @@ document.addEventListener('DOMContentLoaded', () => {
         parsed.setCode
       ].filter(Boolean).join(' ').trim();
 
-      if (searchInput) searchInput.value = displayQuery;
+      if (searchInput) searchInput.value = parsed.enName || parsed.name || displayQuery;
       if (debugEl) {
-        debugEl.textContent = displayQuery
-          ? `Erkannt: ${displayQuery} (bei Bedarf oben kurz korrigieren)`
-          : 'Text war schwer lesbar – einfach oben Pokémon-Namen eintippen';
+        const metaTxt = [
+          parsed.setNameEn,
+          parsed.number ? (parsed.total ? `${parsed.number}/${parsed.total}` : `#${parsed.number}`) : '',
+          parsed.setCode
+        ].filter(Boolean).join(' • ');
+        debugEl.textContent = usedAi
+          ? `✨ KI erkannt: ${parsed.enName || parsed.name}${metaTxt ? ` (${metaTxt})` : ''}`
+          : (displayQuery
+            ? `OCR erkannt: ${displayQuery} (Tipp: KI-Key oben einrichten für 100%-Treffer)`
+            : 'Ohne KI schwer lesbar – oben KI-Key einrichten oder Namen eintippen');
       }
-      setScannerStatus(displayQuery ? 'Erkennung fertig' : 'Bitte Namen eingeben');
-      await searchCatalogForScan(displayQuery, parsed);
+      setScannerStatus(usedAi ? '✨ KI fertig' : (displayQuery ? 'Erkennung fertig' : 'Bitte Namen eingeben'));
+      await searchCatalogForScan(searchInput?.value || displayQuery, parsed);
     } catch (err) {
       setScannerStatus('Scan fehlgeschlagen');
       if (debugEl) debugEl.textContent = `Fehler: ${err.message}`;
@@ -5071,22 +5133,45 @@ document.addEventListener('DOMContentLoaded', () => {
     startScannerCamera();
   });
 
-  document.getElementById('btnSaveScannerKey')?.addEventListener('click', () => {
-    const keyVal = (document.getElementById('scannerGeminiKeyInput')?.value || '').trim();
-    const aiCheck = document.getElementById('scannerUseAiCheck');
-    localStorage.setItem(SCANNER_KEY_STORAGE, keyVal);
-    if (keyVal && aiCheck) {
-      aiCheck.checked = true;
-      localStorage.setItem(SCANNER_AI_STORAGE, '1');
-      showToast('KI API-Key lokal gespeichert ✓');
-    } else {
-      localStorage.setItem(SCANNER_AI_STORAGE, '0');
-      showToast('API-Key entfernt');
+  document.getElementById('btnEditScannerKey')?.addEventListener('click', () => {
+    syncScannerAiUi(true);
+    document.getElementById('scannerGeminiKeyInput')?.focus();
+  });
+
+  document.getElementById('btnPasteScannerKey')?.addEventListener('click', async () => {
+    const input = document.getElementById('scannerGeminiKeyInput');
+    if (!input) return;
+    try {
+      const txt = (await navigator.clipboard.readText()).trim();
+      if (txt) {
+        input.value = txt;
+        if (/^AIza[A-Za-z0-9_-]{15,}$/.test(txt)) {
+          localStorage.setItem(SCANNER_KEY_STORAGE, txt);
+          localStorage.setItem(SCANNER_AI_STORAGE, '1');
+          syncScannerAiUi(false);
+          showToast('✨ KI-Scanner direkt aktiviert!');
+          return;
+        }
+      }
+      input.focus();
+    } catch (e) {
+      input.focus();
+      showToast('Bitte Key im Feld gedrückt halten & „Einsetzen“ wählen');
     }
   });
 
-  document.getElementById('scannerUseAiCheck')?.addEventListener('change', e => {
-    localStorage.setItem(SCANNER_AI_STORAGE, e.target.checked ? '1' : '0');
+  document.getElementById('btnSaveScannerKey')?.addEventListener('click', () => {
+    const keyVal = (document.getElementById('scannerGeminiKeyInput')?.value || '').trim();
+    localStorage.setItem(SCANNER_KEY_STORAGE, keyVal);
+    if (keyVal) {
+      localStorage.setItem(SCANNER_AI_STORAGE, '1');
+      syncScannerAiUi(false);
+      showToast('✨ KI-Scanner aktiviert! Einfach Karte vor die Kamera halten.');
+    } else {
+      localStorage.setItem(SCANNER_AI_STORAGE, '0');
+      syncScannerAiUi(true);
+      showToast('API-Key entfernt');
+    }
   });
 
   async function captureAndScanVideo() {
