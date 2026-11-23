@@ -500,6 +500,14 @@ function getUnitRawEuLow(item) {
   return getUnitDePrice(item);
 }
 
+function getStaticOrCachedImageUrl(idProduct) {
+  if (!idProduct) return '';
+  if (!isStaticMode) return `/api/cm-image/${idProduct}`;
+  const cached = tcgdexImgCache[String(idProduct)];
+  if (cached) return cached;
+  return `./images/${idProduct}.jpg`;
+}
+
 // Resolve image URL for both local server mode and GitHub Pages static mode
 function resolveItemImageUrl(item) {
   if (!isStaticMode) {
@@ -509,8 +517,7 @@ function resolveItemImageUrl(item) {
   }
   if (item.staticImageUrl) return `./${item.staticImageUrl}`;
   if (item.idProduct) {
-    // Always try real Cardmarket cached image (.jpg -> .png via handleCardImageError) before any fallback
-    return `./images/${item.idProduct}.jpg`;
+    return getStaticOrCachedImageUrl(item.idProduct);
   }
   if (item.imageUrl && !String(item.imageUrl).includes('tcgdex.net')) return item.imageUrl;
   return item.fallbackImageUrl || '';
@@ -541,8 +548,12 @@ let tcgdexAllSetsPromise = null;
 let tcgdexAllDeSetsPromise = null;
 const tcgdexCardDetailPromises = new Map();
 
+const ENERGY_NAME_TAGS = { G: 'Grass', W: 'Water', R: 'Fire', L: 'Lightning', P: 'Psychic', F: 'Fighting', D: 'Darkness', M: 'Metal', C: 'Colorless', N: 'Dragon' };
+
 function parseCardmarketHints(rawName, displayNameDe = '') {
-  const raw = String(rawName || '').replace(/[’‘`]/g, "'");
+  const raw = String(rawName || '')
+    .replace(/[’‘`]/g, "'")
+    .replace(/\[([GWRLPFDMCN])\]/g, (_, t) => ENERGY_NAME_TAGS[t] || '');
   const bracketBlocks = [];
   raw.replace(/\[([^\]]+)\]/g, (_, inner) => {
     bracketBlocks.push(inner);
@@ -582,6 +593,8 @@ function parseCardmarketHints(rawName, displayNameDe = '') {
     .trim();
 
   const nameCandidates = [n];
+  const bareNoParens = n.replace(/\([^)]*\)/g, '').replace(/\s+/g, ' ').trim();
+  if (bareNoParens && bareNoParens !== n) nameCandidates.push(bareNoParens);
   if (/[δ]|delta\s+species/i.test(n)) {
     nameCandidates.push(n.replace(/[δ]/g, '').replace(/\bdelta\s+species\b/gi, '').replace(/\s+/g, ' ').trim());
   }
@@ -599,6 +612,10 @@ function parseCardmarketHints(rawName, displayNameDe = '') {
   if (/^Mega\s+/i.test(n)) {
     nameCandidates.push(n.replace(/^Mega\s+/i, 'M ').trim());
     nameCandidates.push(n.replace(/^Mega\s+/i, 'M ').replace(/\s+ex$/i, '-EX').trim());
+  }
+  const ownerMatch = bareNoParens.match(/^[^']+?'s\s+(.+)$/i);
+  if (ownerMatch && ownerMatch[1].trim().length >= 3) {
+    nameCandidates.push(ownerMatch[1].trim());
   }
 
   const deNameCandidates = [];
@@ -801,11 +818,11 @@ async function resolveTcgdexImage(idProduct, rawName, type, tcgdexId, expansionN
       if (type === 'sealed') {
         if (resolvedSetId) {
           const setObj = await fetchTcgdexSet(resolvedSetId) || await fetchTcgdexSetDe(resolvedSetId);
-          if (setObj?.logo) {
-            const url = `${setObj.logo}.webp`;
-            tcgdexImgCache[key] = url;
+          const assetUrl = setObj?.logo ? `${setObj.logo}.webp` : (setObj?.symbol ? `${setObj.symbol}.png` : '');
+          if (assetUrl) {
+            tcgdexImgCache[key] = assetUrl;
             saveImgFallbackCache();
-            return url;
+            return assetUrl;
           }
         }
         return null;
@@ -864,8 +881,9 @@ async function resolveTcgdexImage(idProduct, rawName, type, tcgdexId, expansionN
         }
       }
 
-      // Global TCGdex search by card name with set-filter & attack matching (avoids identical Base Set artwork!)
-      for (const cand of hints.nameCandidates.slice(0, 2)) {
+      // Global TCGdex search (EN, then DE) – always pick best matching artwork instead of showing blank placeholder
+      let globalFallbackUrl = null;
+      for (const cand of hints.nameCandidates.slice(0, 3)) {
         if (!cand || cand.length < 2) continue;
         const res = await fetch(`https://api.tcgdex.net/v2/en/cards?name=${encodeURIComponent(cand)}`);
         if (!res.ok) continue;
@@ -873,26 +891,74 @@ async function resolveTcgdexImage(idProduct, rawName, type, tcgdexId, expansionN
         if (!Array.isArray(list) || list.length === 0) continue;
 
         const withImg = list.filter(c => c.image);
+        if (withImg.length === 0) continue;
         const physical = withImg.filter(c => !String(c.image).includes('/tcgp/'));
-        let pool = physical.length > 0 ? physical : withImg;
+        const basePool = physical.length > 0 ? physical : withImg;
+        const exactNamePool = basePool.filter(c => c.name && c.name.toLowerCase() === cand.toLowerCase());
+        const preferredPool = exactNamePool.length > 0 ? exactNamePool : basePool;
 
         if (resolvedSetId) {
           const prefix = `${resolvedSetId.toLowerCase()}-`;
-          const inSet = pool.filter(c => c.id && c.id.toLowerCase().startsWith(prefix));
+          const inSet = preferredPool.filter(c => c.id && c.id.toLowerCase().startsWith(prefix));
           if (inSet.length > 0) {
-            pool = inSet;
-          } else {
-            // Do NOT show a random wrong-set card image when we know the set!
-            continue;
+            const chosen = await pickBestCardCandidate(inSet, hints, siblingIdx);
+            if (chosen?.image) {
+              const url = `${chosen.image}/low.webp`;
+              tcgdexImgCache[key] = url;
+              saveImgFallbackCache();
+              return url;
+            }
           }
-        } else if (pool.length > 1 && hints.attackHints.length === 0 && !hints.localIdHint) {
-          // Without set or attack disambiguation, avoid returning the exact same first hit for unrelated printings
-          continue;
         }
 
-        const chosen = await pickBestCardCandidate(pool, hints, siblingIdx);
-        if (chosen?.image) {
-          const url = `${chosen.image}/low.webp`;
+        const candidate = await pickBestCardCandidate(preferredPool, hints, siblingIdx);
+        if (candidate?.image) {
+          const url = `${candidate.image}/low.webp`;
+          if (exactNamePool.length > 0 || hints.attackHints.length > 0 || hints.localIdHint) {
+            tcgdexImgCache[key] = url;
+            saveImgFallbackCache();
+            return url;
+          }
+          if (!globalFallbackUrl) globalFallbackUrl = url;
+        }
+      }
+
+      if (globalFallbackUrl) {
+        tcgdexImgCache[key] = globalFallbackUrl;
+        saveImgFallbackCache();
+        return globalFallbackUrl;
+      }
+
+      // Global German TCGdex fallback (useful when only German name matches)
+      for (const deCand of hints.deNameCandidates.slice(0, 2)) {
+        if (!deCand || deCand.length < 2) continue;
+        const res = await fetch(`https://api.tcgdex.net/v2/de/cards?name=${encodeURIComponent(deCand)}`);
+        if (!res.ok) continue;
+        const list = await res.json();
+        const withImg = Array.isArray(list) ? list.filter(c => c.image && !String(c.image).includes('/tcgp/')) : [];
+        if (withImg.length > 0) {
+          const chosen = await pickBestCardCandidate(withImg, hints, siblingIdx);
+          if (chosen?.image) {
+            const url = `${chosen.image}/low.webp`;
+            tcgdexImgCache[key] = url;
+            saveImgFallbackCache();
+            return url;
+          }
+        }
+      }
+
+      // Final fallback via PokémonTCG.io (covers promos, Trainer Kits, POP Series, special releases)
+      for (const cand of hints.nameCandidates.slice(0, 2)) {
+        if (!cand || cand.length < 2) continue;
+        const safeQ = cand.replace(/"/g, '');
+        const res = await fetch(`https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(safeQ)}"&pageSize=6&select=id,name,number,images,set`)
+          .catch(() => null);
+        if (!res || !res.ok) continue;
+        const payload = await res.json().catch(() => null);
+        const cards = Array.isArray(payload?.data) ? payload.data.filter(c => c.images?.small) : [];
+        if (cards.length > 0) {
+          const chosen = (hints.localIdHint && cards.find(c => String(parseInt(c.number, 10)) === hints.localIdHint)) || cards[0];
+          const url = chosen.images.small;
           tcgdexImgCache[key] = url;
           saveImgFallbackCache();
           return url;
@@ -924,23 +990,22 @@ window.handleCardImageError = async function(imgEl) {
 
   const curSrc = imgEl.getAttribute('src') || '';
 
-  // If a TCGdex image 404s on a card that also has a Cardmarket idProduct, try local/static Cardmarket image first
-  if (idProduct && step === '' && curSrc.includes('tcgdex.net')) {
+  // If a TCGdex image 404s on .webp, try .png once; or try local/static Cardmarket image
+  if (step === '' && curSrc.includes('tcgdex.net') && curSrc.endsWith('.webp')) {
+    imgEl.dataset.tryStep = 'tcgdex_png';
+    imgEl.src = curSrc.replace(/\.webp$/, '.png');
+    return;
+  }
+
+  if (idProduct && (step === '' || step === 'tcgdex_png') && curSrc.includes('tcgdex.net')) {
     imgEl.dataset.tryStep = isStaticMode ? 'cm_jpg' : 'cm_api';
     imgEl.src = isStaticMode ? `./images/${idProduct}.jpg` : `/api/cm-image/${idProduct}`;
     return;
   }
 
-  // Step 1 on static mode: if .jpg failed, try .png in ./images/
-  if (isStaticMode && idProduct && (step === '' || step === 'cm_jpg') && curSrc.endsWith('.jpg')) {
-    imgEl.dataset.tryStep = 'png';
-    imgEl.src = `./images/${idProduct}.png`;
-    return;
-  }
-
-  // Step 2: if already tried TCGdex fallback (or cm_api failed), show badge (and purge broken cached URL)
+  // If already tried TCGdex/PokemonTCG fallback (or cm_api failed), show badge (and purge broken cached URL)
   if (step === 'tcgdex' || step === 'done' || step === 'cm_api') {
-    if (curSrc.includes('tcgdex.net')) {
+    if (curSrc.includes('tcgdex.net') || curSrc.includes('pokemontcg.io')) {
       const cacheKey = String(idProduct || rawName || '');
       if (cacheKey && tcgdexImgCache[cacheKey]) {
         delete tcgdexImgCache[cacheKey];
@@ -1990,7 +2055,7 @@ async function searchStaticCatalogClient(q, typeFilter) {
       expansionName,
       expansionCode,
       tcgdexId: tcgdexId || '',
-      imageUrl: `./images/${idProduct}.jpg`,
+      imageUrl: getStaticOrCachedImageUrl(idProduct),
       cardmarketUrl: `https://www.cardmarket.com/de/Pokemon/Products/Search?searchString=${encodeURIComponent(name)}&language=3`,
       prices: { dePrice, low, trend, avg30 },
       holoPrices,
@@ -2057,7 +2122,7 @@ async function performCatalogSearch() {
 
       const dePriceTxt = prod.prices?.dePrice != null ? fmtEuro(prod.prices.dePrice) : '—';
       const euLowTxt = prod.prices?.low != null ? fmtEuro(prod.prices.low) : '—';
-      const imgUrl = prod.imageUrl || (isStaticMode ? `./images/${prod.idProduct}.jpg` : `/api/cm-image/${prod.idProduct}`);
+      const imgUrl = prod.imageUrl || getStaticOrCachedImageUrl(prod.idProduct);
       const setLabel = prod.expansionName ? `${escapeHtml(prod.expansionName)} • ` : '';
       const mainTitle = prod.displayNameDe || prod.name;
       const showOriginalSub = prod.displayNameDe && prod.displayNameDe !== prod.name;
@@ -2068,7 +2133,7 @@ async function performCatalogSearch() {
         : '';
       div.innerHTML = `
         <div class="catalog-thumb">
-          <img src="${escapeHtml(imgUrl)}" loading="lazy" alt="" data-id="${escapeHtml(prod.idProduct)}" data-name="${escapeHtml(prod.name)}" data-type="${escapeHtml(prod.type)}" data-tcgdex="${escapeHtml(prod.tcgdexId || '')}" data-exp="${escapeHtml(prod.expansionName || '')}" data-sidx="${sibIdx >= 0 ? sibIdx : 0}" data-badge="${escapeHtml(setBadgeTxt)}" onerror="handleCardImageError(this)" />
+          <img src="${escapeHtml(imgUrl)}" loading="lazy" alt="" data-id="${escapeHtml(prod.idProduct)}" data-name="${escapeHtml(prod.name)}" data-de="${escapeHtml(prod.displayNameDe || '')}" data-type="${escapeHtml(prod.type)}" data-tcgdex="${escapeHtml(prod.tcgdexId || '')}" data-exp="${escapeHtml(prod.expansionName || '')}" data-code="${escapeHtml(prod.expansionCode || '')}" data-sidx="${sibIdx >= 0 ? sibIdx : 0}" data-badge="${escapeHtml(setBadgeTxt)}" onerror="handleCardImageError(this)" />
         </div>
         <div class="catalog-item-info">
           <div class="catalog-item-name">${escapeHtml(mainTitle)}</div>
@@ -2151,7 +2216,7 @@ function updateModalLivePricePreview() {
 function selectCatalogProduct(prod) {
   lastSelectedCatalogProd = prod;
   currentModalPriceData = prod;
-  const imgUrl = prod.imageUrl || (isStaticMode ? `./images/${prod.idProduct}.jpg` : `/api/cm-image/${prod.idProduct}`);
+  const imgUrl = prod.imageUrl || getStaticOrCachedImageUrl(prod.idProduct);
   const mainTitle = prod.displayNameDe || prod.name;
 
   document.getElementById('formIdProduct').value = prod.idProduct;
@@ -2166,7 +2231,7 @@ function selectCatalogProduct(prod) {
   const cmLink = document.getElementById('selectedDirectCmLink');
   const setBadgeTxt = prod.expansionCode || (prod.type === 'sealed' ? 'BOX' : 'TCG');
 
-  thumbEl.innerHTML = `<img src="${escapeHtml(imgUrl)}" alt="" data-id="${escapeHtml(prod.idProduct)}" data-name="${escapeHtml(prod.name)}" data-type="${escapeHtml(prod.type)}" data-tcgdex="${escapeHtml(prod.tcgdexId || '')}" data-exp="${escapeHtml(prod.expansionName || '')}" data-badge="${escapeHtml(setBadgeTxt)}" onerror="handleCardImageError(this)" />`;
+  thumbEl.innerHTML = `<img src="${escapeHtml(imgUrl)}" alt="" data-id="${escapeHtml(prod.idProduct)}" data-name="${escapeHtml(prod.name)}" data-de="${escapeHtml(prod.displayNameDe || '')}" data-type="${escapeHtml(prod.type)}" data-tcgdex="${escapeHtml(prod.tcgdexId || '')}" data-exp="${escapeHtml(prod.expansionName || '')}" data-code="${escapeHtml(prod.expansionCode || '')}" data-badge="${escapeHtml(setBadgeTxt)}" onerror="handleCardImageError(this)" />`;
   badge.textContent = `${prod.type === 'sealed' ? 'Sealed' : 'Einzelkarte'} #${prod.idProduct}${prod.expansionName ? ' • ' + prod.expansionName : ''}`;
   nameEl.textContent = mainTitle;
   updateModalLivePricePreview();
@@ -3435,8 +3500,8 @@ async function loadChecklistSet(tcgdexId) {
             rawName: r[1] || '',
             deName: r[2] || '',
             name: (r[2] || r[1] || '').replace(/\[.*?\]/g, '').trim(),
-            imageLow: isStaticMode ? `./images/${r[0]}.jpg` : `/api/cm-image/${r[0]}`,
-            imageHigh: isStaticMode ? `./images/${r[0]}.jpg` : `/api/cm-image/${r[0]}`,
+            imageLow: getStaticOrCachedImageUrl(r[0]),
+            imageHigh: getStaticOrCachedImageUrl(r[0]),
             isSecret: false,
             idProduct: r[0],
             marketEur: marketData.marketEur,
@@ -3566,7 +3631,7 @@ function renderChecklistView() {
     el.innerHTML = `
       <div class="checklist-card-visual">
         ${card.imageLow
-          ? `<img src="${escapeHtml(card.imageLow)}" loading="lazy" alt="${escapeHtml(card.name)}" data-id="${escapeHtml(card.idProduct || '')}" data-name="${escapeHtml(card.rawName || card.enName || card.name)}" data-type="single" data-tcgdex="${escapeHtml(tcgdexId)}" data-exp="${escapeHtml(setInfo.en || setInfo.de || '')}" data-sidx="${card.siblingIdx ?? 0}" data-badge="${badgeFallback}" onerror="handleCardImageError(this)" />`
+          ? `<img src="${escapeHtml(card.imageLow)}" loading="lazy" alt="${escapeHtml(card.name)}" data-id="${escapeHtml(card.idProduct || '')}" data-name="${escapeHtml(card.rawName || card.enName || card.name)}" data-de="${escapeHtml(card.name || '')}" data-type="single" data-tcgdex="${escapeHtml(tcgdexId)}" data-exp="${escapeHtml(setInfo.en || setInfo.de || '')}" data-code="${badgeFallback}" data-sidx="${card.siblingIdx ?? 0}" data-badge="${badgeFallback}" onerror="handleCardImageError(this)" />`
           : badgeFallback}
       </div>
       <div class="checklist-card-footer">
@@ -5084,7 +5149,7 @@ document.addEventListener('DOMContentLoaded', () => {
         buyPrice: null,
         buyDate: today,
         customLowPrice: null,
-        imageUrl: `./images/${idProduct}.jpg`,
+        imageUrl: getStaticOrCachedImageUrl(idProduct),
         cardmarketUrl: cmUrl,
         marketPrices: {
           dePrice: stdDe ?? null,
@@ -5355,7 +5420,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const title = (deName || rawName || '').replace(/\[.*?\]/g, '').trim();
       const priceVal = dePrice ?? trend ?? low;
       const badge = expCode || (rowType === 's' ? 'BOX' : 'TCG');
-      const imgSrc = isStaticMode ? `./images/${idProduct}.jpg` : `/api/cm-image/${idProduct}`;
+      const imgSrc = getStaticOrCachedImageUrl(idProduct);
 
       const itemEl = document.createElement('div');
       itemEl.className = 'scanner-match-row';
