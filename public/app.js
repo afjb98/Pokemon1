@@ -4762,25 +4762,24 @@ document.addEventListener('DOMContentLoaded', () => {
   const SCANNER_MODEL_STORAGE = 'pokevault_gemini_model';
   let cachedGeminiModels = null;
 
-  async function callGeminiCardRequest(model, apiKey, b64, prompt, includeThinkingConfig = true) {
+  async function callGeminiCardRequest(model, apiKey, imageB64List, prompt, includeThinkingConfig = true) {
     const genCfg = {
       temperature: 0.1,
-      maxOutputTokens: 160,
+      maxOutputTokens: 180,
       responseMimeType: 'application/json'
     };
     if (includeThinkingConfig) {
       genCfg.thinkingConfig = { thinkingBudget: 0 };
     }
+    const parts = [{ text: prompt }];
+    for (const b64 of imageB64List) {
+      parts.push({ inline_data: { mime_type: 'image/jpeg', data: b64 } });
+    }
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [{
-          parts: [
-            { text: prompt },
-            { inline_data: { mime_type: 'image/jpeg', data: b64 } }
-          ]
-        }],
+        contents: [{ parts }],
         generationConfig: genCfg
       })
     });
@@ -4829,17 +4828,22 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function scanCardWithGeminiVision(cardCanvas, apiKey) {
-    // Compact 600px JPEG (0.72 quality, ~50KB) dramatically cuts mobile upload + Vision latency
-    let sendCanvas = cardCanvas;
-    if (cardCanvas.width > 600) {
-      const sc = 600 / cardCanvas.width;
-      sendCanvas = document.createElement('canvas');
-      sendCanvas.width = 600;
-      sendCanvas.height = Math.round(cardCanvas.height * sc);
-      sendCanvas.getContext('2d').drawImage(cardCanvas, 0, 0, sendCanvas.width, sendCanvas.height);
-    }
-    const b64 = sendCanvas.toDataURL('image/jpeg', 0.72).split(',')[1];
-    const prompt = 'Identify Pokémon TCG card. JSON only: {"nameEn":"","nameDe":"","setNameEn":"","setCode":"","number":"","total":"","attack":"","isHolo":false}';
+    // Image 1: compact 520px full card (~35KB). Image 2: sharp zoomed bottom strip (~12KB) so e.g. "DLR 018/103" is razor-sharp!
+    const makeResizedJpegB64 = (src, sx, sy, sw, sh, maxW, quality) => {
+      const sc = sw > maxW ? (maxW / sw) : 1;
+      const c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(sw * sc));
+      c.height = Math.max(1, Math.round(sh * sc));
+      c.getContext('2d').drawImage(src, sx, sy, sw, sh, 0, 0, c.width, c.height);
+      return c.toDataURL('image/jpeg', quality).split(',')[1];
+    };
+
+    const cw = cardCanvas.width;
+    const ch = cardCanvas.height;
+    const fullCardB64 = makeResizedJpegB64(cardCanvas, 0, 0, cw, ch, 520, 0.72);
+    const botStripB64 = makeResizedJpegB64(cardCanvas, 0, Math.round(ch * 0.82), cw, Math.round(ch * 0.18), 680, 0.78);
+    const imageList = [fullCardB64, botStripB64];
+    const prompt = 'Image 1 is the Pokémon TCG card. Image 2 zooms on the bottom collector strip (read the exact 2-4 letter setCode like DLR/MEW/SSP/PRE and number/total like 018/103 or 199/165). Set isSecret=true if number>total or full-art/IR/SIR. JSON only: {"nameEn":"","nameDe":"","setNameEn":"","setCode":"","number":"","total":"","attack":"","isSecret":false,"isHolo":false}';
 
     const savedModel = localStorage.getItem(SCANNER_MODEL_STORAGE) || 'gemini-3.8-flash';
     const initialQueue = [...new Set([savedModel, 'gemini-3.8-flash'])];
@@ -4848,14 +4852,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const tryModelList = async list => {
       for (const model of list) {
         try {
-          const parsed = await callGeminiCardRequest(model, apiKey, b64, prompt, true);
+          const parsed = await callGeminiCardRequest(model, apiKey, imageList, prompt, true);
           localStorage.setItem(SCANNER_MODEL_STORAGE, model);
           return parsed;
         } catch (err) {
           lastErr = err;
           if (err.status === 400 && /thinking|responseMimeType/i.test(err.message || '')) {
             try {
-              const parsedNoThink = await callGeminiCardRequest(model, apiKey, b64, prompt, false);
+              const parsedNoThink = await callGeminiCardRequest(model, apiKey, imageList, prompt, false);
               localStorage.setItem(SCANNER_MODEL_STORAGE, model);
               return parsedNoThink;
             } catch (err2) {
@@ -4971,74 +4975,156 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!listEl) return;
     const rawQ = String(queryText || '').trim();
     const normQ = normalizeScanText(rawQ);
-    const numInQ = normQ.match(/\b(\d{1,3})(?:\s*\/\s*\d{1,3})?\b/);
-    const numHint = parsedHints?.number ? String(parsedHints.number).replace(/^0+(?=\d)/, '') : (numInQ ? numInQ[1] : '');
-    const setHint = (parsedHints?.setCode || '').toUpperCase();
+    const numPair = normQ.match(/\b(\d{1,3})\s*\/\s*(\d{1,3})\b/);
+    const numSingle = normQ.match(/\b(\d{1,3})\b/);
+    const numHint = parsedHints?.number
+      ? String(parsedHints.number).replace(/^0+(?=\d)/, '')
+      : (numPair ? numPair[1].replace(/^0+(?=\d)/, '') : (numSingle ? numSingle[1].replace(/^0+(?=\d)/, '') : ''));
+    const totalHint = parsedHints?.total
+      ? String(parsedHints.total).replace(/^0+(?=\d)/, '')
+      : (numPair ? numPair[2].replace(/^0+(?=\d)/, '') : '');
+
+    // Resolve known set code & tcgdexId from parsedHints OR tokens typed in queryText (e.g. "DLR 018/103 Fukano")
+    const idxSets = await ensureSetsIndexLoaded().catch(() => []);
+    const knownCodes = new Set(idxSets.map(s => String(s.code || '').toUpperCase()).filter(Boolean));
+    let setHint = String(parsedHints?.setCode || '').trim().toUpperCase();
     const setNameHint = normalizeScanText(parsedHints?.setNameEn || '');
     const attackHint = normalizeScanText(parsedHints?.attack || '');
-    const aiNameRaw = normalizeScanText(parsedHints?.enName || parsedHints?.name || '');
-    const searchBase = aiNameRaw || normQ;
-    const cleanedWords = searchBase
+
+    const rawTokens = normQ
       .replace(/\b\d{1,3}\s*\/\s*\d{1,3}\b/g, '')
       .replace(/[^a-z0-9'\s]/g, ' ')
       .split(/\s+/)
       .filter(w => w.length >= 2 && /[a-z]/.test(w));
 
-    if (cleanedWords.length === 0 && !numHint) {
-      listEl.innerHTML = '<div class="search-hint">Name oder Kartennummer eingeben bzw. Karte scannen.</div>';
+    const nameWords = [];
+    for (const w of rawTokens) {
+      const up = w.toUpperCase();
+      if (!setHint && knownCodes.has(up) && rawTokens.length > 1) {
+        setHint = up;
+      } else {
+        nameWords.push(w);
+      }
+    }
+
+    const aiEnWords = normalizeScanText(parsedHints?.enName || '')
+      .replace(/[^a-z0-9'\s]/g, ' ')
+      .split(/\s+/)
+      .filter(w => w.length >= 2 && /[a-z]/.test(w));
+    const aiDeWords = normalizeScanText(parsedHints?.name || '')
+      .replace(/[^a-z0-9'\s]/g, ' ')
+      .split(/\s+/)
+      .filter(w => w.length >= 2 && /[a-z]/.test(w));
+    const cleanedWords = [...new Set(aiEnWords.length || aiDeWords.length ? [...aiEnWords, ...aiDeWords] : nameWords)];
+
+    if (cleanedWords.length === 0 && !numHint && !setHint) {
+      listEl.innerHTML = '<div class="search-hint">Name, Set-Kürzel (z.B. DLR) oder Kartennummer eingeben.</div>';
       return;
     }
 
     listEl.innerHTML = '<div class="search-hint">Suche passende Karten im Katalog...</div>';
 
+    let matchedSetInfo = setHint ? idxSets.find(s => String(s.code || '').toUpperCase() === setHint) : null;
+    if (!matchedSetInfo && setNameHint) {
+      matchedSetInfo = idxSets.find(s => {
+        const en = normalizeScanText(s.en || '');
+        const de = normalizeScanText(s.de || '');
+        return en === setNameHint || de === setNameHint || en.includes(setNameHint) || setNameHint.includes(en);
+      }) || null;
+      if (matchedSetInfo?.code && !setHint) setHint = String(matchedSetInfo.code).toUpperCase();
+    }
+    let targetTcgdexId = matchedSetInfo?.tcgdexId || '';
+
+    // If we know the set + collector number (e.g. DLR 018/103), resolve exact official card name & secret status via TCGdex
+    let tcgdexCardName = '';
+    let isSecretCard = Boolean(parsedHints?.isSecret) || (Boolean(numHint) && Boolean(totalHint) && Number(numHint) > Number(totalHint));
+    if (targetTcgdexId && numHint) {
+      try {
+        const setObj = await fetchTcgdexSet(targetTcgdexId);
+        if (setObj && Array.isArray(setObj.cards)) {
+          const official = Number(setObj.cardCount?.official || totalHint || 0);
+          if (official > 0 && Number(numHint) > official) isSecretCard = true;
+          const exactCard = setObj.cards.find(c => String(parseInt(c.localId, 10)) === String(parseInt(numHint, 10)));
+          if (exactCard?.name) tcgdexCardName = normalizeScanText(exactCard.name);
+        }
+      } catch (e) {}
+    }
+
+    const tcgdexWords = tcgdexCardName
+      ? tcgdexCardName.replace(/[^a-z0-9'\s]/g, ' ').split(/\s+/).filter(w => w.length >= 2)
+      : [];
+    const activeWords = tcgdexWords.length > 0 ? [...new Set([...tcgdexWords, ...cleanedWords])] : cleanedWords;
+
     let rows = [];
     if (isStaticMode) {
       const cat = await ensureStaticCatalogLoaded();
-      const scored = [];
-      for (let i = 0; i < cat.length; i++) {
-        const r = cat[i];
-        const rawEn = String(r[1] || '');
-        const enClean = normalizeScanText(rawEn.replace(/\[.*?\]/g, ''));
-        const deClean = normalizeScanText(String(r[2] || '').replace(/\[.*?\]/g, ''));
-        const bracketClean = normalizeScanText((rawEn.match(/\[([^\]]+)\]/) || [])[1] || '');
-        const expClean = normalizeScanText(r[5] || '');
-        const code = String(r[6] || '').toUpperCase();
-        const nameHay = `${enClean} ${deClean}`;
-        const fullHay = `${nameHay} ${expClean} ${code.toLowerCase()}`;
+      // Pre-filter strictly by setCode / tcgdexId / setName first when available!
+      const setPool = (setHint || targetTcgdexId || setNameHint)
+        ? cat.filter(r => {
+            if (r[3] !== 'c') return false;
+            const cCode = String(r[6] || '').toUpperCase();
+            const cExp = normalizeScanText(r[5] || '');
+            return (
+              (setHint && cCode === setHint) ||
+              (targetTcgdexId && r[12] === targetTcgdexId) ||
+              (setNameHint && cExp && (cExp.includes(setNameHint) || setNameHint.includes(cExp)))
+            );
+          })
+        : [];
 
-        let score = 0;
-        let nameHits = 0;
-        let anyHits = 0;
-        for (const w of cleanedWords) {
-          if (nameHay.includes(w)) {
-            nameHits++;
-            anyHits++;
-            score += (enClean.startsWith(w) || deClean.startsWith(w)) ? 30 : 18;
-          } else if (fullHay.includes(w)) {
-            anyHits++;
-            score += 8;
+      const scorePool = pool => {
+        const out = [];
+        for (let i = 0; i < pool.length; i++) {
+          const r = pool[i];
+          const rawEn = String(r[1] || '');
+          const enClean = normalizeScanText(rawEn.replace(/\[.*?\]/g, ''));
+          const deClean = normalizeScanText(String(r[2] || '').replace(/\[.*?\]/g, ''));
+          const bracketClean = normalizeScanText((rawEn.match(/\[([^\]]+)\]/) || [])[1] || '');
+          const expClean = normalizeScanText(r[5] || '');
+          const code = String(r[6] || '').toUpperCase();
+          const nameHay = `${enClean} ${deClean}`;
+
+          let score = 0;
+          let enHits = 0;
+          let deHits = 0;
+          let anyNameHits = 0;
+          for (const w of activeWords) {
+            const inEn = enClean.includes(w);
+            const inDe = deClean.includes(w);
+            if (inEn) enHits++;
+            if (inDe) deHits++;
+            if (inEn || inDe) {
+              anyNameHits++;
+              score += (enClean.startsWith(w) || deClean.startsWith(w)) ? 30 : 18;
+            }
           }
-        }
-        if (cleanedWords.length > 0 && nameHits === 0 && anyHits < cleanedWords.length) continue;
-        if (nameHits === cleanedWords.length && cleanedWords.length > 0) score += 40;
-        if (aiNameRaw && (enClean === aiNameRaw || deClean.startsWith(aiNameRaw))) score += 35;
-        if (setHint && code === setHint) score += 45;
-        if (setNameHint && expClean && (expClean.includes(setNameHint) || setNameHint.includes(expClean))) score += 40;
-        if (attackHint && bracketClean && bracketClean.includes(attackHint)) score += 45;
-        if (numHint && (rawEn.includes(`#${numHint}`) || rawEn.includes(`(${numHint})`))) {
-          score += 35;
-        }
-        if (r[3] === 'c') score += 5;
+          if (activeWords.length > 0 && anyNameHits === 0) continue;
+          if (tcgdexCardName && (enClean === tcgdexCardName || enClean.startsWith(tcgdexCardName + ' '))) score += 60;
+          if (aiEnWords.length > 0 && enHits === aiEnWords.length) score += 40;
+          if (aiDeWords.length > 0 && deHits === aiDeWords.length) score += 40;
+          if (setHint && code === setHint) score += 50;
+          if (setNameHint && expClean && (expClean.includes(setNameHint) || setNameHint.includes(expClean))) score += 40;
+          if (attackHint && bracketClean && bracketClean.includes(attackHint)) score += 45;
+          if (numHint && (rawEn.includes(`#${numHint}`) || rawEn.includes(`(${numHint})`))) score += 35;
+          if (r[3] === 'c') score += 5;
 
-        if (score >= 18) scored.push({ r, score, price: Number(r[7] ?? r[9] ?? 0) });
+          if (score >= 18) out.push({ r, score, price: Number(r[7] ?? r[9] ?? 0), idNum: Number(r[0]) });
+        }
+        return out;
+      };
+
+      let scored = setPool.length > 0 ? scorePool(setPool) : [];
+      if (scored.length === 0) {
+        scored = scorePool(cat);
       }
 
       // Fuzzy bigram fallback when OCR misread 1–2 characters and produced too few hits
-      if (scored.length < 3 && cleanedWords.length > 0) {
-        const namePhrase = cleanedWords.join(' ');
+      if (scored.length < 3 && activeWords.length > 0) {
+        const searchTarget = setPool.length > 0 ? setPool : cat;
+        const namePhrase = (aiEnWords.length ? aiEnWords : activeWords).join(' ');
         if (namePhrase.length >= 4) {
-          for (let i = 0; i < cat.length; i++) {
-            const r = cat[i];
+          for (let i = 0; i < searchTarget.length; i++) {
+            const r = searchTarget[i];
             if (r[3] !== 'c') continue;
             const enBase = normalizeScanText(String(r[1] || '').replace(/\[.*?\]/g, '').trim());
             const deBase = normalizeScanText(String(r[2] || '').split(' – ')[0].replace(/\[.*?\]/g, '').trim());
@@ -5047,13 +5133,20 @@ document.addEventListener('DOMContentLoaded', () => {
               deBase ? diceBigramSimilarity(namePhrase, deBase) : 0
             );
             if (sim >= 0.56) {
-              scored.push({ r, score: Math.round(sim * 60), price: Number(r[7] ?? r[9] ?? 0) });
+              scored.push({ r, score: Math.round(sim * 60), price: Number(r[7] ?? r[9] ?? 0), idNum: Number(r[0]) });
             }
           }
         }
       }
 
-      scored.sort((a, b) => (b.score - a.score) || (b.price - a.price));
+      scored.sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        // If we matched a non-secret collector number (e.g. 018/103), rank the lower-idProduct standard card above expensive Illustration Rares
+        if (numHint && totalHint && !isSecretCard) {
+          return a.idNum - b.idNum;
+        }
+        return b.price - a.price;
+      });
       const seenIds = new Set();
       for (const x of scored) {
         if (seenIds.has(x.r[0])) continue;
@@ -5062,7 +5155,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (rows.length >= 18) break;
       }
     } else {
-      const qTerm = cleanedWords.join(' ') || numHint;
+      const qTerm = activeWords.join(' ') || numHint || setHint;
       const res = await fetch(`/api/search?q=${encodeURIComponent(qTerm)}&type=single`);
       const data = await res.json();
       rows = (data.results || []).slice(0, 18).map(p => [
@@ -5147,7 +5240,8 @@ document.addEventListener('DOMContentLoaded', () => {
             number: aiRes.number || '',
             total: aiRes.total || '',
             setCode: aiRes.setCode || '',
-            attack: aiRes.attack || ''
+            attack: aiRes.attack || '',
+            isSecret: Boolean(aiRes.isSecret)
           };
           usedAi = true;
         } catch (aiErr) {
@@ -5174,12 +5268,12 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       const displayQuery = [
-        parsed.enName || parsed.name,
+        parsed.setCode,
         parsed.number ? (parsed.total ? `${parsed.number}/${parsed.total}` : parsed.number) : '',
-        parsed.setCode
+        parsed.name || parsed.enName
       ].filter(Boolean).join(' ').trim();
 
-      if (searchInput) searchInput.value = parsed.enName || parsed.name || displayQuery;
+      if (searchInput) searchInput.value = displayQuery;
       if (debugEl) {
         const metaTxt = [
           parsed.setNameEn,
