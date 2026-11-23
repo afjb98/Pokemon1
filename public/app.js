@@ -4744,6 +4744,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return (2 * overlap) / (a.length + b.length - 2);
   }
 
+  let cachedGeminiModels = null;
   async function scanCardWithGeminiVision(cardCanvas, apiKey) {
     // Resize smoothly up to 1200px wide for crisp, fast Gemini upload
     let sendCanvas = cardCanvas;
@@ -4762,7 +4763,32 @@ document.addEventListener('DOMContentLoaded', () => {
       '{"nameEn":"","nameDe":"","setNameEn":"","setCode":"","number":"","total":"","attack":"","isHolo":false}'
     ].join(' ');
 
-    const models = ['gemini-2.5-flash', 'gemini-2.0-flash'];
+    async function resolveGeminiModels(key) {
+      if (Array.isArray(cachedGeminiModels) && cachedGeminiModels.length > 0) return cachedGeminiModels;
+      const defaults = ['gemini-3.8-flash', 'gemini-3-flash', 'gemini-2.5-flash'];
+      try {
+        const mRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}`);
+        if (mRes.ok) {
+          const mData = await mRes.json();
+          const usable = (mData.models || [])
+            .filter(m =>
+              Array.isArray(m.supportedGenerationMethods) &&
+              m.supportedGenerationMethods.includes('generateContent') &&
+              /flash/i.test(m.name) &&
+              !/tts|audio|image-gen|live/i.test(m.name)
+            )
+            .map(m => String(m.name).replace(/^models\//, ''))
+            .sort((a, b) => b.localeCompare(a));
+          if (usable.length > 0) {
+            cachedGeminiModels = [...new Set([...defaults.filter(d => usable.includes(d)), ...usable])];
+            return cachedGeminiModels;
+          }
+        }
+      } catch (e) {}
+      return defaults;
+    }
+
+    const models = await resolveGeminiModels(apiKey);
     let lastErr = null;
     for (const model of models) {
       try {
