@@ -4457,6 +4457,13 @@ document.addEventListener('DOMContentLoaded', () => {
       sy = Math.max(0, Math.round(relTop / coverScale));
       cropW = Math.min(vw - sx, Math.max(40, Math.round(gRect.width / coverScale)));
       cropH = Math.min(vh - sy, Math.max(40, Math.round(gRect.height / coverScale)));
+      // Expand crop by 3% on each side so top titles & bottom edges aren't clipped
+      const padX = Math.round(cropW * 0.03);
+      const padY = Math.round(cropH * 0.03);
+      sx = Math.max(0, sx - padX);
+      sy = Math.max(0, sy - padY);
+      cropW = Math.min(vw - sx, cropW + padX * 2);
+      cropH = Math.min(vh - sy, cropH + padY * 2);
     }
     return { vw, vh, sx, sy, cropW, cropH };
   }
@@ -4785,9 +4792,14 @@ document.addEventListener('DOMContentLoaded', () => {
       if (g > maxG) maxG = g;
     }
     const span = Math.max(24, maxG - minG);
+    let normSum = 0;
     for (let p = 0; p < grayBuf.length; p++) {
-      grayBuf[p] = Math.max(0, Math.min(255, (((grayBuf[p] - minG) / span) * 255) | 0));
+      const nv = Math.max(0, Math.min(255, (((grayBuf[p] - minG) / span) * 255) | 0));
+      grayBuf[p] = nv;
+      normSum += nv;
     }
+    // Full-Art / Illustration Rares have white text on dark background – invert so Tesseract gets black-on-white
+    const invertDark = (normSum / Math.max(1, grayBuf.length)) < 115;
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
         const p = y * w + x;
@@ -4796,6 +4808,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const lap = 5 * val - grayBuf[p - 1] - grayBuf[p + 1] - grayBuf[p - w] - grayBuf[p + w];
           val = Math.max(0, Math.min(255, Math.round(val * 0.6 + lap * 0.4)));
         }
+        if (invertDark) val = 255 - val;
         const i = p * 4;
         d[i] = d[i + 1] = d[i + 2] = val;
       }
@@ -4865,7 +4878,10 @@ document.addEventListener('DOMContentLoaded', () => {
         .trim();
       if (!stripped || stripped.length < 3) continue;
       if (isNoiseHeaderLine(stripped)) continue;
-      const tokens = stripped.split(' ').filter(t => t.length >= 2 && !stopWords.test(t));
+      let tokens = stripped.split(' ').filter(t => t.length >= 2 && !stopWords.test(t));
+      if (tokens.some(t => /^[A-ZÄÖÜ][a-zäöüßé]{4,}/.test(t))) {
+        tokens = tokens.filter(t => !/^[a-z]{2,3}$/.test(t));
+      }
       if (tokens.length === 0) continue;
       const candidate = tokens.join(' ');
       const hasMixedCase = /[a-zäöüßé]/.test(candidate) && /[A-ZÄÖÜ]/.test(candidate);
@@ -5231,23 +5247,35 @@ document.addEventListener('DOMContentLoaded', () => {
           const bracketClean = normalizeScanText((rawEn.match(/\[([^\]]+)\]/) || [])[1] || '');
           const expClean = normalizeScanText(r[5] || '');
           const code = String(r[6] || '').toUpperCase();
-          const nameHay = `${enClean} ${deClean}`;
+          const enTokens = enClean.split(/[^a-z0-9']+/).filter(Boolean);
+          const deTokens = deClean.split(/[^a-z0-9']+/).filter(Boolean);
 
           let score = 0;
           let enHits = 0;
           let deHits = 0;
-          let anyNameHits = 0;
+          let strongNameHits = 0;
           for (const w of activeWords) {
-            const inEn = enClean.includes(w);
-            const inDe = deClean.includes(w);
-            if (inEn) enHits++;
-            if (inDe) deHits++;
-            if (inEn || inDe) {
-              anyNameHits++;
-              score += (enClean.startsWith(w) || deClean.startsWith(w)) ? 30 : 18;
+            const wordInEn = enTokens.includes(w);
+            const wordInDe = deTokens.includes(w);
+            const prefInEn = !wordInEn && enTokens.some(t => t.startsWith(w) && w.length >= 3);
+            const prefInDe = !wordInDe && deTokens.some(t => t.startsWith(w) && w.length >= 3);
+            const subInEn = !wordInEn && !prefInEn && w.length >= 4 && enClean.includes(w);
+            const subInDe = !wordInDe && !prefInDe && w.length >= 4 && deClean.includes(w);
+
+            if (wordInEn || prefInEn || subInEn) enHits++;
+            if (wordInDe || prefInDe || subInDe) deHits++;
+
+            if (wordInEn || wordInDe) {
+              strongNameHits++;
+              score += (enClean.startsWith(w) || deClean.startsWith(w)) ? 50 : 40;
+            } else if (prefInEn || prefInDe) {
+              strongNameHits++;
+              score += 26;
+            } else if (subInEn || subInDe) {
+              score += 10;
             }
           }
-          if (activeWords.length > 0 && anyNameHits === 0) continue;
+          if (activeWords.length > 0 && strongNameHits === 0 && enHits === 0 && deHits === 0) continue;
           if (tcgdexCardName && (enClean === tcgdexCardName || enClean.startsWith(tcgdexCardName + ' '))) score += 60;
           if (aiEnWords.length > 0 && enHits === aiEnWords.length) score += 40;
           if (aiDeWords.length > 0 && deHits === aiDeWords.length) score += 40;
@@ -5257,7 +5285,7 @@ document.addEventListener('DOMContentLoaded', () => {
           if (numHint && (rawEn.includes(`#${numHint}`) || rawEn.includes(`(${numHint})`))) score += 35;
           if (r[3] === 'c') score += 5;
 
-          if (score >= 18) out.push({ r, score, price: Number(r[7] ?? r[9] ?? 0), idNum: Number(r[0]) });
+          if (score >= 22) out.push({ r, score, price: Number(r[7] ?? r[9] ?? 0), idNum: Number(r[0]) });
         }
         return out;
       };
@@ -5267,23 +5295,34 @@ document.addEventListener('DOMContentLoaded', () => {
         scored = scorePool(cat);
       }
 
-      // Fuzzy bigram fallback when OCR misread 1–2 characters and produced too few hits
-      if (scored.length < 3 && activeWords.length > 0) {
+      // Per-word fuzzy bigram fallback whenever a long Pokémon word (>= 5 chars, e.g. "elevolgck") had no strong match!
+      const longQueryWords = activeWords.filter(w => w.length >= 5);
+      const hasStrongLongHit = scored.some(x => x.score >= 40);
+      if ((scored.length < 3 || (longQueryWords.length > 0 && !hasStrongLongHit)) && activeWords.length > 0) {
         const searchTarget = setPool.length > 0 ? setPool : cat;
-        const namePhrase = (aiEnWords.length ? aiEnWords : activeWords).join(' ');
-        if (namePhrase.length >= 4) {
-          for (let i = 0; i < searchTarget.length; i++) {
-            const r = searchTarget[i];
-            if (r[3] !== 'c') continue;
-            const enBase = normalizeScanText(String(r[1] || '').replace(/\[.*?\]/g, '').trim());
-            const deBase = normalizeScanText(String(r[2] || '').split(' – ')[0].replace(/\[.*?\]/g, '').replace(/\([^)]*\)/g, '').trim());
-            const sim = Math.max(
-              diceBigramSimilarity(namePhrase, enBase),
-              deBase ? diceBigramSimilarity(namePhrase, deBase) : 0
-            );
-            if (sim >= 0.56) {
-              scored.push({ r, score: Math.round(sim * 60), price: Number(r[7] ?? r[9] ?? 0), idNum: Number(r[0]) });
+        const fuzzyTerms = longQueryWords.length > 0 ? longQueryWords : [activeWords.join(' ')];
+        for (let i = 0; i < searchTarget.length; i++) {
+          const r = searchTarget[i];
+          if (r[3] !== 'c') continue;
+          const enBase = normalizeScanText(String(r[1] || '').replace(/\[.*?\]/g, '').trim());
+          const deBase = normalizeScanText(String(r[2] || '').split(' – ')[0].replace(/\[.*?\]/g, '').replace(/\([^)]*\)/g, '').trim());
+          const tokenCands = [...new Set([
+            enBase,
+            deBase,
+            ...enBase.split(/[^a-z0-9']+/).filter(t => t.length >= 4),
+            ...deBase.split(/[^a-z0-9']+/).filter(t => t.length >= 4)
+          ].filter(Boolean))];
+
+          let bestSim = 0;
+          for (const fw of fuzzyTerms) {
+            if (fw.length < 4) continue;
+            for (const cand of tokenCands) {
+              const sim = diceBigramSimilarity(fw, cand);
+              if (sim > bestSim) bestSim = sim;
             }
+          }
+          if (bestSim >= 0.56) {
+            scored.push({ r, score: Math.round(bestSim * 78) + (setHint && String(r[6] || '').toUpperCase() === setHint ? 35 : 0), price: Number(r[7] ?? r[9] ?? 0), idNum: Number(r[0]) });
           }
         }
       }
