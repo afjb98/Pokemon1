@@ -4727,6 +4727,7 @@ document.addEventListener('DOMContentLoaded', () => {
     modal.classList.remove('hidden');
     startScannerCamera();
     ensureStaticCatalogLoaded().catch(() => {});
+    ensureCardHashesLoaded().catch(() => {});
   }
 
   function closeScannerModal() {
@@ -5363,8 +5364,13 @@ document.addEventListener('DOMContentLoaded', () => {
       ]);
     }
 
+    renderScannerMatchRows(rows, listEl);
+  }
+
+  function renderScannerMatchRows(rows, listEl = document.getElementById('scannerMatchList')) {
+    if (!listEl) return;
     listEl.innerHTML = '';
-    if (rows.length === 0) {
+    if (!rows || rows.length === 0) {
       listEl.innerHTML = '<div class="search-hint">Keine exakten Treffer – passe oben den Namen kurz an (z.B. nur Pokémon-Namen eintippen).</div>';
       return;
     }
@@ -5407,6 +5413,162 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  let cardHashesIndex = null;
+  let cardHashesPromise = null;
+
+  /** Lazily load precomputed 72-dim artwork vectors for instant offline visual matching. */
+  async function ensureCardHashesLoaded() {
+    if (cardHashesIndex) return cardHashesIndex;
+    if (cardHashesPromise) return cardHashesPromise;
+    cardHashesPromise = (async () => {
+      try {
+        const res = await fetch('./data/card_hashes.json');
+        if (!res.ok) return null;
+        const data = await res.json();
+        const items = (data.items || []).map(([idProduct, b64]) => {
+          const bin = atob(b64);
+          const vec = new Int8Array(bin.length);
+          let sq = 0;
+          for (let i = 0; i < bin.length; i++) {
+            const rawByte = bin.charCodeAt(i);
+            const signed = rawByte > 127 ? rawByte - 256 : rawByte;
+            vec[i] = signed;
+            sq += signed * signed;
+          }
+          return { idProduct, vec, norm: Math.max(1e-3, Math.sqrt(sq)) };
+        });
+        cardHashesIndex = items;
+        return cardHashesIndex;
+      } catch (err) {
+        cardHashesPromise = null;
+        return null;
+      }
+    })();
+    return cardHashesPromise;
+  }
+
+  /** Compute lighting- and white-balance-invariant 72-dim visual descriptor from a card canvas. */
+  function computeCanvasVisualVector(cardCanvas, shiftXFrac = 0, shiftYFrac = 0) {
+    const sw = 48;
+    const sh = 68;
+    const tmp = document.createElement('canvas');
+    tmp.width = sw;
+    tmp.height = sh;
+    const ctx = tmp.getContext('2d', { willReadFrequently: true });
+    const sx = Math.max(0, Math.min(cardCanvas.width * 0.14, cardCanvas.width * (0.07 + shiftXFrac)));
+    const sy = Math.max(0, Math.min(cardCanvas.height * 0.14, cardCanvas.height * (0.07 + shiftYFrac)));
+    const cw = Math.max(8, cardCanvas.width * 0.86);
+    const ch = Math.max(12, cardCanvas.height * 0.86);
+    ctx.drawImage(cardCanvas, sx, sy, Math.min(cw, cardCanvas.width - sx), Math.min(ch, cardCanvas.height - sy), 0, 0, sw, sh);
+    const px = ctx.getImageData(0, 0, sw, sh).data;
+
+    const gx = 4, gy = 6, cells = gx * gy;
+    const yArr = new Float32Array(cells);
+    const rgArr = new Float32Array(cells);
+    const byArr = new Float32Array(cells);
+    const cntArr = new Int32Array(cells);
+
+    for (let y = 0; y < sh; y++) {
+      const cellY = Math.min(gy - 1, Math.floor((y * gy) / sh));
+      for (let x = 0; x < sw; x++) {
+        const cellX = Math.min(gx - 1, Math.floor((x * gx) / sw));
+        const cIdx = cellY * gx + cellX;
+        const p = (y * sw + x) * 4;
+        const r = px[p], g = px[p + 1], b = px[p + 2];
+        yArr[cIdx] += 0.299 * r + 0.587 * g + 0.114 * b;
+        rgArr[cIdx] += (r - g);
+        byArr[cIdx] += (b - 0.5 * (r + g));
+        cntArr[cIdx]++;
+      }
+    }
+
+    for (let i = 0; i < cells; i++) {
+      const cnt = Math.max(1, cntArr[i]);
+      yArr[i] /= cnt;
+      rgArr[i] /= cnt;
+      byArr[i] /= cnt;
+    }
+
+    const normalizeChannel = arr => {
+      let mean = 0;
+      for (let i = 0; i < arr.length; i++) mean += arr[i];
+      mean /= arr.length;
+      let sq = 0;
+      for (let i = 0; i < arr.length; i++) {
+        arr[i] -= mean;
+        sq += arr[i] * arr[i];
+      }
+      const norm = Math.max(1e-3, Math.sqrt(sq));
+      for (let i = 0; i < arr.length; i++) arr[i] /= norm;
+    };
+    normalizeChannel(yArr);
+    normalizeChannel(rgArr);
+    normalizeChannel(byArr);
+
+    const out = new Float32Array(cells * 3);
+    for (let i = 0; i < cells; i++) {
+      out[i] = yArr[i];
+      out[cells + i] = rgArr[i];
+      out[cells * 2 + i] = byArr[i];
+    }
+    return out;
+  }
+
+  /** Find closest matching cards by visual artwork cosine similarity. */
+  async function matchCardByVisualHash(cardCanvas, limit = 6) {
+    const [hashes, catalog] = await Promise.all([
+      ensureCardHashesLoaded(),
+      ensureStaticCatalogLoaded()
+    ]);
+    if (!hashes || hashes.length === 0 || !catalog || catalog.length === 0) return null;
+
+    const qVec = computeCanvasVisualVector(cardCanvas, 0, 0);
+    let qSq = 0;
+    for (let k = 0; k < qVec.length; k++) qSq += qVec[k] * qVec[k];
+    const qNorm = Math.max(1e-3, Math.sqrt(qSq));
+
+    const scored = [];
+    for (let i = 0; i < hashes.length; i++) {
+      const entry = hashes[i];
+      const hVec = entry.vec;
+      let dot = 0;
+      for (let k = 0; k < 72; k++) dot += qVec[k] * hVec[k];
+      const sim = dot / (qNorm * entry.norm);
+      scored.push({ idx: i, idProduct: entry.idProduct, sim });
+    }
+    scored.sort((a, b) => b.sim - a.sim);
+
+    // If framing is slightly off-center, re-score top 30 with small X/Y shifts
+    const topPool = scored.slice(0, 30);
+    if (topPool.length > 0 && topPool[0].sim < 0.86) {
+      const shifts = [[-0.035, 0], [0.035, 0], [0, -0.035], [0, 0.035]];
+      for (const [sx, sy] of shifts) {
+        const sVec = computeCanvasVisualVector(cardCanvas, sx, sy);
+        let sSq = 0;
+        for (let k = 0; k < sVec.length; k++) sSq += sVec[k] * sVec[k];
+        const sNorm = Math.max(1e-3, Math.sqrt(sSq));
+        for (const item of topPool) {
+          const entry = hashes[item.idx];
+          let dot = 0;
+          for (let k = 0; k < 72; k++) dot += sVec[k] * entry.vec[k];
+          const sim = dot / (sNorm * entry.norm);
+          if (sim > item.sim) item.sim = sim;
+        }
+      }
+      topPool.sort((a, b) => b.sim - a.sim);
+    }
+
+    const byId = new Map();
+    for (const r of catalog) byId.set(Number(r[0]), r);
+    const matches = [];
+    for (const item of topPool) {
+      const row = byId.get(Number(item.idProduct));
+      if (row) matches.push({ row, sim: item.sim });
+      if (matches.length >= limit) break;
+    }
+    return matches.length > 0 ? { matches, topSim: matches[0].sim } : null;
+  }
+
   async function processScannedImageCanvas(cardCanvas) {
     const searchInput = document.getElementById('scannerSearchInput');
     const debugEl = document.getElementById('scannerOcrDebug');
@@ -5416,6 +5578,30 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       let parsed = null;
       let usedAi = false;
+      let visRes = null;
+
+      if (!useAi) {
+        setScannerStatus('⚡ Visueller Artwork-Abgleich...');
+        visRes = await matchCardByVisualHash(cardCanvas, 8).catch(() => null);
+        if (visRes && visRes.matches.length > 0) {
+          const bestRow = visRes.matches[0].row;
+          const pct = Math.round(visRes.topSim * 100);
+          renderScannerMatchRows(visRes.matches.map(m => m.row));
+          if (visRes.topSim >= 0.76) {
+            const bestTitle = (bestRow[2] || bestRow[1] || '').replace(/\[.*?\]/g, '').trim();
+            if (searchInput) searchInput.value = bestTitle;
+            if (debugEl) {
+              debugEl.textContent = `⚡ Visuell erkannt (${pct}%): ${bestTitle}${bestRow[6] ? ` • ${bestRow[6]}` : ''}`;
+            }
+            setScannerStatus(`⚡ Erkannt (${pct}%)`);
+            return;
+          }
+          if (debugEl) {
+            debugEl.textContent = `⚡ Visuelle Vorschau (${pct}%) – prüfe zusätzlich Kartentext...`;
+          }
+        }
+      }
+
       if (useAi) {
         setScannerStatus('✨ KI erkennt Karte...');
         if (debugEl) debugEl.textContent = 'Gemini Vision KI analysiert die Karte...';
@@ -5495,6 +5681,13 @@ document.addEventListener('DOMContentLoaded', () => {
       ].filter(Boolean).join(' ').trim();
 
       if (searchInput) searchInput.value = displayQuery;
+      if (!usedAi && !displayQuery && visRes && visRes.matches.length > 0) {
+        const pct = Math.round(visRes.topSim * 100);
+        if (debugEl) debugEl.textContent = `⚡ Visuelle Vorschläge (${pct}%) – bei Abweichung Namen oben kurz eintippen`;
+        setScannerStatus(`⚡ Vorschläge (${pct}%)`);
+        return;
+      }
+
       if (debugEl) {
         const metaTxt = [
           parsed.setNameEn,
@@ -5504,8 +5697,8 @@ document.addEventListener('DOMContentLoaded', () => {
         debugEl.textContent = usedAi
           ? `✨ KI erkannt: ${parsed.enName || parsed.name}${metaTxt ? ` (${metaTxt})` : ''}`
           : (displayQuery
-            ? `OCR erkannt: ${displayQuery} (Tipp: KI-Key oben einrichten für 100%-Treffer)`
-            : 'Ohne KI schwer lesbar – oben KI-Key einrichten oder Namen eintippen');
+            ? `OCR erkannt: ${displayQuery}`
+            : 'Schwer lesbar – Karte ruhiger halten oder Namen oben eintippen');
       }
       setScannerStatus(usedAi ? '✨ KI fertig' : (displayQuery ? 'Erkennung fertig' : 'Bitte Namen eingeben'));
       await searchCatalogForScan(searchInput?.value || displayQuery, parsed);
