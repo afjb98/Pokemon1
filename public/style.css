@@ -39,17 +39,32 @@ body {
 
 @media (max-width: 640px) {
   .app-shell {
-    padding: max(14px, env(safe-area-inset-top)) 14px max(40px, env(safe-area-inset-bottom));
+    padding: max(12px, env(safe-area-inset-top)) 14px max(40px, env(safe-area-inset-bottom));
   }
   .topbar {
-    gap: 12px;
+    gap: 10px;
+    padding-bottom: 12px;
+    margin-bottom: 14px;
+  }
+  .brand {
+    gap: 10px;
+  }
+  .brand .subtitle {
+    display: none;
   }
   .topbar-actions {
     width: 100%;
-    justify-content: space-between;
+    gap: 6px;
+  }
+  .topbar-actions > .btn,
+  .topbar-actions .tools-menu-wrap {
+    flex: 1 1 auto;
+  }
+  .topbar-actions .tools-menu-wrap > .btn {
+    width: 100%;
   }
   .btn {
-    padding: 8px 11px;
+    padding: 8px 10px;
     font-size: 0.8rem;
   }
   .search-input-wrap input {
@@ -1991,6 +2006,19 @@ body {
 
 .tools-dropdown-item.hidden {
   display: none;
+}
+
+.status-pill-menu {
+  width: 100%;
+  justify-content: flex-start;
+  margin-bottom: 4px;
+  font-size: 0.72rem;
+}
+
+.tools-dropdown-sep {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 6px;
 }
 
 /* Camera Card Scanner Modal */

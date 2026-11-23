@@ -20,7 +20,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <link rel="stylesheet" href="./style.css?v=49" />
+  <link rel="stylesheet" href="./style.css?v=50" />
 </head>
 <body>
   <div class="app-shell">
@@ -35,22 +35,6 @@
       </div>
 
       <div class="topbar-actions">
-        <div id="catalogStatusBadge" class="status-pill loading">
-          <span class="dot"></span>
-          <span id="catalogStatusText">Katalog wird geladen...</span>
-        </div>
-        <button id="btnInstallPwa" class="btn btn-secondary" title="Als App auf Handy oder PC installieren">
-          📲 App
-        </button>
-        <button id="btnOpenFriendsModal" class="btn btn-secondary hidden" title="Sammlungen deiner Freunde live ansehen">
-          Freunde
-        </button>
-        <button id="btnRefreshCatalog" class="btn btn-secondary" title="Cardmarket-Preise & Cloud-Stand aktualisieren">
-          Preise ↻
-        </button>
-        <button id="btnOpenExpenseModal" class="btn btn-secondary" title="Geöffnetes Display, TTB oder Booster-Ausgaben eintragen">
-          + Display/TTB
-        </button>
         <button id="btnOpenScannerModal" class="btn btn-secondary" title="Pokémon-Karte mit Handy-Kamera oder Webcam scannen">
           📷 Scannen
         </button>
@@ -58,10 +42,24 @@
           + Produkt
         </button>
         <div class="tools-menu-wrap" id="toolsMenuWrap">
-          <button type="button" id="btnToggleToolsMenu" class="btn btn-secondary" aria-expanded="false" title="Weitere Aktionen">
-            ⋯ Tools
+          <button type="button" id="btnToggleToolsMenu" class="btn btn-secondary" aria-expanded="false" title="Einstellungen &amp; weitere Aktionen">
+            ⚙️ Einstellungen
           </button>
           <div id="toolsDropdown" class="tools-dropdown hidden">
+            <div id="catalogStatusBadge" class="status-pill status-pill-menu loading">
+              <span class="dot"></span>
+              <span id="catalogStatusText">Katalog wird geladen...</span>
+            </div>
+            <button type="button" id="btnOpenExpenseModal" class="tools-dropdown-item" title="Geöffnetes Display, TTB oder Booster-Ausgaben eintragen">
+              📦 + Display / TTB
+            </button>
+            <button type="button" id="btnRefreshCatalog" class="tools-dropdown-item" title="Cardmarket-Preise &amp; Cloud-Stand aktualisieren">
+              🔄 Preise aktualisieren
+            </button>
+            <button type="button" id="btnOpenFriendsModal" class="tools-dropdown-item hidden" title="Sammlungen deiner Freunde live ansehen">
+              👥 Freunde
+            </button>
+            <div class="tools-dropdown-sep"></div>
             <button type="button" id="btnOpenProfileModal" class="tools-dropdown-item">
               👤 Eigenes Portfolio / Name
             </button>
@@ -723,6 +721,6 @@
   <!-- Toast Notification -->
   <div id="toastBanner" class="toast-banner hidden"></div>
 
-  <script src="./app.js?v=49"></script>
+  <script src="./app.js?v=50"></script>
 </body>
 </html>
