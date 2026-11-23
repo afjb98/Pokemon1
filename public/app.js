@@ -4517,7 +4517,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       autoScanPrevSample = curr;
 
-      if (!isCardSharp || motionDiff > 6.5) {
+      if (!isCardSharp || motionDiff > 7.0) {
         autoScanSteadyCount = 0;
         setScannerGuideState('idle');
         setScannerStatus(isCardSharp ? 'Kurz ruhig halten...' : 'Karte in den Rahmen halten');
@@ -4525,7 +4525,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       autoScanSteadyCount++;
-      if (autoScanSteadyCount < 3) {
+      if (autoScanSteadyCount < 2) {
         setScannerGuideState('locking');
         setScannerStatus('Karte erkannt – ruhig halten...');
       } else {
@@ -4533,7 +4533,7 @@ document.addEventListener('DOMContentLoaded', () => {
         setScannerStatus('✓ Scharf – wird gescannt!');
         captureAndScanVideo();
       }
-    }, 280);
+    }, 220);
   }
 
   function stopScannerStream() {
@@ -4759,83 +4759,124 @@ document.addEventListener('DOMContentLoaded', () => {
     return (2 * overlap) / (a.length + b.length - 2);
   }
 
+  const SCANNER_MODEL_STORAGE = 'pokevault_gemini_model';
   let cachedGeminiModels = null;
+
+  async function callGeminiCardRequest(model, apiKey, b64, prompt, includeThinkingConfig = true) {
+    const genCfg = {
+      temperature: 0.1,
+      maxOutputTokens: 160,
+      responseMimeType: 'application/json'
+    };
+    if (includeThinkingConfig) {
+      genCfg.thinkingConfig = { thinkingBudget: 0 };
+    }
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          parts: [
+            { text: prompt },
+            { inline_data: { mime_type: 'image/jpeg', data: b64 } }
+          ]
+        }],
+        generationConfig: genCfg
+      })
+    });
+    if (!res.ok) {
+      const errBody = await res.json().catch(() => ({}));
+      const msg = errBody?.error?.message || `HTTP ${res.status}`;
+      const err = new Error(msg);
+      err.status = res.status;
+      throw err;
+    }
+    const data = await res.json();
+    const rawTxt = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const jsonMatch = rawTxt.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('Keine JSON-Antwort von KI');
+    return JSON.parse(jsonMatch[0]);
+  }
+
+  async function discoverGeminiModels(apiKey) {
+    if (Array.isArray(cachedGeminiModels) && cachedGeminiModels.length > 0) return cachedGeminiModels;
+    const defaults = ['gemini-3.8-flash-lite', 'gemini-3.8-flash', 'gemini-3-flash', 'gemini-2.5-flash-lite', 'gemini-2.5-flash'];
+    try {
+      const mRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`);
+      if (mRes.ok) {
+        const mData = await mRes.json();
+        const usable = (mData.models || [])
+          .filter(m =>
+            Array.isArray(m.supportedGenerationMethods) &&
+            m.supportedGenerationMethods.includes('generateContent') &&
+            /flash/i.test(m.name) &&
+            !/tts|audio|image-gen|live/i.test(m.name)
+          )
+          .map(m => String(m.name).replace(/^models\//, ''))
+          .sort((a, b) => {
+            const aLite = /lite/i.test(a) ? 1 : 0;
+            const bLite = /lite/i.test(b) ? 1 : 0;
+            if (aLite !== bLite) return bLite - aLite;
+            return b.localeCompare(a);
+          });
+        if (usable.length > 0) {
+          cachedGeminiModels = [...new Set([...defaults.filter(d => usable.includes(d)), ...usable])];
+          return cachedGeminiModels;
+        }
+      }
+    } catch (e) {}
+    return defaults;
+  }
+
   async function scanCardWithGeminiVision(cardCanvas, apiKey) {
-    // Resize smoothly up to 1200px wide for crisp, fast Gemini upload
+    // Compact 600px JPEG (0.72 quality, ~50KB) dramatically cuts mobile upload + Vision latency
     let sendCanvas = cardCanvas;
-    if (cardCanvas.width > 1200) {
-      const sc = 1200 / cardCanvas.width;
+    if (cardCanvas.width > 600) {
+      const sc = 600 / cardCanvas.width;
       sendCanvas = document.createElement('canvas');
-      sendCanvas.width = 1200;
+      sendCanvas.width = 600;
       sendCanvas.height = Math.round(cardCanvas.height * sc);
       sendCanvas.getContext('2d').drawImage(cardCanvas, 0, 0, sendCanvas.width, sendCanvas.height);
     }
-    const b64 = sendCanvas.toDataURL('image/jpeg', 0.9).split(',')[1];
-    const prompt = [
-      'Identify this Pokémon TCG card accurately from the image.',
-      'Look at the card name, set name/symbol, collector number (e.g. 89/109 or 199/165), set code (e.g. TR, MEW, SSP, DLR, PRE), and first attack/ability name.',
-      'Return strictly JSON only (no markdown, no explanation):',
-      '{"nameEn":"","nameDe":"","setNameEn":"","setCode":"","number":"","total":"","attack":"","isHolo":false}'
-    ].join(' ');
+    const b64 = sendCanvas.toDataURL('image/jpeg', 0.72).split(',')[1];
+    const prompt = 'Identify Pokémon TCG card. JSON only: {"nameEn":"","nameDe":"","setNameEn":"","setCode":"","number":"","total":"","attack":"","isHolo":false}';
 
-    async function resolveGeminiModels(key) {
-      if (Array.isArray(cachedGeminiModels) && cachedGeminiModels.length > 0) return cachedGeminiModels;
-      const defaults = ['gemini-3.8-flash', 'gemini-3-flash', 'gemini-2.5-flash'];
-      try {
-        const mRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}`);
-        if (mRes.ok) {
-          const mData = await mRes.json();
-          const usable = (mData.models || [])
-            .filter(m =>
-              Array.isArray(m.supportedGenerationMethods) &&
-              m.supportedGenerationMethods.includes('generateContent') &&
-              /flash/i.test(m.name) &&
-              !/tts|audio|image-gen|live/i.test(m.name)
-            )
-            .map(m => String(m.name).replace(/^models\//, ''))
-            .sort((a, b) => b.localeCompare(a));
-          if (usable.length > 0) {
-            cachedGeminiModels = [...new Set([...defaults.filter(d => usable.includes(d)), ...usable])];
-            return cachedGeminiModels;
-          }
-        }
-      } catch (e) {}
-      return defaults;
-    }
+    const savedModel = localStorage.getItem(SCANNER_MODEL_STORAGE) || 'gemini-3.8-flash';
+    const initialQueue = [...new Set([savedModel, 'gemini-3.8-flash'])];
 
-    const models = await resolveGeminiModels(apiKey);
     let lastErr = null;
-    for (const model of models) {
-      try {
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{
-              parts: [
-                { text: prompt },
-                { inline_data: { mime_type: 'image/jpeg', data: b64 } }
-              ]
-            }],
-            generationConfig: { temperature: 0.1 }
-          })
-        });
-        if (!res.ok) {
-          const errBody = await res.json().catch(() => ({}));
-          const msg = errBody?.error?.message || `HTTP ${res.status}`;
-          lastErr = new Error(msg);
-          if (res.status === 404 || res.status === 400) continue;
-          throw lastErr;
+    const tryModelList = async list => {
+      for (const model of list) {
+        try {
+          const parsed = await callGeminiCardRequest(model, apiKey, b64, prompt, true);
+          localStorage.setItem(SCANNER_MODEL_STORAGE, model);
+          return parsed;
+        } catch (err) {
+          lastErr = err;
+          if (err.status === 400 && /thinking|responseMimeType/i.test(err.message || '')) {
+            try {
+              const parsedNoThink = await callGeminiCardRequest(model, apiKey, b64, prompt, false);
+              localStorage.setItem(SCANNER_MODEL_STORAGE, model);
+              return parsedNoThink;
+            } catch (err2) {
+              lastErr = err2;
+            }
+          }
+          if (err.status === 404 || err.status === 400) continue;
+          throw err;
         }
-        const data = await res.json();
-        const rawTxt = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-        const jsonMatch = rawTxt.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) throw new Error('Keine JSON-Antwort von KI');
-        return JSON.parse(jsonMatch[0]);
-      } catch (err) {
-        lastErr = err;
       }
-    }
+      return null;
+    };
+
+    const fastHit = await tryModelList(initialQueue);
+    if (fastHit) return fastHit;
+
+    // Preflight /v1beta/models ONLY if initial fast models failed
+    const discovered = (await discoverGeminiModels(apiKey)).filter(m => !initialQueue.includes(m));
+    const fallbackHit = await tryModelList(discovered);
+    if (fallbackHit) return fallbackHit;
+
     throw lastErr || new Error('KI-Anfrage fehlgeschlagen');
   }
 
