@@ -20,7 +20,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <link rel="stylesheet" href="./style.css?v=29" />
+  <link rel="stylesheet" href="./style.css?v=30" />
 </head>
 <body>
   <div class="app-shell">
@@ -39,8 +39,8 @@
           <span class="dot"></span>
           <span id="catalogStatusText">Katalog wird geladen...</span>
         </div>
-        <button id="btnInstallPwa" class="btn btn-secondary hidden" title="Als App auf Handy oder PC installieren">
-          📲 App installieren
+        <button id="btnInstallPwa" class="btn btn-secondary" title="Als App auf Handy oder PC installieren">
+          📲 App
         </button>
         <button id="btnOpenFriendsModal" class="btn btn-secondary hidden" title="Sammlungen deiner Freunde live ansehen">
           Freunde
@@ -50,6 +50,9 @@
         </button>
         <button id="btnOpenExpenseModal" class="btn btn-secondary" title="Geöffnetes Display, TTB oder Booster-Ausgaben eintragen">
           + Display/TTB
+        </button>
+        <button id="btnOpenScannerModal" class="btn btn-secondary" title="Pokémon-Karte mit Handy-Kamera oder Webcam scannen">
+          📷 Scannen
         </button>
         <button id="btnOpenAddModal" class="btn btn-primary">
           + Produkt
@@ -654,9 +657,72 @@
     </div>
   </div>
 
+  <!-- Modal: Camera Card Scanner -->
+  <div id="scannerModal" class="modal-backdrop hidden">
+    <div class="modal modal-wide scanner-modal">
+      <div class="modal-header">
+        <div>
+          <h2>📷 Karten-Scanner</h2>
+          <p class="modal-sub">Halte die Karte in den Rahmen und tippe auf „Scannen“ – erkennt Name &amp; Set-Nr. aus dem Katalog</p>
+        </div>
+        <button id="btnCloseScannerModal" class="btn-icon" aria-label="Schließen">✕</button>
+      </div>
+      <div class="modal-body scanner-layout">
+        <div class="scanner-left">
+          <div class="scanner-stage">
+            <video id="scannerVideo" autoplay playsinline muted></video>
+            <canvas id="scannerPreviewCanvas" class="hidden"></canvas>
+            <div class="scanner-overlay">
+              <div class="scanner-frame-guide" id="scannerFrameGuide">
+                <span class="scanner-zone-hint top">Kartenname</span>
+                <span class="scanner-zone-hint bottom">Nr. (z.B. 199/165)</span>
+              </div>
+            </div>
+            <div id="scannerStatusPill" class="scanner-status-pill">Kamera startet...</div>
+          </div>
+
+          <div class="scanner-controls">
+            <button type="button" id="btnCaptureScan" class="btn btn-primary">📸 Karte scannen</button>
+            <button type="button" id="btnResumeCamera" class="btn btn-secondary hidden">🔄 Nächste Karte</button>
+            <button type="button" id="btnSwitchCamera" class="btn btn-secondary hidden" title="Kamera wechseln">↺ Kamera</button>
+            <label class="btn btn-secondary" style="cursor:pointer;" title="Foto aus Galerie / Datei wählen">
+              🖼️ Foto
+              <input type="file" id="scannerFileInput" accept="image/*" capture="environment" style="display:none;" />
+            </label>
+          </div>
+
+          <details class="scanner-ai-settings">
+            <summary>⚙️ Optional: KI-Modus (Gemini API-Key für perfekte Full-Art-Erkennung)</summary>
+            <div class="scanner-ai-inner">
+              <label class="scanner-ai-toggle">
+                <input type="checkbox" id="scannerUseAiCheck" />
+                <span>KI-Erkennung aktivieren (falls API-Key gespeichert)</span>
+              </label>
+              <div style="display:flex; gap:6px; margin-top:6px;">
+                <input type="password" id="scannerGeminiKeyInput" placeholder="Gemini API-Key (wird nur lokal gespeichert)" autocomplete="off" />
+                <button type="button" id="btnSaveScannerKey" class="btn btn-sm btn-secondary">Speichern</button>
+              </div>
+            </div>
+          </details>
+        </div>
+
+        <div class="scanner-right">
+          <div class="scanner-detected-header">
+            <label for="scannerSearchInput">Erkannt / Suche (anpassbar)</label>
+            <input type="text" id="scannerSearchInput" placeholder="Name oder Nr. z.B. Glurak 199/165..." autocomplete="off" />
+            <small class="field-help" id="scannerOcrDebug">Bereit zum Scannen – oder direkt Namen/Nr. tippen</small>
+          </div>
+          <div id="scannerMatchesList" class="scanner-matches-list">
+            <div class="search-hint">Mache ein Foto mit „📸 Karte scannen“ oder wähle ein Bild aus.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Notification -->
   <div id="toastBanner" class="toast-banner hidden"></div>
 
-  <script src="./app.js?v=29"></script>
+  <script src="./app.js?v=30"></script>
 </body>
 </html>

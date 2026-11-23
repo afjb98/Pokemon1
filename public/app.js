@@ -364,6 +364,7 @@ function updateProfileHeader() {
   const shareBtn = document.getElementById('btnShareFriendLink');
   const addBtn = document.getElementById('btnOpenAddModal');
   const expBtn = document.getElementById('btnOpenExpenseModal');
+  const scanBtn = document.getElementById('btnOpenScannerModal');
   const viewBanner = document.getElementById('viewingFriendBanner');
 
   // Show "Freunde" button ONLY for you (PC or unlocked iPhone ?admin=1)
@@ -387,6 +388,7 @@ function updateProfileHeader() {
     subtitleEl.textContent = 'Live-Stand aus der Cloud (nur Leseansicht)';
     if (addBtn) addBtn.classList.add('hidden');
     if (expBtn) expBtn.classList.add('hidden');
+    if (scanBtn) scanBtn.classList.add('hidden');
     if (viewBanner) {
       viewBanner.classList.remove('hidden');
       document.getElementById('viewingFriendLabel').textContent = `Du siehst gerade: Portfolio von ${fName}`;
@@ -399,6 +401,7 @@ function updateProfileHeader() {
   if (viewBanner) viewBanner.classList.add('hidden');
   if (addBtn) addBtn.classList.remove('hidden');
   if (expBtn) expBtn.classList.remove('hidden');
+  if (scanBtn) scanBtn.classList.remove('hidden');
 
   if (profileMode === 'personal' && profileName) {
     titleEl.textContent = `Portfolio von ${profileName}`;
@@ -3864,7 +3867,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.target && e.target.id === 'cardZoomModal') closeCardZoomModal();
   });
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') closeCardZoomModal();
+    if (e.key === 'Escape') {
+      closeCardZoomModal();
+      closeScannerModal();
+    }
   });
 
   // Friends Admin Viewer & Secure Login listeners
@@ -3991,6 +3997,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const isStandaloneApp = () =>
     window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 
+  if (installBtnTop && isStandaloneApp()) {
+    installBtnTop.classList.add('hidden');
+  }
+
   if ('serviceWorker' in navigator && (window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
     navigator.serviceWorker.register('./sw.js').catch(() => {});
   }
@@ -4000,6 +4010,7 @@ document.addEventListener('DOMContentLoaded', () => {
     deferredInstallPrompt = e;
     if (installBtnTop && !isStandaloneApp()) {
       installBtnTop.classList.remove('hidden');
+      installBtnTop.textContent = '📲 App installieren';
     }
   });
 
@@ -4363,5 +4374,563 @@ document.addEventListener('DOMContentLoaded', () => {
       closeSnapshotModal();
       renderAll();
     }
+  });
+
+  // =========================================================================
+  // Camera Card Scanner (OCR via Tesseract.js + optional Gemini Vision KI)
+  // =========================================================================
+  const SCANNER_KEY_STORAGE = 'pokevault_gemini_api_key';
+  const SCANNER_AI_STORAGE = 'pokevault_scanner_use_ai';
+  let scannerStream = null;
+  let scannerFacingMode = 'environment';
+  let tesseractPromise = null;
+  let scannerWorkerPromise = null;
+  let scannerDebounce = null;
+
+  function setScannerStatus(msg) {
+    const el = document.getElementById('scannerStatusPill');
+    if (el) el.textContent = msg;
+  }
+
+  function stopScannerStream() {
+    if (scannerStream) {
+      for (const track of scannerStream.getTracks()) {
+        try { track.stop(); } catch (e) {}
+      }
+      scannerStream = null;
+    }
+    const video = document.getElementById('scannerVideo');
+    if (video) video.srcObject = null;
+  }
+
+  async function startScannerCamera() {
+    const video = document.getElementById('scannerVideo');
+    const canvas = document.getElementById('scannerPreviewCanvas');
+    const resumeBtn = document.getElementById('btnResumeCamera');
+    const switchBtn = document.getElementById('btnSwitchCamera');
+    if (!video || !canvas) return;
+
+    canvas.classList.add('hidden');
+    video.classList.remove('hidden');
+    resumeBtn?.classList.add('hidden');
+    stopScannerStream();
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setScannerStatus('Kamera hier nicht verfügbar – nutze 🖼️ Foto');
+      return;
+    }
+
+    setScannerStatus('Kamera startet...');
+    try {
+      scannerStream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: scannerFacingMode },
+          width: { ideal: 1280 },
+          height: { ideal: 1700 }
+        },
+        audio: false
+      });
+      video.srcObject = scannerStream;
+      await video.play().catch(() => {});
+      setScannerStatus('Karte in Rahmen halten & scannen');
+
+      try {
+        const devs = await navigator.mediaDevices.enumerateDevices();
+        const cams = devs.filter(d => d.kind === 'videoinput');
+        if (switchBtn) switchBtn.classList.toggle('hidden', cams.length < 2);
+      } catch (e) {}
+    } catch (err) {
+      setScannerStatus('Kamera abgelehnt – nutze 🖼️ Foto');
+    }
+  }
+
+  function openScannerModal() {
+    if (viewingFriend) return;
+    const modal = document.getElementById('scannerModal');
+    if (!modal) return;
+    const keyInput = document.getElementById('scannerGeminiKeyInput');
+    const aiCheck = document.getElementById('scannerUseAiCheck');
+    const savedKey = localStorage.getItem(SCANNER_KEY_STORAGE) || '';
+    if (keyInput) keyInput.value = savedKey;
+    if (aiCheck) aiCheck.checked = Boolean(savedKey) && localStorage.getItem(SCANNER_AI_STORAGE) === '1';
+
+    modal.classList.remove('hidden');
+    startScannerCamera();
+    ensureStaticCatalogLoaded().catch(() => {});
+  }
+
+  function closeScannerModal() {
+    stopScannerStream();
+    document.getElementById('scannerModal')?.classList.add('hidden');
+  }
+
+  function ensureTesseractLoaded() {
+    if (window.Tesseract) return Promise.resolve(window.Tesseract);
+    if (tesseractPromise) return tesseractPromise;
+    tesseractPromise = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+      s.async = true;
+      s.onload = () => resolve(window.Tesseract);
+      s.onerror = () => {
+        tesseractPromise = null;
+        reject(new Error('OCR-Bibliothek konnte nicht geladen werden.'));
+      };
+      document.head.appendChild(s);
+    });
+    return tesseractPromise;
+  }
+
+  async function getScannerOcrWorker() {
+    if (scannerWorkerPromise) return scannerWorkerPromise;
+    scannerWorkerPromise = (async () => {
+      const T = await ensureTesseractLoaded();
+      const worker = await T.createWorker('eng+deu');
+      return worker;
+    })().catch(err => {
+      scannerWorkerPromise = null;
+      throw err;
+    });
+    return scannerWorkerPromise;
+  }
+
+  function enhanceContrastGrayCanvas(srcCanvas, sx, sy, sw, sh, targetW = 700) {
+    const scale = targetW / Math.max(1, sw);
+    const out = document.createElement('canvas');
+    out.width = Math.max(1, Math.round(sw * scale));
+    out.height = Math.max(1, Math.round(sh * scale));
+    const ctx = out.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(srcCanvas, sx, sy, sw, sh, 0, 0, out.width, out.height);
+    const img = ctx.getImageData(0, 0, out.width, out.height);
+    const d = img.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const gray = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+      // Boost local contrast for dark/light card header & collector numbers
+      const c = Math.max(0, Math.min(255, (gray - 128) * 1.45 + 128));
+      d[i] = d[i + 1] = d[i + 2] = c;
+    }
+    ctx.putImageData(img, 0, 0);
+    return out;
+  }
+
+  function parseOcrCardFields(topText, bottomText) {
+    const cleanNumText = String(bottomText || '').replace(/\s+/g, ' ');
+    const numMatch = cleanNumText.match(/\b(\d{1,3})\s*\/\s*(\d{1,3})\b/) ||
+      cleanNumText.match(/\b((?:TG|GG|SV|SH|AR)\s*\d{1,3})\b/i) ||
+      cleanNumText.match(/(?:#|\b)(\d{2,3})\b/);
+    const cardNumber = numMatch ? numMatch[1].replace(/\s+/g, '').replace(/^0+(?=\d)/, '') : '';
+    const cardTotal = (numMatch && numMatch[2]) ? numMatch[2].replace(/^0+(?=\d)/, '') : '';
+
+    const setMatch = cleanNumText.match(/\b([A-Z]{3})\b(?=\s+(?:EN|DE|FR|ES|IT|\d))/);
+    const setCode = setMatch ? setMatch[1] : '';
+
+    const stopWords = /^(basis|basic|phase|stage|trainer|unterst[uü]tzer|supporter|item|stadion|stadium|ausr[uü]stung|tool|energ[iy]e?|kp|hp|restored|entwickelt|\d+)$/i;
+    const lines = String(topText || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    let bestName = '';
+    for (const line of lines) {
+      const stripped = line
+        .replace(/\b(?:KP|HP)\s*\d{2,3}\b/gi, '')
+        .replace(/[^A-Za-zÄÖÜäöüßéÉ0-9'’\-\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      const tokens = stripped.split(' ').filter(t => t.length > 1 && !stopWords.test(t));
+      if (tokens.length > 0) {
+        bestName = tokens.join(' ');
+        break;
+      }
+    }
+    return { name: bestName, number: cardNumber, total: cardTotal, setCode };
+  }
+
+  async function scanCardWithGeminiVision(cardCanvas, apiKey) {
+    const b64 = cardCanvas.toDataURL('image/jpeg', 0.86).split(',')[1];
+    const prompt = 'Identify this Pokémon TCG card. Return strictly JSON only (no markdown): {"nameEn":"","nameDe":"","number":"","total":"","setCode":""}. Leave unknown fields empty.';
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          parts: [
+            { text: prompt },
+            { inline_data: { mime_type: 'image/jpeg', data: b64 } }
+          ]
+        }]
+      })
+    });
+    if (!res.ok) throw new Error(`Gemini HTTP ${res.status}`);
+    const data = await res.json();
+    const rawTxt = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const jsonMatch = rawTxt.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('Keine JSON-Antwort von KI');
+    return JSON.parse(jsonMatch[0]);
+  }
+
+  async function addCatalogRowToPortfolio(row, alsoCheckChecklist = false) {
+    if (!row || viewingFriend) return;
+    const [idProduct, rawName, displayNameDe, rowType, catName, expName, expCode, stdDe, stdLow, stdTrend, stdAvg30, , tcgdexId, holoRow] = row;
+    const isSealed = rowType === 's';
+    const type = isSealed ? 'sealed' : 'single';
+    const now = new Date();
+    const today = now.toISOString().slice(0, 10);
+    const title = displayNameDe || rawName;
+    const cmUrl = `https://www.cardmarket.com/de/Pokemon/Products/Search?searchString=${encodeURIComponent(rawName)}&language=3`;
+
+    if (!isStaticMode && profileMode === 'owner') {
+      await fetch('/api/portfolio', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          idProduct: Number(idProduct),
+          name: title,
+          type,
+          variant: 'normal',
+          isHolo: false,
+          isFirstEdition: false,
+          buyPrice: null,
+          quantity: 1,
+          condition: 'NM',
+          language: 'DE',
+          buyDate: today,
+          imageUrl: `/api/cm-image/${idProduct}`,
+          cardmarketUrl: cmUrl
+        })
+      });
+      await fetchPortfolio();
+    } else {
+      const eff = stdDe ?? stdTrend ?? stdLow ?? 0;
+      const hist = [];
+      const d30 = new Date(now.getTime() - 30 * 86400000).toISOString().slice(0, 10);
+      const d7 = new Date(now.getTime() - 7 * 86400000).toISOString().slice(0, 10);
+      if ((stdAvg30 ?? eff) > 0) hist.push({ date: d30, low: Number((stdAvg30 ?? eff).toFixed(2)), trend: Number((stdTrend ?? eff).toFixed(2)), label: '30T Ø' });
+      if ((stdTrend ?? eff) > 0) hist.push({ date: d7, low: Number((stdTrend ?? eff).toFixed(2)), trend: Number((stdTrend ?? eff).toFixed(2)), label: '7T Ø' });
+      if (eff > 0) hist.push({ date: today, low: Number(eff.toFixed(2)), trend: Number((stdTrend ?? eff).toFixed(2)), label: 'Heute' });
+
+      portfolioItems.unshift({
+        id: 'mobile_' + Date.now() + '_' + Math.random().toString(36).slice(2, 5),
+        idProduct: Number(idProduct),
+        name: rawName,
+        displayNameDe: title,
+        type,
+        categoryName: isSealed ? (catName || 'Sealed') : 'Pokémon Single',
+        expansionName: expName || '',
+        expansionCode: expCode || '',
+        tcgdexId: tcgdexId || '',
+        variant: 'normal',
+        isHolo: false,
+        isFirstEdition: false,
+        condition: 'NM',
+        language: 'DE',
+        quantity: 1,
+        buyPrice: null,
+        buyDate: today,
+        customLowPrice: null,
+        imageUrl: `./images/${idProduct}.jpg`,
+        cardmarketUrl: cmUrl,
+        marketPrices: {
+          dePrice: stdDe ?? null,
+          low: stdLow ?? null,
+          trend: stdTrend ?? null,
+          avg30: stdAvg30 ?? null,
+          hasHoloPrices: Array.isArray(holoRow),
+          updatedAt: today
+        },
+        priceHistory: hist,
+        createdAt: now.toISOString()
+      });
+      saveLocalPortfolio();
+      renderAll();
+    }
+
+    if (alsoCheckChecklist && tcgdexId) {
+      const ownedMap = loadChecklistOwnedMap();
+      if (!ownedMap[tcgdexId] || typeof ownedMap[tcgdexId] !== 'object') ownedMap[tcgdexId] = {};
+      ownedMap[tcgdexId][String(idProduct)] = true;
+      saveChecklistOwnedMap(ownedMap);
+    }
+
+    showToast(`✓ „${title.replace(/\[.*?\]/g, '').trim()}“ hinzugefügt${stdDe != null ? ` (${fmtEuro(stdDe)})` : ''}`);
+  }
+
+  async function searchCatalogForScan(queryText, parsedHints = null) {
+    const listEl = document.getElementById('scannerMatchesList');
+    if (!listEl) return;
+    const rawQ = String(queryText || '').trim();
+    const numInQ = rawQ.match(/\b(\d{1,3})(?:\s*\/\s*\d{1,3})?\b/);
+    const numHint = parsedHints?.number || (numInQ ? numInQ[1] : '');
+    const setHint = (parsedHints?.setCode || '').toUpperCase();
+    const cleanedWords = rawQ
+      .replace(/\b\d{1,3}\s*\/\s*\d{1,3}\b/g, '')
+      .toLowerCase()
+      .split(/\s+/)
+      .filter(w => w.length >= 2);
+
+    if (cleanedWords.length === 0 && !numHint) {
+      listEl.innerHTML = '<div class="search-hint">Name oder Kartennummer eingeben bzw. Karte scannen.</div>';
+      return;
+    }
+
+    listEl.innerHTML = '<div class="search-hint">Suche passende Karten im Katalog...</div>';
+
+    let rows = [];
+    if (isStaticMode) {
+      const cat = await ensureStaticCatalogLoaded();
+      const scored = [];
+      for (let i = 0; i < cat.length; i++) {
+        const r = cat[i];
+        const en = String(r[1] || '').toLowerCase();
+        const de = String(r[2] || '').toLowerCase();
+        const exp = String(r[5] || '').toLowerCase();
+        const code = String(r[6] || '').toUpperCase();
+        const hay = `${en} ${de} ${exp} ${code.toLowerCase()}`;
+
+        let score = 0;
+        let wordHits = 0;
+        for (const w of cleanedWords) {
+          if (hay.includes(w)) {
+            wordHits++;
+            score += (en.startsWith(w) || de.startsWith(w)) ? 25 : 14;
+          }
+        }
+        if (cleanedWords.length > 0 && wordHits === 0) continue;
+        if (wordHits === cleanedWords.length && cleanedWords.length > 0) score += 30;
+        if (numHint && (en.includes(`#${numHint}`) || en.includes(`(${numHint})`) || en.includes(` ${numHint}/`))) {
+          score += 35;
+        }
+        if (setHint && code === setHint) score += 25;
+        if (r[3] === 'c') score += 5;
+
+        if (score > 0) scored.push({ r, score, price: Number(r[7] ?? r[9] ?? 0) });
+      }
+      scored.sort((a, b) => (b.score - a.score) || (b.price - a.price));
+      rows = scored.slice(0, 18).map(x => x.r);
+    } else {
+      const qTerm = cleanedWords.join(' ') || numHint;
+      const res = await fetch(`/api/search?q=${encodeURIComponent(qTerm)}&type=single`);
+      const data = await res.json();
+      rows = (data.results || []).slice(0, 18).map(p => [
+        p.idProduct,
+        p.name,
+        p.displayNameDe || '',
+        p.type === 'sealed' ? 's' : 'c',
+        p.categoryName,
+        p.expansionName,
+        p.expansionCode,
+        p.prices?.dePrice ?? null,
+        p.prices?.low ?? null,
+        p.prices?.trend ?? null,
+        p.prices?.avg30 ?? null,
+        p.idCategory || 51,
+        p.tcgdexId || ''
+      ]);
+    }
+
+    listEl.innerHTML = '';
+    if (rows.length === 0) {
+      listEl.innerHTML = '<div class="search-hint">Keine exakten Treffer – passe oben den Namen kurz an (z.B. nur Pokémon-Namen eintippen).</div>';
+      return;
+    }
+
+    for (const row of rows) {
+      const [idProduct, rawName, deName, rowType, , expName, expCode, dePrice, low, trend, , , tcgdexId] = row;
+      const title = (deName || rawName || '').replace(/\[.*?\]/g, '').trim();
+      const priceVal = dePrice ?? trend ?? low;
+      const badge = expCode || (rowType === 's' ? 'BOX' : 'TCG');
+      const imgSrc = isStaticMode ? `./images/${idProduct}.jpg` : `/api/cm-image/${idProduct}`;
+
+      const itemEl = document.createElement('div');
+      itemEl.className = 'scanner-match-row';
+      itemEl.innerHTML = `
+        <div class="scanner-match-thumb">
+          <img src="${escapeHtml(imgSrc)}" loading="lazy" alt="" data-id="${escapeHtml(idProduct)}" data-name="${escapeHtml(rawName)}" data-de="${escapeHtml(deName || '')}" data-type="${rowType === 's' ? 'sealed' : 'single'}" data-tcgdex="${escapeHtml(tcgdexId || '')}" data-exp="${escapeHtml(expName || '')}" data-code="${escapeHtml(expCode || '')}" data-badge="${escapeHtml(badge)}" onerror="handleCardImageError(this)" />
+        </div>
+        <div class="scanner-match-info">
+          <div class="scanner-match-title" title="${escapeHtml(title)}">${escapeHtml(title)}</div>
+          <div class="scanner-match-sub">${escapeHtml(expName || badge)}${expCode ? ` • ${escapeHtml(expCode)}` : ''} • #${idProduct}</div>
+        </div>
+        <div class="scanner-match-actions">
+          <div class="scanner-match-price">${priceVal != null ? fmtEuro(priceVal) : '—'}</div>
+          <button type="button" class="btn btn-primary btn-sm scanner-add-btn">+ Portfolio</button>
+        </div>
+      `;
+      itemEl.querySelector('.scanner-add-btn').addEventListener('click', async btnEv => {
+        const btn = btnEv.currentTarget;
+        btn.disabled = true;
+        btn.textContent = '...';
+        try {
+          await addCatalogRowToPortfolio(row, true);
+          btn.textContent = '✓ Hinzugefügt';
+        } catch (err) {
+          btn.disabled = false;
+          btn.textContent = '+ Portfolio';
+        }
+      });
+      listEl.appendChild(itemEl);
+    }
+  }
+
+  async function processScannedImageCanvas(cardCanvas) {
+    const searchInput = document.getElementById('scannerSearchInput');
+    const debugEl = document.getElementById('scannerOcrDebug');
+    const apiKey = (document.getElementById('scannerGeminiKeyInput')?.value || '').trim();
+    const useAi = Boolean(document.getElementById('scannerUseAiCheck')?.checked) && Boolean(apiKey);
+
+    try {
+      let parsed = null;
+      if (useAi) {
+        setScannerStatus('KI analysiert Karte...');
+        if (debugEl) debugEl.textContent = 'Gemini Vision KI wird gefragt...';
+        try {
+          const aiRes = await scanCardWithGeminiVision(cardCanvas, apiKey);
+          parsed = {
+            name: aiRes.nameDe || aiRes.nameEn || '',
+            enName: aiRes.nameEn || '',
+            number: aiRes.number || '',
+            total: aiRes.total || '',
+            setCode: aiRes.setCode || ''
+          };
+        } catch (aiErr) {
+          if (debugEl) debugEl.textContent = `KI-Fehler (${aiErr.message}) – weiche auf Browser-OCR aus...`;
+        }
+      }
+
+      if (!parsed) {
+        setScannerStatus('Lese Kartenname & Nummer...');
+        if (debugEl) debugEl.textContent = 'Lade OCR-Texterkennung (beim 1. Mal ca. 2–3 Sek)...';
+        const worker = await getScannerOcrWorker();
+
+        const w = cardCanvas.width;
+        const h = cardCanvas.height;
+        const topCrop = enhanceContrastGrayCanvas(cardCanvas, w * 0.04, h * 0.02, w * 0.78, h * 0.17, 680);
+        const botCrop = enhanceContrastGrayCanvas(cardCanvas, w * 0.02, h * 0.84, w * 0.66, h * 0.14, 620);
+
+        const [topRes, botRes] = await Promise.all([
+          worker.recognize(topCrop),
+          worker.recognize(botCrop)
+        ]);
+        parsed = parseOcrCardFields(topRes?.data?.text || '', botRes?.data?.text || '');
+      }
+
+      const displayQuery = [
+        parsed.enName || parsed.name,
+        parsed.number ? (parsed.total ? `${parsed.number}/${parsed.total}` : parsed.number) : '',
+        parsed.setCode
+      ].filter(Boolean).join(' ').trim();
+
+      if (searchInput) searchInput.value = displayQuery;
+      if (debugEl) {
+        debugEl.textContent = displayQuery
+          ? `Erkannt: ${displayQuery} (bei Bedarf oben kurz korrigieren)`
+          : 'Text war schwer lesbar – einfach oben Pokémon-Namen eintippen';
+      }
+      setScannerStatus(displayQuery ? 'Erkennung fertig' : 'Bitte Namen eingeben');
+      await searchCatalogForScan(displayQuery, parsed);
+    } catch (err) {
+      setScannerStatus('Scan fehlgeschlagen');
+      if (debugEl) debugEl.textContent = `Fehler: ${err.message}`;
+    }
+  }
+
+  document.getElementById('btnOpenScannerModal')?.addEventListener('click', openScannerModal);
+  document.getElementById('btnCloseScannerModal')?.addEventListener('click', closeScannerModal);
+  document.getElementById('scannerModal')?.addEventListener('click', e => {
+    if (e.target && e.target.id === 'scannerModal') closeScannerModal();
+  });
+
+  document.getElementById('btnSwitchCamera')?.addEventListener('click', () => {
+    scannerFacingMode = scannerFacingMode === 'environment' ? 'user' : 'environment';
+    startScannerCamera();
+  });
+
+  document.getElementById('btnResumeCamera')?.addEventListener('click', () => {
+    startScannerCamera();
+  });
+
+  document.getElementById('btnSaveScannerKey')?.addEventListener('click', () => {
+    const keyVal = (document.getElementById('scannerGeminiKeyInput')?.value || '').trim();
+    const aiCheck = document.getElementById('scannerUseAiCheck');
+    localStorage.setItem(SCANNER_KEY_STORAGE, keyVal);
+    if (keyVal && aiCheck) {
+      aiCheck.checked = true;
+      localStorage.setItem(SCANNER_AI_STORAGE, '1');
+      showToast('KI API-Key lokal gespeichert ✓');
+    } else {
+      localStorage.setItem(SCANNER_AI_STORAGE, '0');
+      showToast('API-Key entfernt');
+    }
+  });
+
+  document.getElementById('scannerUseAiCheck')?.addEventListener('change', e => {
+    localStorage.setItem(SCANNER_AI_STORAGE, e.target.checked ? '1' : '0');
+  });
+
+  document.getElementById('btnCaptureScan')?.addEventListener('click', async () => {
+    const video = document.getElementById('scannerVideo');
+    const preview = document.getElementById('scannerPreviewCanvas');
+    const resumeBtn = document.getElementById('btnResumeCamera');
+    if (!video || !preview || !video.videoWidth) {
+      showToast('Kamera noch nicht bereit – oder wähle 🖼️ Foto');
+      return;
+    }
+
+    // Freeze full frame on preview canvas
+    const vw = video.videoWidth;
+    const vh = video.videoHeight;
+    preview.width = vw;
+    preview.height = vh;
+    const pCtx = preview.getContext('2d');
+    pCtx.drawImage(video, 0, 0, vw, vh);
+    video.classList.add('hidden');
+    preview.classList.remove('hidden');
+    resumeBtn?.classList.remove('hidden');
+
+    // Crop exact card frame region (63:88 centered, ~82% height of video)
+    const maxH = vh * 0.82;
+    const rawW = maxH * (63 / 88);
+    const cropW = Math.round(Math.min(vw * 0.94, rawW));
+    const cropH = Math.round(Math.min(maxH, cropW * (88 / 63)));
+    const sx = Math.max(0, Math.round((vw - cropW) / 2));
+    const sy = Math.max(0, Math.round((vh - cropH) / 2));
+    const cardCanvas = document.createElement('canvas');
+    cardCanvas.width = cropW;
+    cardCanvas.height = cropH;
+    cardCanvas.getContext('2d').drawImage(preview, sx, sy, cropW, cropH, 0, 0, cropW, cropH);
+
+    await processScannedImageCanvas(cardCanvas);
+  });
+
+  document.getElementById('scannerFileInput')?.addEventListener('change', async e => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const imgUrl = URL.createObjectURL(file);
+      const img = new Image();
+      await new Promise((res, rej) => {
+        img.onload = res;
+        img.onerror = rej;
+        img.src = imgUrl;
+      });
+      const video = document.getElementById('scannerVideo');
+      const preview = document.getElementById('scannerPreviewCanvas');
+      const resumeBtn = document.getElementById('btnResumeCamera');
+      preview.width = img.naturalWidth;
+      preview.height = img.naturalHeight;
+      preview.getContext('2d').drawImage(img, 0, 0);
+      URL.revokeObjectURL(imgUrl);
+
+      video.classList.add('hidden');
+      preview.classList.remove('hidden');
+      resumeBtn?.classList.remove('hidden');
+
+      await processScannedImageCanvas(preview);
+    } catch (err) {
+      setScannerStatus('Foto konnte nicht geladen werden');
+    }
+    e.target.value = '';
+  });
+
+  document.getElementById('scannerSearchInput')?.addEventListener('input', e => {
+    clearTimeout(scannerDebounce);
+    const val = e.target.value;
+    scannerDebounce = setTimeout(() => searchCatalogForScan(val), 180);
   });
 });
