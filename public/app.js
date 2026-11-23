@@ -4685,7 +4685,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return out;
   }
 
-  function parseOcrCardFields(topText, bottomText) {
+  function parseOcrCardFields(topText, bottomText, knownCodes = null) {
     const cleanNumText = String(bottomText || '').replace(/\s+/g, ' ');
     const numMatch = cleanNumText.match(/\b(\d{1,3})\s*\/\s*(\d{1,3})\b/) ||
       cleanNumText.match(/\b((?:TG|GG|SV|SH|AR)\s*\d{1,3})\b/i) ||
@@ -4693,8 +4693,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const cardNumber = numMatch ? numMatch[1].replace(/\s+/g, '').replace(/^0+(?=\d)/, '') : '';
     const cardTotal = (numMatch && numMatch[2]) ? numMatch[2].replace(/^0+(?=\d)/, '') : '';
 
-    const setMatch = cleanNumText.match(/\b([A-Z]{2,4})\b(?=\s+(?:EN|DE|FR|ES|IT|\d))/);
-    const setCode = setMatch ? setMatch[1] : '';
+    let setCode = '';
+    if (knownCodes && knownCodes.size > 0) {
+      const upperTokens = cleanNumText.toUpperCase().match(/\b[A-Z0-9]{2,4}\b/g) || [];
+      for (const tok of upperTokens) {
+        if (tok !== 'DE' && tok !== 'EN' && tok !== 'FR' && tok !== 'ES' && tok !== 'IT' && knownCodes.has(tok)) {
+          setCode = tok;
+          break;
+        }
+      }
+    }
+    if (!setCode) {
+      const setMatch = cleanNumText.match(/\b([A-Z]{2,4})\b(?=\s+(?:EN|DE|FR|ES|IT|\d))/);
+      setCode = setMatch ? setMatch[1] : '';
+    }
 
     const stopWords = /^(basis|basic|phase|stage|trainer|trawer|tramer|tra1ner|unterst[uü]tzer|supporter|item|stadion|stadium|ausr[uü]stung|tool|energ[iy]e?|kp|hp|restored|entwickelt|evolves|from|\d+)$/i;
     const isNoiseHeaderLine = txt => {
@@ -4781,7 +4793,8 @@ document.addEventListener('DOMContentLoaded', () => {
       body: JSON.stringify({
         contents: [{ parts }],
         generationConfig: genCfg
-      })
+      }),
+      signal: AbortSignal.timeout(9000)
     });
     if (!res.ok) {
       const errBody = await res.json().catch(() => ({}));
@@ -4866,7 +4879,9 @@ document.addEventListener('DOMContentLoaded', () => {
               lastErr = err2;
             }
           }
-          if (err.status === 404 || err.status === 400) continue;
+          if (err.status === 404 || err.status === 400 || err.status === 429 || err.status === 503 || err.status >= 500 || err.name === 'TimeoutError' || err.name === 'AbortError') {
+            continue;
+          }
           throw err;
         }
       }
@@ -5127,7 +5142,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const r = searchTarget[i];
             if (r[3] !== 'c') continue;
             const enBase = normalizeScanText(String(r[1] || '').replace(/\[.*?\]/g, '').trim());
-            const deBase = normalizeScanText(String(r[2] || '').split(' – ')[0].replace(/\[.*?\]/g, '').trim());
+            const deBase = normalizeScanText(String(r[2] || '').split(' – ')[0].replace(/\[.*?\]/g, '').replace(/\([^)]*\)/g, '').trim());
             const sim = Math.max(
               diceBigramSimilarity(namePhrase, enBase),
               deBase ? diceBigramSimilarity(namePhrase, deBase) : 0
@@ -5258,13 +5273,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const w = cardCanvas.width;
         const h = cardCanvas.height;
         const topCrop = enhanceContrastGrayCanvas(cardCanvas, w * 0.06, h * 0.05, w * 0.87, h * 0.105, 1000);
-        const botCrop = enhanceContrastGrayCanvas(cardCanvas, w * 0.05, h * 0.88, w * 0.90, h * 0.075, 1000);
+        const botCrop = enhanceContrastGrayCanvas(cardCanvas, w * 0.03, h * 0.87, w * 0.94, h * 0.10, 1000);
 
-        const [topRes, botRes] = await Promise.all([
+        const [topRes, botRes, idxSets] = await Promise.all([
           worker.recognize(topCrop),
-          worker.recognize(botCrop)
+          worker.recognize(botCrop),
+          ensureSetsIndexLoaded().catch(() => [])
         ]);
-        parsed = parseOcrCardFields(topRes?.data?.text || '', botRes?.data?.text || '');
+        const knownCodes = new Set((idxSets || []).map(s => String(s.code || '').toUpperCase()).filter(Boolean));
+        parsed = parseOcrCardFields(topRes?.data?.text || '', botRes?.data?.text || '', knownCodes);
       }
 
       const displayQuery = [
