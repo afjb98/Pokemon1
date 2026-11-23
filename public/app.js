@@ -1043,7 +1043,7 @@ async function ensureStaticCatalogLoaded() {
   if (staticCatalogItems) return staticCatalogItems;
   if (staticCatalogLoadingPromise) return staticCatalogLoadingPromise;
   staticCatalogLoadingPromise = (async () => {
-    const res = await fetch(`./data/catalog_compact.json?t=${Date.now()}`);
+    const res = await fetch(`./data/catalog_compact.json?d=${new Date().toISOString().slice(0, 10)}`);
     const data = await res.json();
     staticCatalogItems = data.items || [];
     return staticCatalogItems;
@@ -5397,7 +5397,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (cardHashesPromise) return cardHashesPromise;
     cardHashesPromise = (async () => {
       try {
-        const res = await fetch('./data/card_hashes.json');
+        const res = await fetch('./data/card_hashes.json?v=49');
         if (!res.ok) return null;
         const data = await res.json();
         const items = (data.items || []).map(([idProduct, b64]) => {
