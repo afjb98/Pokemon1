@@ -4427,8 +4427,8 @@ document.addEventListener('DOMContentLoaded', () => {
       scannerStream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: { ideal: scannerFacingMode },
-          width: { ideal: 1280 },
-          height: { ideal: 1700 }
+          width: { ideal: 1920 },
+          height: { ideal: 2560 }
         },
         audio: false
       });
@@ -4488,6 +4488,12 @@ document.addEventListener('DOMContentLoaded', () => {
     scannerWorkerPromise = (async () => {
       const T = await ensureTesseractLoaded();
       const worker = await T.createWorker('eng+deu');
+      try {
+        await worker.setParameters({
+          tessedit_pageseg_mode: T.PSM?.SPARSE_TEXT || '11',
+          preserve_interword_spaces: '1'
+        });
+      } catch (e) {}
       return worker;
     })().catch(err => {
       scannerWorkerPromise = null;
@@ -4536,9 +4542,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const stopWords = /^(basis|basic|phase|stage|trainer|trawer|tramer|tra1ner|unterst[uü]tzer|supporter|item|stadion|stadium|ausr[uü]stung|tool|energ[iy]e?|kp|hp|restored|entwickelt|evolves|from|\d+)$/i;
     const isNoiseHeaderLine = txt => {
       const low = txt.toLowerCase();
-      if (/^(trai?n[eo]r|trawer|tramer|supp[o0]rter|unterst[uü]tzer|bas[il1]s|stage\s*\d*|phase\s*\d*|stadi[ou]m|item)\b/i.test(low)) return true;
+      if (/^(trai?n[eo]r|trawer|tramer|tra1ner|supp[o0]rter|unterst[uü]tzer|bas[il1]s|stage\s*\d*|phase\s*\d*|stadi[ou]m|item)\b/i.test(low)) return true;
       // Ignore purely uppercase short garbage lines (e.g. OCR reading border patterns)
-      if (txt === txt.toUpperCase() && txt.length <= 9 && !/\d/.test(txt)) return true;
+      if (txt === txt.toUpperCase() && txt.length <= 12 && !/\d/.test(txt)) return true;
+      const rawTokens = txt.split(/\s+/).filter(Boolean);
+      const hasRealWord = rawTokens.some(t => /^[A-ZÄÖÜ][a-zäöüßé]{2,}/.test(t) || /^[a-zäöüßé]{4,}$/.test(t));
+      if (!hasRealWord) return true;
       return false;
     };
 
@@ -4885,8 +4894,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const w = cardCanvas.width;
         const h = cardCanvas.height;
-        const topCrop = enhanceContrastGrayCanvas(cardCanvas, w * 0.02, h * 0.02, w * 0.95, h * 0.19, 900);
-        const botCrop = enhanceContrastGrayCanvas(cardCanvas, w * 0.02, h * 0.82, w * 0.96, h * 0.16, 900);
+        const topCrop = enhanceContrastGrayCanvas(cardCanvas, w * 0.06, h * 0.05, w * 0.87, h * 0.105, 1000);
+        const botCrop = enhanceContrastGrayCanvas(cardCanvas, w * 0.05, h * 0.88, w * 0.90, h * 0.075, 1000);
 
         const [topRes, botRes] = await Promise.all([
           worker.recognize(topCrop),
