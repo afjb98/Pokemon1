@@ -4694,36 +4694,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  function syncScannerAiUi(forceOpenSetup = false) {
-    const savedKey = (localStorage.getItem(SCANNER_KEY_STORAGE) || '').trim();
-    const aiEnabled = Boolean(savedKey) && localStorage.getItem(SCANNER_AI_STORAGE) !== '0';
-    const readyBar = document.getElementById('scannerAiReadyBar');
-    const readyLbl = document.getElementById('scannerAiReadyLabel');
-    const toggleBtn = document.getElementById('btnToggleScannerAi');
-    const setupCard = document.getElementById('scannerAiSetupCard');
-    const keyInput = document.getElementById('scannerGeminiKeyInput');
-    if (keyInput && savedKey && !keyInput.value) keyInput.value = savedKey;
-    const showReady = Boolean(savedKey) && !forceOpenSetup;
-    readyBar?.classList.toggle('hidden', !showReady);
-    setupCard?.classList.toggle('hidden', showReady);
-    if (readyLbl) {
-      readyLbl.innerHTML = aiEnabled
-        ? '✨ <strong>KI-Scanner aktiv</strong>'
-        : '📷 <strong>Offline-OCR aktiv</strong> (ohne KI)';
-    }
-    if (toggleBtn) {
-      toggleBtn.textContent = aiEnabled ? 'Ohne KI (OCR)' : '✨ KI einschalten';
-    }
-  }
-
   function openScannerModal() {
     if (viewingFriend) return;
     const modal = document.getElementById('scannerModal');
     if (!modal) return;
-    const keyInput = document.getElementById('scannerGeminiKeyInput');
-    const savedKey = localStorage.getItem(SCANNER_KEY_STORAGE) || '';
-    if (keyInput) keyInput.value = savedKey;
-    syncScannerAiUi(false);
 
     modal.classList.remove('hidden');
     startScannerCamera();
@@ -5624,58 +5598,31 @@ document.addEventListener('DOMContentLoaded', () => {
   async function processScannedImageCanvas(cardCanvas) {
     const searchInput = document.getElementById('scannerSearchInput');
     const debugEl = document.getElementById('scannerOcrDebug');
-    const apiKey = (localStorage.getItem(SCANNER_KEY_STORAGE) || document.getElementById('scannerGeminiKeyInput')?.value || '').trim();
-    const useAi = Boolean(apiKey) && localStorage.getItem(SCANNER_AI_STORAGE) !== '0';
 
     try {
       let parsed = null;
-      let usedAi = false;
+      const usedAi = false;
       let visRes = null;
 
-      if (!useAi) {
-        setScannerStatus('⚡ Visueller Artwork-Abgleich...');
-        visRes = await matchCardByVisualHash(cardCanvas, 8).catch(() => null);
-        if (visRes && visRes.matches.length > 0) {
-          const bestRow = visRes.matches[0].row;
-          const secondSim = visRes.matches[1] ? visRes.matches[1].sim : 0;
-          const margin = visRes.topSim - secondSim;
-          const pct = Math.round(visRes.topSim * 100);
-          renderScannerMatchRows(visRes.matches.map(m => m.row));
-          if ((visRes.topSim >= 0.76 && margin >= 0.025) || (visRes.topSim >= 0.64 && margin >= 0.09)) {
-            const bestTitle = (bestRow[2] || bestRow[1] || '').replace(/\[.*?\]/g, '').trim();
-            if (searchInput) searchInput.value = bestTitle;
-            if (debugEl) {
-              debugEl.textContent = `⚡ Visuell erkannt (${pct}%): ${bestTitle}${bestRow[6] ? ` • ${bestRow[6]}` : ''}`;
-            }
-            setScannerStatus(`⚡ Erkannt (${pct}%)`);
-            return;
-          }
+      setScannerStatus('⚡ Visueller Artwork-Abgleich...');
+      visRes = await matchCardByVisualHash(cardCanvas, 8).catch(() => null);
+      if (visRes && visRes.matches.length > 0) {
+        const bestRow = visRes.matches[0].row;
+        const secondSim = visRes.matches[1] ? visRes.matches[1].sim : 0;
+        const margin = visRes.topSim - secondSim;
+        const pct = Math.round(visRes.topSim * 100);
+        renderScannerMatchRows(visRes.matches.map(m => m.row));
+        if ((visRes.topSim >= 0.76 && margin >= 0.025) || (visRes.topSim >= 0.64 && margin >= 0.09)) {
+          const bestTitle = (bestRow[2] || bestRow[1] || '').replace(/\[.*?\]/g, '').trim();
+          if (searchInput) searchInput.value = bestTitle;
           if (debugEl) {
-            debugEl.textContent = `⚡ Visuelle Vorauswahl (${pct}%) – prüfe Set-Text...`;
+            debugEl.textContent = `⚡ Visuell erkannt (${pct}%): ${bestTitle}${bestRow[6] ? ` • ${bestRow[6]}` : ''}`;
           }
+          setScannerStatus(`⚡ Erkannt (${pct}%)`);
+          return;
         }
-      }
-
-      if (useAi) {
-        setScannerStatus('✨ KI erkennt Karte...');
-        if (debugEl) debugEl.textContent = 'Gemini Vision KI analysiert die Karte...';
-        try {
-          const aiRes = await scanCardWithGeminiVision(cardCanvas, apiKey);
-          parsed = {
-            name: aiRes.nameDe || aiRes.nameEn || '',
-            enName: aiRes.nameEn || '',
-            setNameEn: aiRes.setNameEn || '',
-            number: aiRes.number || '',
-            total: aiRes.total || '',
-            setCode: aiRes.setCode || '',
-            attack: aiRes.attack || '',
-            isSecret: Boolean(aiRes.isSecret)
-          };
-          usedAi = true;
-        } catch (aiErr) {
-          const isQuota = aiErr.status === 429 || /quota|limit|exceeded/i.test(aiErr.message || '');
-          if (debugEl) debugEl.textContent = isQuota ? 'KI-Tageslimit erreicht – nutze High-Res OCR...' : `KI-Fehler – nutze High-Res OCR...`;
-          showToast(isQuota ? 'KI-Limit erreicht – scanne ohne KI per High-Res OCR' : `KI-Fehler: ${aiErr.message}`, 3500);
+        if (debugEl) {
+          debugEl.textContent = `⚡ Visuelle Vorauswahl (${pct}%) – prüfe Set-Text...`;
         }
       }
 
@@ -5832,54 +5779,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('btnResumeCamera')?.addEventListener('click', () => {
     startScannerCamera();
-  });
-
-  document.getElementById('btnToggleScannerAi')?.addEventListener('click', () => {
-    const curOff = localStorage.getItem(SCANNER_AI_STORAGE) === '0';
-    localStorage.setItem(SCANNER_AI_STORAGE, curOff ? '1' : '0');
-    syncScannerAiUi(false);
-    showToast(curOff ? '✨ KI-Modus aktiviert' : '📷 Offline-OCR-Modus (ohne KI) aktiv');
-  });
-
-  document.getElementById('btnEditScannerKey')?.addEventListener('click', () => {
-    syncScannerAiUi(true);
-    document.getElementById('scannerGeminiKeyInput')?.focus();
-  });
-
-  document.getElementById('btnPasteScannerKey')?.addEventListener('click', async () => {
-    const input = document.getElementById('scannerGeminiKeyInput');
-    if (!input) return;
-    try {
-      const txt = (await navigator.clipboard.readText()).trim();
-      if (txt) {
-        input.value = txt;
-        if (/^AIza[A-Za-z0-9_-]{15,}$/.test(txt)) {
-          localStorage.setItem(SCANNER_KEY_STORAGE, txt);
-          localStorage.setItem(SCANNER_AI_STORAGE, '1');
-          syncScannerAiUi(false);
-          showToast('✨ KI-Scanner direkt aktiviert!');
-          return;
-        }
-      }
-      input.focus();
-    } catch (e) {
-      input.focus();
-      showToast('Bitte Key im Feld gedrückt halten & „Einsetzen“ wählen');
-    }
-  });
-
-  document.getElementById('btnSaveScannerKey')?.addEventListener('click', () => {
-    const keyVal = (document.getElementById('scannerGeminiKeyInput')?.value || '').trim();
-    localStorage.setItem(SCANNER_KEY_STORAGE, keyVal);
-    if (keyVal) {
-      localStorage.setItem(SCANNER_AI_STORAGE, '1');
-      syncScannerAiUi(false);
-      showToast('✨ KI-Scanner aktiviert! Einfach Karte vor die Kamera halten.');
-    } else {
-      localStorage.setItem(SCANNER_AI_STORAGE, '0');
-      syncScannerAiUi(true);
-      showToast('API-Key entfernt');
-    }
   });
 
   async function captureAndScanVideo() {
