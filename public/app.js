@@ -3971,6 +3971,21 @@ document.addEventListener('DOMContentLoaded', () => {
       const willOpen = toolsDrop.classList.contains('hidden');
       toolsDrop.classList.toggle('hidden', !willOpen);
       toolsBtn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+      if (willOpen) {
+        const btnRect = toolsBtn.getBoundingClientRect();
+        const vw = window.innerWidth;
+        const menuW = Math.min(240, vw - 24);
+        toolsDrop.style.width = `${menuW}px`;
+        if (btnRect.right >= menuW + 12) {
+          toolsDrop.style.left = 'auto';
+          toolsDrop.style.right = '0px';
+        } else {
+          const shiftLeft = Math.max(12 - btnRect.left, 0);
+          const clampedLeft = Math.min(shiftLeft, (vw - 12) - btnRect.left - menuW);
+          toolsDrop.style.right = 'auto';
+          toolsDrop.style.left = `${Math.round(clampedLeft)}px`;
+        }
+      }
     });
     toolsDrop.addEventListener('click', () => {
       toolsDrop.classList.add('hidden');
