@@ -143,14 +143,18 @@ function saveDeletedOwnerIdsSet(set) {
 }
 
 let ownerCloudSyncTimer = null;
+let ownerCloudSyncPending = false;
+let ownerCloudPushInFlight = null;
 let ownerCloudVaultSetupMissing = false;
 
 function scheduleOwnerCloudSync() {
   if (profileMode !== 'owner' || !isAdminMode || viewingFriend || ownerCloudVaultSetupMissing) return;
+  ownerCloudSyncPending = true;
   clearTimeout(ownerCloudSyncTimer);
   ownerCloudSyncTimer = setTimeout(() => {
+    ownerCloudSyncTimer = null;
     pushOwnerCloudVaultNow();
-  }, 500);
+  }, 400);
 }
 
 async function fetchOwnerCloudVault(token) {
@@ -177,38 +181,58 @@ async function fetchOwnerCloudVault(token) {
 
 async function pushOwnerCloudVaultNow() {
   if (profileMode !== 'owner' || !isAdminMode || viewingFriend || ownerCloudVaultSetupMissing) return false;
+  clearTimeout(ownerCloudSyncTimer);
+  ownerCloudSyncTimer = null;
+  ownerCloudSyncPending = false;
+  if (ownerCloudPushInFlight) {
+    await ownerCloudPushInFlight.catch(() => {});
+  }
   const token = await getValidAdminAccessToken();
   if (!token) return false;
-  try {
-    const res = await fetch(`${SUPABASE_REST_URL}/owner_vault?on_conflict=id`, {
-      method: 'POST',
-      headers: {
-        'apikey': SUPABASE_KEY,
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'Prefer': 'resolution=merge-duplicates,return=minimal'
-      },
-      body: JSON.stringify({
-        id: 'main',
-        items: stripTransientPortfolioFields(portfolioItems),
-        checklists: loadChecklistOwnedMap(),
-        deleted_ids: [...getDeletedOwnerIds()],
-        updated_at: new Date().toISOString()
-      })
-    });
-    if (res.status === 404) {
-      ownerCloudVaultSetupMissing = true;
+  const runPush = (async () => {
+    try {
+      const res = await fetch(`${SUPABASE_REST_URL}/owner_vault?on_conflict=id`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'resolution=merge-duplicates,return=minimal'
+        },
+        body: JSON.stringify({
+          id: 'main',
+          items: stripTransientPortfolioFields(portfolioItems),
+          checklists: loadChecklistOwnedMap(),
+          deleted_ids: [...getDeletedOwnerIds()].slice(-1500),
+          updated_at: new Date().toISOString()
+        })
+      });
+      if (res.status === 404) {
+        ownerCloudVaultSetupMissing = true;
+        return false;
+      }
+      if (res.ok) {
+        updateStaticStatusBadge();
+        return true;
+      }
+      return false;
+    } catch (e) {
       return false;
     }
-    if (res.ok) {
-      updateStaticStatusBadge();
-      return true;
-    }
-    return false;
-  } catch (e) {
-    return false;
+  })();
+  ownerCloudPushInFlight = runPush;
+  try {
+    return await runPush;
+  } finally {
+    if (ownerCloudPushInFlight === runPush) ownerCloudPushInFlight = null;
   }
 }
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden' && ownerCloudSyncPending) {
+    pushOwnerCloudVaultNow();
+  }
+});
 
 async function syncPersonalPortfolioToSupabase() {
   if (profileMode !== 'personal' || !profileName || viewingFriend) return;
@@ -1231,13 +1255,25 @@ async function fetchPortfolio() {
 
   const deletedIds = getDeletedOwnerIds();
   const adminToken = isAdminMode ? await getValidAdminAccessToken() : null;
+  if (adminToken && (ownerCloudSyncPending || ownerCloudPushInFlight)) {
+    await pushOwnerCloudVaultNow();
+  }
   const cloudVault = adminToken ? await fetchOwnerCloudVault(adminToken) : null;
   updateStaticStatusBadge();
 
   if (cloudVault && Array.isArray(cloudVault.deleted_ids)) {
     for (const did of cloudVault.deleted_ids) deletedIds.add(did);
-    saveDeletedOwnerIdsSet(deletedIds);
   }
+  // Ensure any fully-opened Sealed products recorded by expense entries stay deleted across devices
+  for (const lst of [cloudVault?.items, localData?.items]) {
+    if (!Array.isArray(lst)) continue;
+    for (const it of lst) {
+      if (it && it.type === 'expense' && it.openedAll && it.sourceSealedId) {
+        deletedIds.add(it.sourceSealedId);
+      }
+    }
+  }
+  saveDeletedOwnerIdsSet(deletedIds);
 
   // Merge Set-Checkliste from cloud cleanly (timestamp-aware)
   const chkMerge = mergeChecklistWithCloud(cloudVault);
@@ -1254,7 +1290,8 @@ async function fetchPortfolio() {
       if (deletedIds.has(cItem.id)) continue;
       const localEd = localById.get(cItem.id);
       const localEdMs = localEd?.mobileEditedAt ? Date.parse(localEd.mobileEditedAt) : 0;
-      if (localEd && localEdMs > cloudUpdatedMs) {
+      const cloudEdMs = cItem?.mobileEditedAt ? Date.parse(cItem.mobileEditedAt) : cloudUpdatedMs;
+      if (localEd && localEdMs > cloudEdMs) {
         mergedList.push({ ...cItem, ...localEd });
         needsCloudPush = true;
       } else {
@@ -2407,13 +2444,16 @@ async function deleteItem(itemId) {
     if (selectedChartItemId === itemId) selectedChartItemId = null;
     await fetchPortfolio();
   } else {
-    if (isStaticMode && profileMode === 'owner' && !String(itemId).startsWith('mobile_')) {
+    if (isStaticMode && profileMode === 'owner') {
       addDeletedOwnerId(itemId);
     }
     portfolioItems = portfolioItems.filter(i => i.id !== itemId);
     if (selectedChartItemId === itemId) selectedChartItemId = null;
-    saveLocalPortfolio();
+    saveLocalPortfolio(isStaticMode && profileMode === 'owner');
     renderAll();
+    if (isStaticMode && profileMode === 'owner' && isAdminMode && !viewingFriend) {
+      await pushOwnerCloudVaultNow();
+    }
   }
 }
 
@@ -3881,7 +3921,7 @@ document.addEventListener('DOMContentLoaded', () => {
       } else {
         if (sourceSealed) {
           if (requestedQty >= sealedQty) {
-            if (isStaticMode && profileMode === 'owner' && !String(sourceSealed.id).startsWith('mobile_')) {
+            if (isStaticMode && profileMode === 'owner') {
               addDeletedOwnerId(sourceSealed.id);
             }
             portfolioItems = portfolioItems.filter(i => i.id !== sourceSealed.id);
@@ -3910,14 +3950,19 @@ document.addEventListener('DOMContentLoaded', () => {
           buyPrice: payload.buyPrice,
           buyDate: payload.buyDate,
           notes: payload.notes,
+          sourceSealedId: sourceSealed ? sourceSealed.id : null,
+          openedAll: Boolean(sourceSealed && requestedQty >= sealedQty),
           marketPrices: { dePrice: 0, low: 0, trend: 0, avg30: 0, updatedAt: today },
           priceHistory: [],
           createdAt: new Date().toISOString()
         });
       }
-      saveLocalPortfolio();
+      saveLocalPortfolio(isStaticMode && profileMode === 'owner');
       closeExpenseModal();
       renderAll();
+      if (isStaticMode && profileMode === 'owner' && isAdminMode && !viewingFriend) {
+        await pushOwnerCloudVaultNow();
+      }
     }
 
     if (sourceSealed) {
